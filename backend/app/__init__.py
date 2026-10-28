@@ -18,6 +18,14 @@ def create_app(config_object=Config):
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    # Consistent JSON errors for JWT problems.
+    def _jwt_error(code, message):
+        return jsonify(error={"code": code, "message": message}), 401
+
+    jwt.unauthorized_loader(lambda reason: _jwt_error("unauthorized", "Authentication required."))
+    jwt.invalid_token_loader(lambda reason: _jwt_error("invalid_token", "Invalid token."))
+    jwt.expired_token_loader(lambda header, payload: _jwt_error("token_expired", "Token expired."))
+
     @app.errorhandler(404)
     def not_found(_e):
         return jsonify(error={"code": "not_found", "message": "Resource not found."}), 404

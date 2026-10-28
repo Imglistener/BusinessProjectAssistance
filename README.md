@@ -28,7 +28,13 @@ docker compose up -d db
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-flask --app wsgi db upgrade   # after the first migration is generated
+
+# first time only: create the migrations folder and the initial migration
+# (the app reads DATABASE_URL from your environment; export it or load .env first)
+flask --app wsgi db init
+flask --app wsgi db migrate -m "initial schema"
+flask --app wsgi db upgrade     # apply migrations (also run after each later migrate)
+
 flask --app wsgi run
 
 # frontend (new terminal)
