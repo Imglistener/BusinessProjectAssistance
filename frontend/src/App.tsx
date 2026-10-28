@@ -1,29 +1,33 @@
-import { useEffect, useState } from "react";
-import { Route, Routes } from "react-router-dom";
-import { apiGet } from "./api/client";
+import type { ReactNode } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { useAuth } from "./auth/AuthContext";
+import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Splash from "./pages/Splash";
 
-function Home() {
-  const [status, setStatus] = useState("checking...");
-
-  useEffect(() => {
-    apiGet<{ status: string }>("/health")
-      .then((r) => setStatus(r.status))
-      .catch(() => setStatus("backend unreachable"));
-  }, []);
-
-  return (
-    <main style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1>Business Project Assistance</h1>
-      <p>API status: {status}</p>
-      <p>Next: login/signup, organization setup, dashboard.</p>
-    </main>
-  );
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="boot" role="status">Loading…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Splash />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route
+        path="/app"
+        element={
+          <RequireAuth>
+            <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
