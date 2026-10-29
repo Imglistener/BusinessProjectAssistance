@@ -38,9 +38,23 @@ interface FieldProps {
   error?: string;
   hint?: string;
   required?: boolean;
+  inputMode?: "text" | "decimal" | "numeric" | "email";
+  maxLength?: number;
 }
 
-export function Field({ label, name, type = "text", autoComplete, value, onChange, error, hint, required = true }: FieldProps) {
+export function Field({
+  label,
+  name,
+  type = "text",
+  autoComplete,
+  value,
+  onChange,
+  error,
+  hint,
+  required = true,
+  inputMode,
+  maxLength,
+}: FieldProps) {
   const [shown, setShown] = useState(false);
   const isPassword = type === "password";
   const describedBy = error ? `${name}-error` : hint ? `${name}-hint` : undefined;
@@ -56,6 +70,8 @@ export function Field({ label, name, type = "text", autoComplete, value, onChang
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required={required}
+          inputMode={inputMode}
+          maxLength={maxLength}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
         />

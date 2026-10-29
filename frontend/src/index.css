@@ -555,7 +555,15 @@ a {
   font-weight: 700;
   font-size: 1.75rem;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals__value--empty {
   color: #9aa0c2;
+}
+
+.totals__value--over {
+  color: var(--danger);
 }
 
 .empty {
@@ -651,6 +659,162 @@ a {
     padding-left: 0;
     border-left: 0;
     border-top: 1px solid var(--line);
+  }
+}
+
+/* ---------- Projects ---------- */
+.attention {
+  list-style: none;
+  margin: -0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.attention li::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.5rem;
+  background: var(--danger);
+  transform: rotate(45deg);
+}
+
+.projects-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-head h2 {
+  font-size: 1.35rem;
+}
+
+.projects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.project {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+  gap: 1rem 2rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.project__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.project__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+.project__overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.status {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.status--active {
+  color: var(--blue-600);
+}
+
+.status--on_hold {
+  color: #8a5a00;
+}
+
+.project__budget {
+  display: grid;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project__budget--none {
+  color: var(--muted);
+}
+
+.project__note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.project__note--over {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--blue-100);
+  overflow: hidden;
+}
+
+.bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--blue-600);
+}
+
+.bar--over .bar__fill {
+  background: var(--danger);
+}
+
+.panel {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.panel__title {
+  font-size: 1.25rem;
+}
+
+.form__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn--quiet {
+  background: none;
+  color: var(--muted);
+}
+
+.btn--quiet:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .project {
+    grid-template-columns: 1fr;
   }
 }
 

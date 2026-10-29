@@ -1,16 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
+import { canManageProjects, type DashboardSummary, type Organization, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
+import { ProjectForm } from "../components/ProjectForm";
+import { ProjectList } from "../components/ProjectList";
 import { Wordmark, ZellijField } from "../components/Zellij";
-
-interface Organization {
-  id: number;
-  name: string;
-  default_currency: string;
-  role: string;
-}
+import { formatMoney } from "../lib/format";
 
 const NAV = [
   { label: "Dashboard", active: true },
@@ -96,38 +93,7 @@ export default function Dashboard() {
 
         {orgs !== null && !org && <CreateOrganization onCreated={(o) => setOrgs([o])} />}
 
-        {org && (
-          <>
-            <section className="totals" aria-label="Budget totals">
-              <div>
-                <span className="totals__label">Total budget</span>
-                <span className="totals__value">— {org.default_currency}</span>
-              </div>
-              <div>
-                <span className="totals__label">Spent</span>
-                <span className="totals__value">— {org.default_currency}</span>
-              </div>
-              <div>
-                <span className="totals__label">Remaining</span>
-                <span className="totals__value">— {org.default_currency}</span>
-              </div>
-            </section>
-
-            <section className="empty">
-              <ZellijField className="empty__field" />
-              <div className="empty__body">
-                <h2>No projects yet</h2>
-                <p>
-                  Totals, deadlines and warnings show up here once your first project has a budget. Project creation
-                  is the next thing we're building.
-                </p>
-                <button type="button" className="btn btn--primary" disabled>
-                  Create a project
-                </button>
-              </div>
-            </section>
-          </>
-        )}
+        {org && <OrgOverview org={org} />}
       </main>
     </div>
   );
@@ -162,4 +128,121 @@ function CreateOrganization({ onCreated }: { onCreated(org: Organization): void 
       </div>
     </section>
   );
+}
+
+function OrgOverview({ org }: { org: Organization }) {
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const canCreate = canManageProjects(org.role);
+
+  const load = useCallback(() => {
+    setError(null);
+    Promise.all([
+      api<{ summary: DashboardSummary }>(`/organizations/${org.id}/dashboard`),
+      api<{ projects: Project[] }>(`/organizations/${org.id}/projects`),
+    ])
+      .then(([s, p]) => {
+        setSummary(s.summary);
+        setProjects(p.projects);
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Couldn't load your projects."));
+  }, [org.id]);
+
+  useEffect(load, [load]);
+
+  const totals = summary?.totals.length
+    ? summary.totals
+    : [{ currency: org.default_currency, budget: "", actual: "", remaining: "" }];
+  const empty = projects !== null && projects.length === 0;
+
+  return (
+    <>
+      <FormError message={error} />
+
+      {totals.map((t) => (
+        <section key={t.currency} className="totals" aria-label={`Budget totals in ${t.currency}`}>
+          <div>
+            <span className="totals__label">Total budget</span>
+            <Amount value={t.budget} currency={t.currency} />
+          </div>
+          <div>
+            <span className="totals__label">Spent</span>
+            <Amount value={t.actual} currency={t.currency} />
+          </div>
+          <div>
+            <span className="totals__label">Remaining</span>
+            <Amount value={t.remaining} currency={t.currency} negative={t.remaining.startsWith("-")} />
+          </div>
+        </section>
+      ))}
+
+      {summary && (summary.over_budget_project_count > 0 || summary.overdue_task_count > 0) && (
+        <ul className="attention" aria-label="Needs attention">
+          {summary.over_budget_project_count > 0 && (
+            <li>
+              {summary.over_budget_project_count}{" "}
+              {summary.over_budget_project_count === 1 ? "project is" : "projects are"} over budget
+            </li>
+          )}
+          {summary.overdue_task_count > 0 && (
+            <li>
+              {summary.overdue_task_count} overdue {summary.overdue_task_count === 1 ? "task" : "tasks"}
+            </li>
+          )}
+        </ul>
+      )}
+
+      <section aria-labelledby="projects-heading" className="projects-section">
+        <div className="section-head">
+          <h2 id="projects-heading">Projects</h2>
+          {canCreate && !creating && !empty && (
+            <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
+              New project
+            </button>
+          )}
+        </div>
+
+        {creating && (
+          <ProjectForm
+            org={org}
+            onCancel={() => setCreating(false)}
+            onCreated={() => {
+              setCreating(false);
+              load();
+            }}
+          />
+        )}
+
+        {projects === null && !error && <p className="muted">Loading…</p>}
+
+        {projects && projects.length > 0 && <ProjectList projects={projects} />}
+
+        {empty && !creating && (
+          <div className="empty">
+            <ZellijField className="empty__field" />
+            <div className="empty__body">
+              <h2>No projects yet</h2>
+              <p>
+                {canCreate
+                  ? "Add a project with a budget and dates. Totals, deadlines and warnings start showing here."
+                  : "Ask an organization owner or project manager to add the first project."}
+              </p>
+              {canCreate && (
+                <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
+                  Create a project
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function Amount({ value, currency, negative = false }: { value: string; currency: string; negative?: boolean }) {
+  if (value === "") return <span className="totals__value totals__value--empty">— {currency}</span>;
+  return <span className={negative ? "totals__value totals__value--over" : "totals__value"}>{formatMoney(value, currency)}</span>;
 }
