@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Callable, Optional
 
 from ..errors import ApiError
-from ..models import Project, ProjectStatus, Task, User
+from ..models import Milestone, Project, ProjectStatus, Task, User
 from . import metrics
 from . import projects as svc
 
@@ -120,6 +120,29 @@ def _task_brief(t: Task, today: date, names: dict[int, str]) -> dict:
     return row
 
 
+def _milestones(project: Project, tasks: list, today: date) -> list[dict]:
+    rows = (
+        Milestone.query.filter_by(project_id=project.id)
+        .order_by(Milestone.due_date.is_(None), Milestone.due_date, Milestone.id)
+        .limit(MAX_LIST)
+        .all()
+    )
+    out = []
+    for m in rows:
+        linked = [t for t in tasks if t.milestone_id == m.id]
+        out.append(
+            {
+                "title": m.title,
+                "due_date": m.due_date.isoformat() if m.due_date else None,
+                "status": m.status,
+                "overdue": metrics.is_milestone_overdue(m, today),
+                "linked_tasks": len(linked),
+                "task_completion_pct": _m(metrics.task_completion_pct(linked)),
+            }
+        )
+    return out
+
+
 # ---------- tools ----------
 
 
@@ -172,6 +195,7 @@ def get_project_summary(ctx: ToolContext, args: dict) -> dict:
             "overdue_count": len(metrics.overdue_tasks(tasks, ctx.today)),
         },
         "valid_expense_count": sum(1 for e in expenses if e.status.value == metrics.VALID_EXPENSE_STATUS),
+        "milestones": _milestones(project, tasks, ctx.today),
     }
 
 
@@ -301,7 +325,7 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
     ),
     "get_project_summary": (
         get_project_summary,
-        "Current facts for one project: status, dates, budget figures, task counts and completion.",
+        "Current facts for one project: status, dates, budget figures, task counts, completion and milestones.",
         {"type": "object", "properties": _PROJECT_ID, "required": ["project_id"]},
     ),
     "calculate_budget_metrics": (

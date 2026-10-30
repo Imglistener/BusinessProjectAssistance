@@ -1378,6 +1378,16 @@ a {
   padding: 0.9rem 0;
 }
 
+/* ---------- Milestones ---------- */
+.milestone {
+  flex: 1;
+}
+
+.milestone__bar {
+  max-width: 22rem;
+  margin-top: 0.5rem;
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

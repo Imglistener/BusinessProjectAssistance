@@ -14,6 +14,7 @@ from ..services.audit import log_action
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, require_role
 from . import api_bp
 from .auth import current_user
+from .milestones import check_milestone
 from .projects import project_payload
 from .validation import (
     get_json_body,
@@ -24,7 +25,7 @@ from .validation import (
     require_str,
 )
 
-AUDITED_VALUE_FIELDS = ("status", "priority", "due_date", "assignee_id")
+AUDITED_VALUE_FIELDS = ("status", "priority", "due_date", "assignee_id", "milestone_id")
 # What a contributor may change on a task assigned to them.
 ASSIGNEE_EDITABLE_FIELDS = {"status"}
 
@@ -39,6 +40,7 @@ def task_to_dict(t: Task, today: date, assignee_names: dict[int, str]) -> dict:
         "priority": t.priority.value,
         "due_date": t.due_date.isoformat() if t.due_date else None,
         "assignee_id": t.assignee_id,
+        "milestone_id": t.milestone_id,
         "assignee_name": assignee_names.get(t.assignee_id) if t.assignee_id else None,
         "completed_at": t.completed_at.isoformat() if t.completed_at else None,
         "is_overdue": metrics.is_overdue(t, today),
@@ -111,6 +113,8 @@ def create_task(project_id: int):
 
     assignee_id = parse_optional_id(data, "assignee_id")
     _check_assignee(project, assignee_id)
+    milestone_id = parse_optional_id(data, "milestone_id")
+    check_milestone(project, milestone_id)
     task = Task(
         project_id=project.id,
         title=require_str(data, "title", max_len=200),
@@ -118,6 +122,7 @@ def create_task(project_id: int):
         priority=parse_enum(data, "priority", TaskPriority, TaskPriority.MEDIUM),
         due_date=parse_date(data, "due_date"),
         assignee_id=assignee_id,
+        milestone_id=milestone_id,
     )
     _set_status(task, parse_enum(data, "status", TaskStatus, TaskStatus.TODO))
     db.session.add(task)
@@ -201,6 +206,10 @@ def update_task(task_id: int):
         assignee_id = parse_optional_id(data, "assignee_id")
         _check_assignee(project, assignee_id)
         changes["assignee_id"] = assignee_id
+    if "milestone_id" in data:
+        milestone_id = parse_optional_id(data, "milestone_id")
+        check_milestone(project, milestone_id)
+        changes["milestone_id"] = milestone_id
 
     audit_meta = {}
     for field, new in changes.items():

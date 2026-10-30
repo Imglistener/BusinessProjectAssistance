@@ -32,6 +32,7 @@ FIELD_LABELS = {
     "priority": "Priority",
     "due_date": "Due date",
     "assignee_id": "Assignee",
+    "milestone_id": "Milestone",
     "default_currency": "Currency",
 }
 

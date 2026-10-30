@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import { canManageProjects, type Project } from "../api/models";
+import { canManageProjects, type Milestone, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
+import { MilestoneSection } from "../components/MilestoneSection";
 import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
 import { errorMessage } from "../lib/errors";
@@ -32,7 +33,31 @@ export default function ProjectDetail() {
   }, [projectId]);
 
   // Expense and task changes return fresh project figures; keep my_role from the first load.
-  const merge = useCallback((p: Project) => setProject((prev) => (prev ? { ...prev, ...p, my_role: prev.my_role } : p)), []);
+  const merge = useCallback(
+    (p: Project) => setProject((prev) => (prev ? { ...prev, ...p, my_role: prev.my_role } : p)),
+    [],
+  );
+
+  const [milestones, setMilestones] = useState<Milestone[] | null>(null);
+  const loadMilestones = useCallback(() => {
+    api<{ milestones: Milestone[] }>(`/projects/${projectId}/milestones`)
+      .then((r) => setMilestones(r.milestones))
+      .catch(() => setMilestones([]));
+  }, [projectId]);
+
+  useEffect(() => {
+    setMilestones(null);
+    loadMilestones();
+  }, [loadMilestones]);
+
+  // Task changes move milestone progress too.
+  const onTaskChange = useCallback(
+    (p: Project) => {
+      merge(p);
+      loadMilestones();
+    },
+    [merge, loadMilestones],
+  );
 
   return (
     <AppShell>
@@ -46,8 +71,14 @@ export default function ProjectDetail() {
       {project && user && (
         <>
           <ProjectHeader project={project} onProjectChange={merge} />
+          <MilestoneSection project={project} milestones={milestones} onChanged={loadMilestones} />
+          <TaskSection
+            project={project}
+            userId={user.id}
+            milestones={milestones ?? []}
+            onProjectChange={onTaskChange}
+          />
           <ExpenseSection project={project} userId={user.id} onProjectChange={merge} />
-          <TaskSection project={project} userId={user.id} onProjectChange={merge} />
         </>
       )}
     </AppShell>

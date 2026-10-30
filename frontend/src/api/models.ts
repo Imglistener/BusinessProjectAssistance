@@ -59,7 +59,21 @@ export interface Task {
   due_date: string | null;
   assignee_id: number | null;
   assignee_name: string | null;
+  milestone_id: number | null;
   completed_at: string | null;
+  is_overdue: boolean;
+}
+
+export interface Milestone {
+  id: number;
+  project_id: number;
+  title: string;
+  due_date: string | null;
+  status: "open" | "done";
+  task_count: number;
+  done_task_count: number;
+  /** null when no eligible linked tasks */
+  task_completion_pct: string | null;
   is_overdue: boolean;
 }
 

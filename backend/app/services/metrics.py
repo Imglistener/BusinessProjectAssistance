@@ -78,6 +78,14 @@ def overdue_tasks(tasks: Iterable, today: date) -> list:
     return [t for t in tasks if is_overdue(t, today)]
 
 
+MILESTONE_DONE = "done"
+
+
+def is_milestone_overdue(milestone, today: date) -> bool:
+    """Open milestone whose due date is before today (same rule as tasks)."""
+    return milestone.status != MILESTONE_DONE and milestone.due_date is not None and milestone.due_date < today
+
+
 def spend_rate_per_day(expenses: Iterable, period_days: int, today: date) -> Optional[Decimal]:
     """Eligible expenses in the last `period_days` (inclusive of today) / period_days. Indicative only."""
     if period_days <= 0:

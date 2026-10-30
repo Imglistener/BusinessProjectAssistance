@@ -58,6 +58,15 @@
 - Expenses: category, date range and voided; the response includes the valid total for the whole filter.
 - Tasks: status (incl. "open"), assignee (incl. "assigned to me", unassigned) and overdue, filtered in the browser.
 
+## Milestones (implemented)
+- Owners and project managers create, edit, complete/reopen and delete milestones; everyone in the
+  organization can see them. Archived projects are read-only.
+- Progress = task completion % of the milestone's linked tasks (same rule as projects: cancelled excluded).
+- Overdue = open with a due date before today in the organization timezone (same as tasks).
+- Completing a milestone is a manual decision; it doesn't require all linked tasks to be done.
+- Deleting a milestone keeps its tasks and unlinks them.
+- The AI project summary includes milestones.
+
 ## Still open
 - Report export format, notifications.
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

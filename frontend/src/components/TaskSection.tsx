@@ -3,6 +3,7 @@ import { ApiError, api } from "../api/client";
 import {
   canContribute,
   canManageProjects,
+  type Milestone,
   type Project,
   type Task,
   type TaskPriority,
@@ -21,6 +22,7 @@ interface Member {
 interface Props {
   project: Project;
   userId: number;
+  milestones: Milestone[];
   onProjectChange(project: Project): void;
 }
 
@@ -28,7 +30,7 @@ const STATUS_OPTIONS = Object.entries(TASK_STATUS_LABEL).map(([value, label]) =>
 const STATUS_FILTERS = [{ value: "", label: "All" }, { value: "open", label: "Open" }, ...STATUS_OPTIONS];
 const OPEN = (s: TaskStatus) => s !== "done" && s !== "cancelled";
 
-export function TaskSection({ project, userId, onProjectChange }: Props) {
+export function TaskSection({ project, userId, milestones, onProjectChange }: Props) {
   const role = project.my_role ?? "viewer";
   const editable = project.status !== "archived";
   const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -39,14 +41,18 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
   const [statusFilter, setStatusFilter] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
-  const filtering = statusFilter !== "" || assigneeFilter !== "" || overdueOnly;
+  const [milestoneFilter, setMilestoneFilter] = useState("");
+  const filtering = statusFilter !== "" || assigneeFilter !== "" || overdueOnly || milestoneFilter !== "";
+  const milestoneTitle = new Map(milestones.map((m) => [m.id, m.title]));
 
   const shown = (tasks ?? []).filter(
     (t) =>
       (statusFilter === "" || (statusFilter === "open" ? OPEN(t.status) : t.status === statusFilter)) &&
       (assigneeFilter === "" ||
         (assigneeFilter === "none" ? t.assignee_id === null : t.assignee_id === Number(assigneeFilter))) &&
-      (!overdueOnly || t.is_overdue),
+      (!overdueOnly || t.is_overdue) &&
+      (milestoneFilter === "" ||
+        (milestoneFilter === "none" ? t.milestone_id === null : t.milestone_id === Number(milestoneFilter))),
   );
   const assigneeOptions = [
     { value: "", label: "Anyone" },
@@ -95,6 +101,7 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
         <TaskForm
           project={project}
           members={members}
+          milestones={milestones}
           onCancel={() => setAdding(false)}
           onSaved={(task, p) => {
             setAdding(false);
@@ -113,6 +120,18 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
             onChange={setAssigneeFilter}
             options={assigneeOptions}
           />
+          {milestones.length > 0 && (
+            <FilterSelect
+              label="Milestone"
+              value={milestoneFilter}
+              onChange={setMilestoneFilter}
+              options={[
+                { value: "", label: "Any" },
+                { value: "none", label: "No milestone" },
+                ...milestones.map((m) => ({ value: String(m.id), label: m.title })),
+              ]}
+            />
+          )}
           <FilterCheck label="Only overdue" checked={overdueOnly} onChange={setOverdueOnly} />
         </FilterBar>
       )}
@@ -129,6 +148,7 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
               setStatusFilter("");
               setAssigneeFilter("");
               setOverdueOnly(false);
+              setMilestoneFilter("");
             }}
           >
             Clear filters
@@ -144,6 +164,7 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
                 <TaskForm
                   project={project}
                   members={members}
+                  milestones={milestones}
                   task={t}
                   onCancel={() => setEditingId(null)}
                   onSaved={(task, p) => {
@@ -160,6 +181,9 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
                   <p className="row__meta">
                     {PRIORITY_LABEL[t.priority]} priority
                     {t.assignee_name ? ` — ${t.assignee_name}` : " — Unassigned"}
+                    {t.milestone_id !== null &&
+                      milestoneTitle.has(t.milestone_id) &&
+                      ` — ${milestoneTitle.get(t.milestone_id)}`}
                     {t.due_date && (
                       <>
                         {" — "}
@@ -211,12 +235,14 @@ function byDueDate(a: Task, b: Task) {
 function TaskForm({
   project,
   members,
+  milestones,
   task,
   onSaved,
   onCancel,
 }: {
   project: Project;
   members: Member[];
+  milestones: Milestone[];
   /** Edit this task instead of adding one. */
   task?: Task;
   onSaved(task: Task, project: Project): void;
@@ -227,6 +253,7 @@ function TaskForm({
     priority: task?.priority ?? "medium",
     due_date: task?.due_date ?? "",
     assignee_id: task?.assignee_id ? String(task.assignee_id) : "",
+    milestone_id: task?.milestone_id ? String(task.milestone_id) : "",
   });
   const id = task ? `task_${task.id}_` : "task_";
   // Keep a current assignee who has since left the organization selectable.
@@ -250,6 +277,7 @@ function TaskForm({
         priority: form.priority as TaskPriority,
         due_date: form.due_date || null,
         assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
+        milestone_id: form.milestone_id ? Number(form.milestone_id) : null,
       };
       if (task && body.assignee_id === task.assignee_id) {
         // Unchanged: don't re-validate an assignee who may have left the organization.
@@ -297,6 +325,16 @@ function TaskForm({
         options={assigneeOptions}
       />
       {fieldErrors.assignee_id && <p className="field__message field__message--error">{fieldErrors.assignee_id}</p>}
+      {milestones.length > 0 && (
+        <SelectField
+          label="Milestone"
+          name={`${id}milestone`}
+          value={form.milestone_id}
+          onChange={set("milestone_id")}
+          options={[{ value: "", label: "None" }, ...milestones.map((m) => ({ value: String(m.id), label: m.title }))]}
+        />
+      )}
+      {fieldErrors.milestone_id && <p className="field__message field__message--error">{fieldErrors.milestone_id}</p>}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
           {busy ? "Saving…" : task ? "Save changes" : "Save task"}
