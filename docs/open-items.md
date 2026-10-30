@@ -113,6 +113,9 @@
 - Contributors and up plan trips; managers or the trip's creator edit/delete. Deleting unlinks its expenses.
 - Upcoming planned/booked trips appear in the dashboard "Coming up" list and in the AI project summary.
 
+## User guide
+- `docs/user-guide.md`, written for end users (owners, managers, contributors). Update it when features change.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
