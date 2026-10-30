@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import Assistant from "./pages/Assistant";
 import Invite from "./pages/Invite";
@@ -15,8 +15,10 @@ import Splash from "./pages/Splash";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="boot" role="status">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  // Come back to the same page after logging in again.
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   return <>{children}</>;
 }
 

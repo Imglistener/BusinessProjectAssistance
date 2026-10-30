@@ -10,7 +10,10 @@ def handle_api_error(e: ApiError):
     body = {"code": e.code, "message": e.message}
     if e.details:
         body["details"] = e.details
-    return jsonify(error=body), e.status
+    response = jsonify(error=body)
+    if e.status == 429 and isinstance(e.details, dict) and "retry_after" in e.details:
+        response.headers["Retry-After"] = str(e.details["retry_after"])
+    return response, e.status
 
 
 @api_bp.get("/health")

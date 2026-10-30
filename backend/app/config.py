@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from decimal import Decimal
 
 
@@ -9,6 +10,13 @@ class Config:
         "DATABASE_URL", "postgresql+psycopg2://bpa:bpa@localhost:5432/bpa"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # How long a login lasts. There are no refresh tokens yet, so the user logs in again after this.
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=int(os.getenv("JWT_ACCESS_TOKEN_HOURS", "12")))
+    # Comma-separated frontend origins allowed to call the API; "*" is fine for local development only.
+    CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+    # Number of reverse proxies in front of the app that set X-Forwarded-For / -Proto (0 = none).
+    PROXY_FIX_X_FOR = int(os.getenv("PROXY_FIX_X_FOR", "0"))
 
     DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY", "MAD")
 
@@ -35,6 +43,8 @@ class Config:
 class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SECRET_KEY = "test-secret-key-that-is-long-enough-123"
+    JWT_SECRET_KEY = "test-jwt-secret-key-that-is-long-enough-456"
     GROQ_API_KEY = ""  # tests never reach a real provider
     EMAIL_PROVIDER = "console"
     RESEND_API_KEY = ""

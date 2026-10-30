@@ -1,5 +1,7 @@
 const BASE: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const TOKEN_KEY = "bpa.token";
+/** Fired when the server rejects the stored token (expired or invalid); AuthContext logs the user out. */
+export const SESSION_EXPIRED_EVENT = "bpa:session-expired";
 
 export const tokenStore = {
   get(): string | null {
@@ -58,6 +60,10 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const err = data?.error;
+    if (res.status === 401 && token && ["token_expired", "invalid_token", "unauthorized"].includes(err?.code)) {
+      tokenStore.clear();
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     throw new ApiError(
       err?.code ?? "unknown",
       err?.message ?? "Something went wrong. Try again.",

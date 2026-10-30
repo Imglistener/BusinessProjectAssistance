@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ApiError, api, tokenStore } from "../api/client";
+import { ApiError, SESSION_EXPIRED_EVENT, api, tokenStore } from "../api/client";
 
 export interface User {
   id: number;
@@ -17,6 +17,8 @@ interface AuthState {
   user: User | null;
   /** True until the stored token (if any) has been checked. */
   loading: boolean;
+  /** The last session ended because the login expired (not a manual log out). */
+  expired: boolean;
   login(email: string, password: string): Promise<void>;
   register(input: { first_name: string; last_name: string; email: string; password: string }): Promise<void>;
   logout(): void;
@@ -27,6 +29,16 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(() => tokenStore.get() !== null);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      setExpired(true);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   useEffect(() => {
     if (!tokenStore.get()) return;
@@ -43,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await api<AuthResponse>("/auth/login", { body: { email, password } });
     tokenStore.set(r.access_token);
     setUser(r.user);
+    setExpired(false);
   }, []);
 
   const register = useCallback<AuthState["register"]>(async (input) => {
@@ -54,9 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     tokenStore.clear();
     setUser(null);
+    setExpired(false);
   }, []);
 
-  const value = useMemo(() => ({ user, loading, login, register, logout }), [user, loading, login, register, logout]);
+  const value = useMemo(
+    () => ({ user, loading, expired, login, register, logout }),
+    [user, loading, expired, login, register, logout],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

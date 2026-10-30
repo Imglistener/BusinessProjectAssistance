@@ -6,7 +6,7 @@ import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayou
 import { safeNext } from "../lib/format";
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, expired } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
@@ -28,6 +28,11 @@ export default function Login() {
   return (
     <AuthLayout title="Log in" subtitle="Pick up where you left off.">
       <form onSubmit={submit} className="form">
+        {expired && !error && (
+          <p className="notice" role="status">
+            Your session expired. Log in again to continue.
+          </p>
+        )}
         <FormError message={error} />
         <Field label="Email" name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
         <Field

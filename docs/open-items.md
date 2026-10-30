@@ -75,7 +75,14 @@
 - Any member who can see the project can view and export it. Exports aren't audited (they change nothing).
 - Excel (.xlsx) export and a server-generated PDF are possible later if needed.
 
+## Security pass (implemented)
+- Rate limits: 5 failed logins per email per 15 min (locks even the right password until the window
+  passes), 30 login attempts per IP per 15 min, 10 signups / 10 reset requests / 20 reset confirmations
+  per IP per hour. In memory, per process (see docs/deployment.md).
+- Logins last 12 hours (was the library default of 15 minutes); the app returns to the login page when one expires.
+- CORS origins and proxy settings are configurable; weak or placeholder secrets log a warning at startup.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
-- Hosting and backup plan.
+- Hosting choice; confirm the backup proposal in docs/deployment.md.

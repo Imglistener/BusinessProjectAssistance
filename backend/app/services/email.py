@@ -38,7 +38,10 @@ class ConsoleSender:
 
     def send(self, email: Email, idempotency_key: str) -> bool:
         current_app.extensions.setdefault("email_outbox", []).append(email)
-        current_app.logger.info("Email (not sent, console mode) to %s: %s\n%s", email.to, email.subject, email.text)
+        # Warning level: Flask only shows INFO in debug mode, and this is how developers get the link.
+        current_app.logger.warning(
+            "Email NOT sent (EMAIL_PROVIDER=console) to %s: %s\n%s", email.to, email.subject, email.text
+        )
         return False
 
 

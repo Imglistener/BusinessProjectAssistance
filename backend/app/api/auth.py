@@ -9,6 +9,7 @@ from ..extensions import db
 from ..models import OrganizationMember, PasswordResetToken, User, utcnow
 from ..services.audit import log_action
 from ..services.email import app_link, password_reset_email, send_email
+from ..services.ratelimit import client_ip, enforce, limiter, too_many
 from ..services.tokens import aware, hash_token, new_token
 from . import api_bp
 from .errors import ApiError
@@ -18,6 +19,13 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
 RESET_TTL_MINUTES = 30
 MAX_RESETS_PER_HOUR = 3
+# Sliding windows, in seconds. Failed logins are counted per email (to stop password guessing on one
+# account) and all attempts per IP (to stop spraying many accounts).
+LOGIN_FAILURES_PER_EMAIL = (5, 15 * 60)
+LOGIN_ATTEMPTS_PER_IP = (30, 15 * 60)
+SIGNUPS_PER_IP = (10, 60 * 60)
+RESET_REQUESTS_PER_IP = (10, 60 * 60)
+RESET_CONFIRMS_PER_IP = (20, 60 * 60)
 RESET_REQUESTED = "If an account exists for that email, we've sent a link to reset the password."
 
 
@@ -40,6 +48,7 @@ def current_user() -> User:
 
 @api_bp.post("/auth/register")
 def register():
+    enforce(f"signup:ip:{client_ip()}", *SIGNUPS_PER_IP)
     data = get_json_body()
     first_name = require_str(data, "first_name", max_len=100)
     last_name = require_str(data, "last_name", max_len=100)
@@ -66,9 +75,17 @@ def register():
 
 @api_bp.post("/auth/login")
 def login():
+    enforce(f"login:ip:{client_ip()}", *LOGIN_ATTEMPTS_PER_IP)
     data = get_json_body()
     email = require_str(data, "email").lower()
     password = data.get("password")
+
+    # Checked before the password, so a locked account can't be probed with more guesses.
+    # Applies to any email string, so it doesn't reveal which accounts exist.
+    failures_key = f"login:fail:{email}"
+    wait = limiter().retry_after(failures_key, *LOGIN_FAILURES_PER_EMAIL)
+    if wait is not None:
+        raise too_many(wait)
 
     user = User.query.filter_by(email=email).first()
     # One generic error for unknown email and wrong password.
@@ -78,7 +95,9 @@ def login():
         or not isinstance(password, str)
         or not check_password_hash(user.password_hash, password)
     ):
+        limiter().record(failures_key)
         raise ApiError("invalid_credentials", "Incorrect email or password.", 401)
+    limiter().clear(failures_key)
 
     token = create_access_token(identity=str(user.id))
     return jsonify(access_token=token, user=user_to_dict(user))
@@ -100,6 +119,7 @@ def me():
 @api_bp.post("/auth/password-reset")
 def request_password_reset():
     """Always the same answer, so the form can't be used to find out who has an account."""
+    enforce(f"reset:ip:{client_ip()}", *RESET_REQUESTS_PER_IP)
     data = get_json_body()
     email = require_str(data, "email").lower()
     user = User.query.filter_by(email=email, status="active").first()
@@ -128,6 +148,7 @@ def request_password_reset():
 
 @api_bp.post("/auth/password-reset/confirm")
 def confirm_password_reset():
+    enforce(f"reset-confirm:ip:{client_ip()}", *RESET_CONFIRMS_PER_IP)
     data = get_json_body()
     token = data.get("token")
     password = require_str(data, "password", max_len=128, min_len=MIN_PASSWORD_LENGTH)
