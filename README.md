@@ -45,6 +45,15 @@ npm run dev
 
 Run backend tests: `cd backend && pytest`
 
+End-to-end smoke test (drives the running app in a headless browser; it changes data, so use a
+scratch database loaded with `demo-data`):
+
+```bash
+cd frontend
+npx playwright install chromium-headless-shell   # first time only
+npm run e2e                                      # or E2E_BASE_URL=http://host:port npm run e2e
+```
+
 ## Demo data
 
 To see the app with realistic data, run once (after `db upgrade`):
