@@ -41,6 +41,11 @@ def create_app(config_object=Config):
     def not_found(_e):
         return jsonify(error={"code": "not_found", "message": "Resource not found."}), 404
 
+    @app.errorhandler(413)
+    def too_large(_e):
+        mb = app.config["MAX_UPLOAD_MB"]
+        return jsonify(error={"code": "file_too_large", "message": f"Files can be at most {mb} MB."}), 413
+
     @app.errorhandler(500)
     def server_error(_e):
         # Never expose stack traces or internals (FR-18).

@@ -4,6 +4,7 @@ import { canContribute, canManageProjects, type Expense, type Project, type Trip
 import { errorMessage } from "../lib/errors";
 import { formatDate, formatMoney, todayIso } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
+import { ExpenseFiles } from "./ExpenseFiles";
 import { FilterBar, FilterCheck, FilterDate, FilterSelect } from "./Filters";
 
 const CATEGORIES = ["Design", "Software", "Marketing", "Equipment", "Travel", "Services", "Other"];
@@ -196,7 +197,11 @@ function ExpenseRow({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
+  const [fileCount, setFileCount] = useState(expense.attachment_count);
   const voided = expense.status !== "valid";
+  // Voided expenses keep their receipts (viewable) but take no new ones.
+  const canChangeFiles = canChange && !voided;
 
   const doVoid = async () => {
     setBusy(true);
@@ -212,41 +217,54 @@ function ExpenseRow({
   };
 
   return (
-    <li className={voided ? "row row--voided" : "row"}>
-      <div className="row__main">
-        <p className="row__title">
-          {expense.category}
-          {voided && <span className="tag">{expense.status === "voided" ? "Voided" : "Refunded"}</span>}
-        </p>
-        <p className="row__meta">
-          {formatDate(expense.expense_date)}
-          {expense.description ? ` — ${expense.description}` : ""}
-          {tripTitle ? ` — Trip: ${tripTitle}` : ""}
-        </p>
+    <li className={voided ? "row row--voided row--stacked" : "row row--stacked"}>
+      <div className="row row--plain">
+        <div className="row__main">
+          <p className="row__title">
+            {expense.category}
+            {voided && <span className="tag">{expense.status === "voided" ? "Voided" : "Refunded"}</span>}
+          </p>
+          <p className="row__meta">
+            {formatDate(expense.expense_date)}
+            {expense.description ? ` — ${expense.description}` : ""}
+            {tripTitle ? ` — Trip: ${tripTitle}` : ""}
+          </p>
+        </div>
+        <div className="row__side">
+          <span className="row__amount">{formatMoney(expense.amount, expense.currency)}</span>
+          {(fileCount > 0 || canChangeFiles) && (
+            <button
+              type="button"
+              className="link-btn"
+              aria-expanded={showFiles}
+              onClick={() => setShowFiles((s) => !s)}
+            >
+              {fileCount > 0 ? `Receipts (${fileCount})` : "Add receipt"}
+            </button>
+          )}
+          {canChange &&
+            (confirming ? (
+              <span className="row__confirm">
+                <button type="button" className="link-btn link-btn--danger" onClick={doVoid} disabled={busy}>
+                  {busy ? "Voiding…" : "Void expense"}
+                </button>
+                <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <span className="row__confirm">
+                <button type="button" className="link-btn" onClick={onEdit}>
+                  Edit
+                </button>
+                <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
+                  Void
+                </button>
+              </span>
+            ))}
+        </div>
       </div>
-      <div className="row__side">
-        <span className="row__amount">{formatMoney(expense.amount, expense.currency)}</span>
-        {canChange &&
-          (confirming ? (
-            <span className="row__confirm">
-              <button type="button" className="link-btn link-btn--danger" onClick={doVoid} disabled={busy}>
-                {busy ? "Voiding…" : "Void expense"}
-              </button>
-              <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
-                Keep
-              </button>
-            </span>
-          ) : (
-            <span className="row__confirm">
-              <button type="button" className="link-btn" onClick={onEdit}>
-                Edit
-              </button>
-              <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
-                Void
-              </button>
-            </span>
-          ))}
-      </div>
+      {showFiles && <ExpenseFiles expenseId={expense.id} canChange={canChangeFiles} onCountChange={setFileCount} />}
     </li>
   );
 }

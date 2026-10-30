@@ -166,8 +166,22 @@ class Expense(db.Model):
     description = db.Column(db.Text)
     expense_date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.Enum(ExpenseStatus), nullable=False, default=ExpenseStatus.VALID)
-    receipt_url = db.Column(db.String(500))  # attachments are "later"; kept nullable
     trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), index=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class Attachment(db.Model):
+    """A file attached to an expense (receipt, invoice). The file itself lives in storage under stored_name."""
+
+    __tablename__ = "attachments"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey("expenses.id"), nullable=False, index=True)
+    filename = db.Column(db.String(255), nullable=False)  # original name, for display and download
+    stored_name = db.Column(db.String(64), unique=True, nullable=False)  # random; never user-controlled
+    content_type = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 

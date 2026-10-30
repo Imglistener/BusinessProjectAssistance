@@ -24,6 +24,12 @@ class Config:
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "console")
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+    # Uploaded receipts. A local folder for now; back it up with the database (see docs/deployment.md).
+    UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads"))
+    MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
+    # Flask rejects bigger request bodies before they're read (413).
+    MAX_CONTENT_LENGTH = (MAX_UPLOAD_MB + 1) * 1024 * 1024
+
     # Frontend address used in emailed links.
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5173")
 
@@ -48,3 +54,4 @@ class TestConfig(Config):
     GROQ_API_KEY = ""  # tests never reach a real provider
     EMAIL_PROVIDER = "console"
     RESEND_API_KEY = ""
+    UPLOAD_DIR = ""  # set per test to a temporary folder

@@ -55,6 +55,9 @@ read-only and hidden from the dashboard; open one through the status filter and 
   you're over budget.
 - Expenses are never deleted. If one was a mistake, **Void** it: it stays on record but stops counting.
 - Filter expenses by category and dates; the total for the filter is shown under the filters.
+- **Receipts**: select **Add receipt** on an expense to attach a PDF or photo (JPEG, PNG, WebP; up to 10 MB,
+  10 files per expense). Anyone who can see the project can view them; whoever can edit the expense can add
+  or remove them. Receipts stay with voided expenses.
 
 ### Tasks and milestones
 

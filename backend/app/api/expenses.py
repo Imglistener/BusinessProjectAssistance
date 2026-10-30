@@ -5,10 +5,11 @@ from decimal import Decimal
 
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required
+from sqlalchemy import func
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, ExpenseStatus, Project, Role
+from ..models import Attachment, Expense, ExpenseStatus, Project, Role
 from ..services import metrics
 from ..services import projects as svc
 from ..services.audit import log_action
@@ -32,7 +33,10 @@ MAX_PAGE_SIZE = 200
 AUDITED_VALUE_FIELDS = ("amount", "category", "expense_date", "trip_id")
 
 
-def expense_to_dict(e: Expense) -> dict:
+def expense_to_dict(e: Expense, attachment_count: int | None = None) -> dict:
+    """`attachment_count` comes from the list's grouped query; single-expense responses count here."""
+    if attachment_count is None:
+        attachment_count = Attachment.query.filter_by(expense_id=e.id).count() if e.id else 0
     return {
         "id": e.id,
         "project_id": e.project_id,
@@ -44,6 +48,7 @@ def expense_to_dict(e: Expense) -> dict:
         "expense_date": e.expense_date.isoformat(),
         "status": e.status.value,
         "trip_id": e.trip_id,
+        "attachment_count": attachment_count,
     }
 
 
@@ -160,8 +165,14 @@ def list_expenses(project_id: int):
     categories = [
         c for (c,) in db.session.query(Expense.category).filter_by(project_id=project.id).distinct().order_by(Expense.category)
     ]
+    counts = dict(
+        db.session.query(Attachment.expense_id, func.count(Attachment.id))
+        .filter(Attachment.expense_id.in_([e.id for e in rows]))
+        .group_by(Attachment.expense_id)
+        .all()
+    ) if rows else {}
     return jsonify(
-        expenses=[expense_to_dict(e) for e in rows],
+        expenses=[expense_to_dict(e, counts.get(e.id, 0)) for e in rows],
         total=total,
         limit=limit,
         offset=offset,

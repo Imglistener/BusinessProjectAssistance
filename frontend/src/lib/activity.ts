@@ -94,6 +94,10 @@ export function describe(e: ActivityEntry, people: Record<string, string>, curre
         }),
       );
     }
+    case "attachment.added":
+      return `attached ${quote(typeof m.filename === "string" ? m.filename : null, "a file")} to an expense`;
+    case "attachment.removed":
+      return `removed ${quote(typeof m.filename === "string" ? m.filename : null, "a file")} from an expense`;
     case "trip.created":
       return `planned a trip${typeof m.destination === "string" ? ` to ${m.destination}` : ""}`;
     case "trip.deleted":

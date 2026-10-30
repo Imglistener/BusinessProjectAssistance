@@ -116,6 +116,12 @@
 ## User guide
 - `docs/user-guide.md`, written for end users (owners, managers, contributors). Update it when features change.
 
+## Expense receipts (implemented, my defaults)
+- PDF/JPEG/PNG/WebP, type checked from the file contents; 10 MB and 10 files per expense; random stored names.
+- Stored in a local folder (`UPLOAD_DIR`). For multiple servers or managed hosting, move to object storage
+  (S3-compatible) by implementing save/read/delete in `services/storage.py`.
+- Always served as downloads with `nosniff`, through permission-checked endpoints. No virus scanning yet.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

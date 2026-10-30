@@ -45,6 +45,7 @@ export interface Expense {
   expense_date: string;
   status: ExpenseStatus;
   trip_id: number | null;
+  attachment_count: number;
 }
 
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done" | "cancelled";
@@ -189,6 +190,16 @@ export interface Trip {
   }[];
   project_name?: string;
   can_edit?: boolean;
+}
+
+export interface Attachment {
+  id: number;
+  expense_id: number;
+  filename: string;
+  content_type: string;
+  size: number;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 export interface CurrencyTotals {

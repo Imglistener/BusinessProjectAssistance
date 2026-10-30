@@ -97,3 +97,49 @@ export async function download(path: string, fallbackName: string): Promise<void
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const token = tokenStore.get();
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, { ...init, headers });
+  } catch {
+    throw new ApiError("network", "Can't reach the server. Check that the backend is running.", 0);
+  }
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null))?.error;
+    throw new ApiError(
+      err?.code ?? "unknown",
+      err?.message ?? "Something went wrong. Try again.",
+      res.status,
+      err?.details?.field,
+    );
+  }
+  return res;
+}
+
+/** Upload one file as multipart form data (the browser sets the boundary header). */
+export async function uploadFile<T>(path: string, file: File): Promise<T> {
+  const body = new FormData();
+  body.append("file", file);
+  const res = await authedFetch(path, { method: "POST", body });
+  return (await res.json()) as T;
+}
+
+/** Open an authenticated file (receipt) in a new tab. */
+export async function openFile(path: string): Promise<void> {
+  // Open the tab first, synchronously with the click, so pop-up blockers allow it.
+  const tab = window.open("", "_blank");
+  try {
+    const blob = await (await authedFetch(path)).blob();
+    const url = URL.createObjectURL(blob);
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    tab?.close();
+    throw e;
+  }
+}
