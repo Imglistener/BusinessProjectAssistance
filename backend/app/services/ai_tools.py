@@ -15,7 +15,8 @@ from typing import Callable, Optional
 from ..errors import ApiError
 from ..extensions import db
 from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User
-from . import metrics
+from . import metrics, travel
+from .calculator import CalculationError, calculate as _calculate
 from . import projects as svc
 
 MAX_LIST = 25
@@ -151,6 +152,7 @@ def _trips(project: Project) -> list[dict]:
         spent = metrics.total_actual_expenses(Expense.query.filter_by(trip_id=t.id).all())
         out.append(
             {
+                "trip_id": t.id,
                 "title": t.title,
                 "destination": t.destination,
                 "start_date": t.start_date.isoformat(),
@@ -364,6 +366,107 @@ def get_inventory_status(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+def calculate(ctx: ToolContext, args: dict) -> dict:
+    expression = args.get("expression")
+    try:
+        return {"expression": expression, "result": _calculate(expression)}
+    except CalculationError as e:
+        raise ToolError(str(e))
+
+
+def _decimal_arg(args: dict, name: str, *, default=None, lo=None, hi=None) -> Decimal:
+    value = args.get(name, default)
+    if value is None or isinstance(value, bool):
+        raise ToolError(f"'{name}' is required.")
+    try:
+        d = Decimal(str(value))
+    except ArithmeticError:
+        raise ToolError(f"'{name}' must be a number.")
+    if not d.is_finite() or (lo is not None and d < lo) or (hi is not None and d > hi):
+        raise ToolError(f"'{name}' is out of range.")
+    return d
+
+
+def vat(ctx: ToolContext, args: dict) -> dict:
+    amount = _decimal_arg(args, "amount", lo=Decimal("0"), hi=Decimal("1e12"))
+    rate = _decimal_arg(args, "rate_pct", default="20", lo=Decimal("0"), hi=Decimal("100"))
+    mode = _choice_arg(args, "mode", ("add", "extract"), "add")
+    return {**{k: _m(v) for k, v in metrics.vat(amount, rate, mode).items()}, "rate_pct": str(rate), "mode": mode,
+            "note": "Morocco's standard VAT (TVA) rate is 20%; reduced rates (7%, 10%, 14%) apply to some goods and services."}
+
+
+def budget_what_if(ctx: ToolContext, args: dict) -> dict:
+    project = project_for_context(ctx, args)
+    extra = _decimal_arg(args, "additional_spend", lo=Decimal("-1e12"), hi=Decimal("1e12"))
+    expenses, _ = _data(project)
+    now = metrics.calculate_budget_metrics(project.budget, expenses)
+    actual = now.actual + extra
+    return {
+        "project_id": project.id,
+        "currency": project.currency,
+        "additional_spend": _m(extra),
+        "now": {"actual": _m(now.actual), "remaining": _m(now.remaining), "consumed_pct": _m(now.consumed_pct)},
+        "after": {
+            "actual": _m(metrics.q(actual)),
+            "remaining": _m(metrics.remaining_budget(project.budget, actual)),
+            "consumed_pct": _m(metrics.budget_consumed_pct(project.budget, actual)),
+            "over_budget": metrics.budget_variance(project.budget, actual) > 0,
+        },
+        "note": "Hypothetical: nothing is recorded.",
+    }
+
+
+def estimate_trip_fuel_cost(ctx: ToolContext, args: dict) -> dict:
+    trip_id = _int_arg(args, "trip_id")
+    trip = db.session.get(Trip, trip_id)
+    project = project_for_context(ctx, {"project_id": trip.project_id}) if trip else None
+    if trip is None or project is None:
+        raise ToolError("Trip not found or not accessible.")
+    overrides = {}
+    if args.get("vehicle_type"):
+        overrides["vehicle_type"] = _choice_arg(args, "vehicle_type", tuple(travel.VEHICLES), travel.DEFAULT_VEHICLE)
+    if args.get("vehicle_count") is not None:
+        overrides["vehicle_count"] = _int_arg(args, "vehicle_count", lo=1, hi=50)
+    if isinstance(args.get("round_trip"), bool):
+        overrides["round_trip"] = args["round_trip"]
+    try:
+        return {"trip_id": trip.id, "title": trip.title, "from": trip.origin, "to": trip.destination,
+                **travel.estimate_for_trip(trip, project, overrides)}
+    except travel.EstimateUnavailable as e:
+        raise ToolError(str(e))
+
+
+def estimate_fuel_cost(ctx: ToolContext, args: dict) -> dict:
+    """Hypothetical drive: between two known cities, or over a given distance."""
+    vehicle = _choice_arg(args, "vehicle_type", tuple(travel.VEHICLES), travel.DEFAULT_VEHICLE)
+    from_city, to_city = args.get("from_city"), args.get("to_city")
+    if args.get("distance_km") not in (None, ""):
+        km, source = _decimal_arg(args, "distance_km", lo=Decimal("0.1"), hi=Decimal("20000")), "manual"
+    else:
+        a, b = travel.city_for(from_city), travel.city_for(to_city)
+        if not a or not b:
+            known = ", ".join(travel.CITIES)
+            raise ToolError(f"Give distance_km, or two known cities: {known}.")
+        straight = metrics.straight_line_km(*travel.CITIES[a], *travel.CITIES[b])
+        km, source = (straight * travel.ROAD_FACTOR).quantize(Decimal("0.1")), "straight_line"
+    org = db.session.get(Organization, ctx.organization_id)
+    try:
+        result = travel.estimate_fuel(
+            organization_id=ctx.organization_id,
+            currency=org.default_currency,
+            one_way_km=km,
+            distance_source=source,
+            vehicle_type=vehicle,
+            vehicle_count=_int_arg(args, "vehicle_count", default=1, lo=1, hi=50),
+            round_trip=args.get("round_trip") is True,
+            city=travel.city_for(args.get("fuel_city") or from_city) or args.get("fuel_city") or from_city,
+            today=ctx.today,
+        )
+    except travel.EstimateUnavailable as e:
+        raise ToolError(str(e))
+    return {"from": from_city, "to": to_city, **result}
+
+
 _PROJECT_ID = {"project_id": {"type": "integer", "description": "Project ID from list_projects."}}
 
 # name -> (function, description, JSON-schema parameters)
@@ -422,6 +525,46 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
         get_inventory_status,
         "Organization stock: item count, total stock value and items at or below their reorder level.",
         {"type": "object", "properties": {}},
+    ),
+    "calculate": (
+        calculate,
+        "Exact arithmetic. Use it for EVERY calculation you need (sums, differences, percentages, conversions). "
+        "Numbers without thousands separators; + - * / % ** ( ) and round(x, places), abs, min, max.",
+        {"type": "object", "properties": {"expression": {"type": "string", "description": "e.g. (12500 - 9800) / 12500 * 100"}},
+         "required": ["expression"]},
+    ),
+    "vat": (
+        vat,
+        "VAT (TVA) on an amount: mode 'add' treats the amount as net and adds VAT; 'extract' treats it as gross (VAT included).",
+        {"type": "object", "properties": {
+            "amount": {"type": "number"}, "rate_pct": {"type": "number", "description": "Default 20."},
+            "mode": {"type": "string", "enum": ["add", "extract"]}}, "required": ["amount"]},
+    ),
+    "budget_what_if": (
+        budget_what_if,
+        "What a project's budget figures would be after spending an extra amount (negative to remove). Nothing is saved.",
+        {"type": "object", "properties": {**_PROJECT_ID, "additional_spend": {"type": "number"}},
+         "required": ["project_id", "additional_spend"]},
+    ),
+    "estimate_trip_fuel_cost": (
+        estimate_trip_fuel_cost,
+        "Fuel litres and cost range (low / expected / high) for a planned trip, from its route distance, the vehicle's "
+        "typical consumption and the organization's fuel price for the city. Optional overrides are not saved.",
+        {"type": "object", "properties": {
+            "trip_id": {"type": "integer", "description": "From the project summary's trips."},
+            "vehicle_type": {"type": "string", "enum": list(travel.VEHICLES)},
+            "vehicle_count": {"type": "integer"}, "round_trip": {"type": "boolean"}}, "required": ["trip_id"]},
+    ),
+    "estimate_fuel_cost": (
+        estimate_fuel_cost,
+        "Fuel cost range for a hypothetical drive between two Moroccan cities (straight-line x road factor) or over a "
+        "given distance_km. Uses the organization's fuel prices.",
+        {"type": "object", "properties": {
+            "from_city": {"type": "string"}, "to_city": {"type": "string"},
+            "distance_km": {"type": "number", "description": "One way; overrides the cities' distance."},
+            "vehicle_type": {"type": "string", "enum": list(travel.VEHICLES)},
+            "vehicle_count": {"type": "integer"}, "round_trip": {"type": "boolean"},
+            "fuel_city": {"type": "string", "description": "City whose fuel price to use; default from_city."}}},
     ),
     "draft_project_update": (
         draft_project_update,

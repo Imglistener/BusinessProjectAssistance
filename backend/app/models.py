@@ -224,6 +224,38 @@ class Trip(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
     travelers = db.relationship("User", secondary=trip_travelers, lazy="selectin")
+    # Route for fuel estimates. Coordinates come from the map picker or the built-in city list.
+    origin = db.Column(db.String(200))
+    origin_lat = db.Column(db.Numeric(9, 6))
+    origin_lng = db.Column(db.Numeric(9, 6))
+    destination_lat = db.Column(db.Numeric(9, 6))
+    destination_lng = db.Column(db.Numeric(9, 6))
+    distance_km = db.Column(db.Numeric(9, 1))  # one way
+    distance_source = db.Column(db.String(20))  # route (map directions) / straight_line / manual
+    vehicle_type = db.Column(db.String(30))
+    vehicle_count = db.Column(db.Integer, nullable=False, default=1)
+    round_trip = db.Column(db.Boolean, nullable=False, default=True)
+    fuel_city = db.Column(db.String(80))  # whose fuel price to use; defaults to the origin city
+
+
+class FuelType(str, enum.Enum):
+    PETROL = "petrol"
+    DIESEL = "diesel"
+
+
+class FuelPrice(db.Model):
+    """Pump price per litre that the organization keeps up to date. city "" is the default for any city."""
+
+    __tablename__ = "fuel_prices"
+    __table_args__ = (db.UniqueConstraint("organization_id", "city", "fuel_type"),)
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    city = db.Column(db.String(80), nullable=False, default="")
+    fuel_type = db.Column(db.Enum(FuelType), nullable=False)
+    price_per_litre = db.Column(db.Numeric(8, 2), nullable=False)
+    currency = db.Column(db.String(3), nullable=False)
+    as_of = db.Column(db.Date, nullable=False)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
 
 class TripItem(db.Model):

@@ -11,6 +11,8 @@ from werkzeug.security import generate_password_hash
 from .extensions import db
 from .models import (
     Expense,
+    FuelPrice,
+    FuelType,
     InventoryItem,
     InventoryMovement,
     MovementKind,
@@ -174,6 +176,21 @@ def demo_data(yes: bool) -> None:
     db.session.add(Expense(project_id=app_.id, created_by=owner.id, category="Travel", amount=Decimal("1040.00"),
                            currency="MAD", description="Train tickets, 2 people", expense_date=day(-1), trip_id=trip.id))
 
+    # A drive with a route, for the fuel estimate. Fuel prices below are EXAMPLES, not current pump prices.
+    drive = Trip(project_id=move.id, title="Furniture pickup", destination="Tangier", origin="Casablanca",
+                 purpose="Collect the meeting room furniture from the supplier.", start_date=day(6), end_date=day(7),
+                 status=TripStatus.PLANNED, budget=Decimal("2500.00"), created_by=owner.id,
+                 origin_lat=Decimal("33.573100"), origin_lng=Decimal("-7.589800"),
+                 destination_lat=Decimal("35.759500"), destination_lng=Decimal("-5.834000"),
+                 distance_km=Decimal("340.0"), distance_source="manual", vehicle_type="van_diesel",
+                 vehicle_count=1, round_trip=True)
+    drive.travelers = [mate]
+    db.session.add(drive)
+    for city, fuel, price in [("", FuelType.DIESEL, "11.80"), ("", FuelType.PETROL, "13.60"),
+                              ("Casablanca", FuelType.DIESEL, "11.75"), ("Casablanca", FuelType.PETROL, "13.55")]:
+        db.session.add(FuelPrice(organization_id=org.id, city=city, fuel_type=fuel, price_per_litre=Decimal(price),
+                                 currency="MAD", as_of=today, updated_by=owner.id))
+
     # Stock: one item low, one issued to the office move.
     def stock(name, unit, cost, qty, reorder, location, sku=None):
         item = InventoryItem(organization_id=org.id, name=name, unit=unit, unit_cost=Decimal(cost) if cost else None,
@@ -214,3 +231,4 @@ def demo_data(yes: bool) -> None:
     click.echo("Demo data created.")
     click.echo(f"  Owner:       {DEMO_EMAIL} / {DEMO_PASSWORD}")
     click.echo(f"  Contributor: {TEAMMATE_EMAIL} / {DEMO_PASSWORD}")
+    click.echo("  Fuel prices are examples; set real ones under Settings > Fuel prices.")

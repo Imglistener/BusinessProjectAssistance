@@ -7,16 +7,17 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-from flask import jsonify
+from flask import jsonify, request
 from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, OrganizationMember, Project, Trip, TripItem, TripItemKind, TripStatus, User
+from ..models import Expense, Organization, OrganizationMember, Project, Trip, TripItem, TripItemKind, TripStatus, User
 from ..services import metrics
 from ..services import projects as svc
+from ..services import travel
 from ..services.audit import log_action
 from ..services.notifications import human_date, notify
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, require_role
@@ -70,6 +71,19 @@ def trip_to_dict(t: Trip, project: Project, items: list[TripItem], expenses: lis
         "travelers": [{"user_id": u.id, "name": f"{u.first_name} {u.last_name}"} for u in sorted(t.travelers, key=lambda u: u.first_name)],
         "item_count": len(items),
         "created_by": t.created_by,
+        "route": {
+            "origin": t.origin,
+            "origin_lat": _coord(t.origin_lat),
+            "origin_lng": _coord(t.origin_lng),
+            "destination_lat": _coord(t.destination_lat),
+            "destination_lng": _coord(t.destination_lng),
+            "distance_km": None if t.distance_km is None else f"{Decimal(t.distance_km):.1f}",
+            "distance_source": t.distance_source,
+            "vehicle_type": t.vehicle_type,
+            "vehicle_count": t.vehicle_count or 1,
+            "round_trip": True if t.round_trip is None else t.round_trip,
+            "fuel_city": t.fuel_city,
+        },
     }
     if full:
         body["items"] = [item_to_dict(i) for i in sorted(items, key=_item_order)]
@@ -79,6 +93,77 @@ def trip_to_dict(t: Trip, project: Project, items: list[TripItem], expenses: lis
             for e in sorted(expenses, key=lambda e: (e.expense_date, e.id))
         ]
     return body
+
+
+def _coord(v) -> float | None:
+    return None if v is None else float(v)
+
+
+def _parse_coord(data: dict, field: str, limit: int):
+    value = data.get(field)
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ApiError("validation_error", "Coordinates must be numbers.", 400, {"field": field})
+    try:
+        d = Decimal(str(value)).quantize(Decimal("0.000001"))
+    except (InvalidOperation, ValueError):
+        raise ApiError("validation_error", "Coordinates must be numbers.", 400, {"field": field})
+    if not -limit <= d <= limit:
+        raise ApiError("validation_error", "Coordinates are out of range.", 400, {"field": field})
+    return d
+
+
+ROUTE_FIELDS = (
+    "origin", "origin_lat", "origin_lng", "destination_lat", "destination_lng", "distance_km",
+    "distance_source", "vehicle_type", "vehicle_count", "round_trip", "fuel_city",
+)
+
+
+def _route_changes(trip: Trip, data: dict) -> dict:
+    """Validated route fields from the request; fills in a straight-line distance when only places are given."""
+    if not any(k in data for k in ROUTE_FIELDS):
+        return {}
+    c: dict = {}
+    if "origin" in data:
+        c["origin"] = optional_str(data, "origin", max_len=200)
+    for field, limit in (("origin_lat", 90), ("origin_lng", 180), ("destination_lat", 90), ("destination_lng", 180)):
+        if field in data:
+            c[field] = _parse_coord(data, field, limit)
+    if "vehicle_type" in data:
+        vt = data.get("vehicle_type") or None
+        if vt is not None and vt not in travel.VEHICLES:
+            raise ApiError("validation_error", "Unknown vehicle type.", 400, {"field": "vehicle_type"})
+        c["vehicle_type"] = vt
+    if "vehicle_count" in data:
+        n = data.get("vehicle_count")
+        if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= 50:
+            raise ApiError("validation_error", "Vehicles must be a whole number from 1 to 50.", 400, {"field": "vehicle_count"})
+        c["vehicle_count"] = n
+    if "round_trip" in data:
+        if not isinstance(data["round_trip"], bool):
+            raise ApiError("validation_error", "Round trip must be true or false.", 400, {"field": "round_trip"})
+        c["round_trip"] = data["round_trip"]
+    if "fuel_city" in data:
+        c["fuel_city"] = optional_str(data, "fuel_city", max_len=80)
+
+    source = data.get("distance_source")
+    if source not in (None, "", "route", "manual", "straight_line"):
+        raise ApiError("validation_error", "Unknown distance source.", 400, {"field": "distance_source"})
+    if data.get("distance_km") not in (None, "") and source in ("route", "manual"):
+        km = parse_money({"distance_km": data["distance_km"]}, "distance_km", positive=True)
+        if km > 20000:
+            raise ApiError("validation_error", "That distance is too long.", 400, {"field": "distance_km"})
+        c["distance_km"], c["distance_source"] = km.quantize(Decimal("0.1")), source
+    else:
+        coords = [c.get(k, getattr(trip, k)) for k in ("origin_lat", "origin_lng", "destination_lat", "destination_lng")]
+        if all(v is not None for v in coords):
+            straight = metrics.straight_line_km(*coords)
+            c["distance_km"] = (straight * travel.ROAD_FACTOR).quantize(Decimal("0.1"))
+            c["distance_source"] = "straight_line"
+        elif "distance_km" in data and data["distance_km"] in (None, ""):
+            c["distance_km"], c["distance_source"] = None, None
+    return c
 
 
 def _item_order(i: TripItem):
@@ -211,6 +296,8 @@ def create_trip(project_id: int):
         budget=parse_money(data, "budget", required=False),
         created_by=user.id,
     )
+    for key, value in _route_changes(trip, data).items():
+        setattr(trip, key, value)
     travelers = _travelers(project, data)
     trip.travelers = travelers if travelers is not None else [user]
     db.session.add(trip)
@@ -262,6 +349,7 @@ def update_trip(trip_id: int):
         changes["status"] = status
     if "budget" in data:
         changes["budget"] = parse_money(data, "budget", required=False)
+    changes.update(_route_changes(trip, data))
 
     start, end = changes.get("start_date", trip.start_date), changes.get("end_date", trip.end_date)
     _check_dates(start, end)
@@ -281,7 +369,7 @@ def update_trip(trip_id: int):
         if old == new:
             continue
         setattr(trip, field, new)
-        if field in ("title", "purpose", "destination"):
+        if field in ("title", "purpose", "destination") or field in ROUTE_FIELDS:
             meta[field] = "changed"
         else:
             meta[field] = [v.value if hasattr(v, "value") else (v.isoformat() if hasattr(v, "isoformat") else _m(v)) for v in (old, new)]
@@ -312,6 +400,60 @@ def delete_trip(trip_id: int):
     db.session.delete(trip)
     db.session.commit()
     return jsonify(ok=True)
+
+
+# ---------- fuel ----------
+
+
+def _bool_arg(name: str):
+    v = request.args.get(name)
+    return None if v is None else v == "true"
+
+
+@api_bp.get("/trips/<int:trip_id>/fuel-estimate")
+@jwt_required()
+def fuel_estimate(trip_id: int):
+    """Query overrides (not saved): vehicle_type, vehicle_count, round_trip, l_per_100km, variance."""
+    user = current_user()
+    trip, project, _ = _trip_for_user(trip_id, user.id)
+    overrides: dict = {"vehicle_type": request.args.get("vehicle_type") or None, "round_trip": _bool_arg("round_trip")}
+    try:
+        if request.args.get("vehicle_count"):
+            overrides["vehicle_count"] = min(max(int(request.args["vehicle_count"]), 1), 50)
+        if request.args.get("l_per_100km"):
+            v = Decimal(request.args["l_per_100km"])
+            if not Decimal("1") <= v <= Decimal("60"):
+                raise ValueError
+            overrides["l_per_100km"] = v
+        if request.args.get("variance"):
+            v = Decimal(request.args["variance"])
+            if not Decimal("0") <= v <= Decimal("50"):
+                raise ValueError
+            overrides["distance_variance_pct"] = v
+    except (ValueError, ArithmeticError):
+        raise ApiError("validation_error", "Check the vehicle count, consumption (1-60 L/100 km) and variance (0-50%).", 400)
+    if overrides["vehicle_type"] and overrides["vehicle_type"] not in travel.VEHICLES:
+        raise ApiError("validation_error", "Unknown vehicle type.", 400, {"field": "vehicle_type"})
+    try:
+        return jsonify(estimate=travel.estimate_for_trip(trip, project, overrides))
+    except travel.EstimateUnavailable as e:
+        raise ApiError("estimate_unavailable", str(e), 409)
+
+
+@api_bp.get("/travel/reference")
+@jwt_required()
+def travel_reference():
+    current_user()
+    return jsonify(
+        vehicles=[
+            {"type": v.key, "label": v.label, "fuel": v.fuel.value,
+             "l_per_100km_low": str(v.l_per_100km_low), "l_per_100km_high": str(v.l_per_100km_high)}
+            for v in travel.VEHICLES.values()
+        ],
+        default_vehicle=travel.DEFAULT_VEHICLE,
+        cities=[{"name": n, "lat": lat, "lng": lng} for n, (lat, lng) in travel.CITIES.items()],
+        road_factor=str(travel.ROAD_FACTOR),
+    )
 
 
 # ---------- itinerary ----------

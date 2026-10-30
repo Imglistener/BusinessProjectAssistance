@@ -8,7 +8,7 @@ def test_demo_data_creates_a_usable_organization(app, client):
     assert result.exit_code == 0, result.output
     assert "Demo data created" in result.output
     assert Organization.query.count() == 1 and Project.query.count() == 5
-    assert Trip.query.count() == 1
+    assert Trip.query.count() == 2
 
     token = client.post("/api/auth/login", json={"email": DEMO_EMAIL, "password": "demo-password"}).get_json()["access_token"]
     h = {"Authorization": f"Bearer {token}"}
