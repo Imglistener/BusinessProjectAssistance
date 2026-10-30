@@ -23,6 +23,10 @@ from .models import (
     Task,
     TaskPriority,
     TaskStatus,
+    Trip,
+    TripItem,
+    TripItemKind,
+    TripStatus,
     User,
     utcnow,
 )
@@ -148,6 +152,25 @@ def demo_data(yes: bool) -> None:
         ("Choose tech stack", S.TODO, P.MEDIUM, 12, owner, None),
         ("Prototype review", S.TODO, P.HIGH, 21, owner, proto),
     ])
+
+    # A trip coming up, with an itinerary and one booking already paid.
+    trip = Trip(project_id=app_.id, title="User testing sessions", destination="Rabat", purpose="Test the prototype with 6 clients.",
+                start_date=day(9), end_date=day(10), status=TripStatus.BOOKED, budget=Decimal("3500.00"), created_by=owner.id)
+    trip.travelers = [owner, mate]
+    db.session.add(trip)
+    db.session.flush()
+    for kind, title, offset, start, end, where, ref, cost in [
+        (TripItemKind.TRAIN, "Al Boraq to Rabat", 9, "07:30", "09:00", "Casa Voyageurs", "ONCF-48213", "520.00"),
+        (TripItemKind.MEETING, "Sessions with clients 1-3", 9, "10:30", "16:00", "Client offices, Agdal", None, None),
+        (TripItemKind.HOTEL, "Hotel near Agdal", 9, None, None, "Agdal", "BK-7731", "1400.00"),
+        (TripItemKind.MEETING, "Sessions with clients 4-6", 10, "09:30", "14:00", "Client offices, Hassan", None, None),
+        (TripItemKind.TRAIN, "Train back to Casablanca", 10, "17:00", "18:30", "Rabat Agdal", None, "520.00"),
+    ]:
+        db.session.add(TripItem(trip_id=trip.id, kind=kind, title=title, date=day(offset), start_time=start,
+                                end_time=end, location=where, confirmation=ref,
+                                estimated_cost=Decimal(cost) if cost else None))
+    db.session.add(Expense(project_id=app_.id, created_by=owner.id, category="Travel", amount=Decimal("1040.00"),
+                           currency="MAD", description="Train tickets, 2 people", expense_date=day(-1), trip_id=trip.id))
 
     # Stock: one item low, one issued to the office move.
     def stock(name, unit, cost, qty, reorder, location, sku=None):

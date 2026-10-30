@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../api/client";
-import { canContribute, canManageProjects, type Expense, type Project } from "../api/models";
+import { canContribute, canManageProjects, type Expense, type Project, type Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";
 import { formatDate, formatMoney, todayIso } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
@@ -12,10 +12,13 @@ const PAGE = 50;
 interface Props {
   project: Project;
   userId: number;
+  /** Trips on the project, so an expense can be linked to one. */
+  trips: Trip[];
   onProjectChange(project: Project): void;
 }
 
-export function ExpenseSection({ project, userId, onProjectChange }: Props) {
+export function ExpenseSection({ project, userId, trips, onProjectChange }: Props) {
+  const tripTitle = new Map(trips.map((t) => [t.id, t.title]));
   const role = project.my_role ?? "viewer";
   const editable = project.status !== "archived";
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
@@ -79,6 +82,7 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
       {adding && (
         <ExpenseForm
           project={project}
+          trips={trips}
           onCancel={() => setAdding(false)}
           onSaved={(p) => {
             setAdding(false);
@@ -136,6 +140,7 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
               <li key={e.id} className="row row--editing">
                 <ExpenseForm
                   project={project}
+                  trips={trips}
                   expense={e}
                   onCancel={() => setEditingId(null)}
                   onSaved={(p) => {
@@ -150,6 +155,7 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
                 key={e.id}
                 expense={e}
                 canChange={canChange(e)}
+                tripTitle={e.trip_id ? tripTitle.get(e.trip_id) : undefined}
                 onEdit={() => setEditingId(e.id)}
                 onVoided={(p, updated) => {
                   onProjectChange(p);
@@ -179,9 +185,11 @@ function ExpenseRow({
   onVoided,
   onEdit,
   onError,
+  tripTitle,
 }: {
   expense: Expense;
   canChange: boolean;
+  tripTitle?: string;
   onEdit(): void;
   onVoided(project: Project, expense: Expense): void;
   onError(message: string): void;
@@ -213,6 +221,7 @@ function ExpenseRow({
         <p className="row__meta">
           {formatDate(expense.expense_date)}
           {expense.description ? ` — ${expense.description}` : ""}
+          {tripTitle ? ` — Trip: ${tripTitle}` : ""}
         </p>
       </div>
       <div className="row__side">
@@ -244,11 +253,13 @@ function ExpenseRow({
 
 function ExpenseForm({
   project,
+  trips,
   expense,
   onSaved,
   onCancel,
 }: {
   project: Project;
+  trips: Trip[];
   /** Edit this expense instead of adding one. */
   expense?: Expense;
   onSaved(project: Project): void;
@@ -259,6 +270,7 @@ function ExpenseForm({
     amount: expense?.amount ?? "",
     expense_date: expense?.expense_date ?? todayIso(),
     description: expense?.description ?? "",
+    trip_id: expense?.trip_id ? String(expense.trip_id) : "",
   });
   // Unique field ids when an edit form and the add form are open together.
   const id = expense ? `expense_${expense.id}_` : "expense_";
@@ -276,6 +288,7 @@ function ExpenseForm({
         amount: form.amount.trim().replace(",", "."),
         expense_date: form.expense_date,
         description: form.description.trim() || null,
+        trip_id: form.trip_id ? Number(form.trip_id) : null,
       };
       const r = expense
         ? await api<{ project: Project }>(`/expenses/${expense.id}`, { method: "PATCH", body })
@@ -327,6 +340,19 @@ function ExpenseForm({
           required={false}
         />
       </div>
+      {trips.length > 0 && (
+        <SelectField
+          label="Trip"
+          name={`${id}trip`}
+          value={form.trip_id}
+          onChange={set("trip_id")}
+          options={[
+            { value: "", label: "Not for a trip" },
+            ...trips.map((t) => ({ value: String(t.id), label: t.title })),
+          ]}
+        />
+      )}
+      {fieldErrors.trip_id && <p className="field__message field__message--error">{fieldErrors.trip_id}</p>}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
           {busy ? "Saving…" : expense ? "Save changes" : "Save expense"}

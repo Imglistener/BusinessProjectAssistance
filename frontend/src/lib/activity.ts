@@ -1,4 +1,4 @@
-import { PRIORITY_LABEL, STATUS_LABEL, TASK_STATUS_LABEL, formatDate, formatMoney } from "./format";
+import { PRIORITY_LABEL, STATUS_LABEL, TASK_STATUS_LABEL, TRIP_STATUS_LABEL, formatDate, formatMoney } from "./format";
 
 export interface ActivityEntry {
   id: number;
@@ -93,6 +93,20 @@ export function describe(e: ActivityEntry, people: Record<string, string>, curre
           return `edited ${ms}`;
         }),
       );
+    }
+    case "trip.created":
+      return `planned a trip${typeof m.destination === "string" ? ` to ${m.destination}` : ""}`;
+    case "trip.deleted":
+      return `deleted the trip ${quote(typeof m.title === "string" ? m.title : null, "")}`.trim();
+    case "trip.item_added":
+      return `added ${quote(typeof m.item === "string" ? m.item : null, "an item")} to a trip itinerary`;
+    case "trip.item_removed":
+      return `removed ${quote(typeof m.item === "string" ? m.item : null, "an item")} from a trip itinerary`;
+    case "trip.updated": {
+      const status = m.status;
+      if (isChange(status) && Object.keys(m).length === 1)
+        return `marked a trip as ${TRIP_STATUS_LABEL[String(status[1])]?.toLowerCase()}`;
+      return "updated a trip";
     }
     case "inventory.receive":
     case "inventory.issue":

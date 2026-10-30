@@ -44,6 +44,14 @@ def total_actual_expenses(expenses: Iterable, start: Optional[date] = None, end:
     return q(total)
 
 
+def sum_money(values: Iterable) -> Decimal:
+    """Sum of amounts, rounded like every other figure."""
+    total = Decimal("0")
+    for v in values:
+        total += _d(v)
+    return q(total)
+
+
 def remaining_budget(budget, actual) -> Decimal:
     return q(_d(budget) - _d(actual))
 

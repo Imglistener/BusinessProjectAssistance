@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import { canManageProjects, type Milestone, type Project } from "../api/models";
+import { canManageProjects, type Milestone, type Project, type Trip } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { ActivitySection } from "../components/ActivitySection";
 import { AppShell } from "../components/AppShell";
@@ -11,6 +11,7 @@ import { MilestoneSection } from "../components/MilestoneSection";
 import { MaterialsSection } from "../components/MaterialsSection";
 import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
+import { TripSection } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
 
@@ -43,6 +44,7 @@ export default function ProjectDetail() {
   }, []);
 
   const [milestones, setMilestones] = useState<Milestone[] | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const loadMilestones = useCallback(() => {
     api<{ milestones: Milestone[] }>(`/projects/${projectId}/milestones`)
       .then((r) => setMilestones(r.milestones))
@@ -89,7 +91,8 @@ export default function ProjectDetail() {
             milestones={milestones ?? []}
             onProjectChange={onTaskChange}
           />
-          <ExpenseSection project={project} userId={user.id} onProjectChange={merge} />
+          <TripSection project={project} onTripsChange={setTrips} />
+          <ExpenseSection project={project} userId={user.id} trips={trips} onProjectChange={merge} />
           <MaterialsSection projectId={project.id} refreshKey={activityKey} />
           <ActivitySection project={project} refreshKey={activityKey} />
         </>

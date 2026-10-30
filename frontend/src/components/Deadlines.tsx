@@ -8,6 +8,7 @@ function when(item: DeadlineItem): string {
   const d = item.days_until_due;
   if (d === null) return "No due date";
   if (d < 0) return `${-d} ${d === -1 ? "day" : "days"} overdue`;
+  if (item.kind === "trip") return d === 0 ? "Leaves today" : d === 1 ? "Leaves tomorrow" : `Leaves in ${d} days`;
   if (d === 0) return "Due today";
   if (d === 1) return "Due tomorrow";
   return `Due in ${d} days`;
@@ -24,9 +25,18 @@ function Item({ item, showAssignee }: { item: DeadlineItem; showAssignee: boolea
         <span className="row__title">
           {item.title}
           {item.kind === "milestone" && <span className="tag">Milestone</span>}
+          {item.kind === "trip" && <span className="tag">Trip</span>}
         </span>
         <span className="row__meta">
-          <Link to={`/app/projects/${item.project_id}`}>{item.project_name}</Link>
+          <Link
+            to={
+              item.kind === "trip"
+                ? `/app/projects/${item.project_id}/trips/${item.id}`
+                : `/app/projects/${item.project_id}`
+            }
+          >
+            {item.project_name}
+          </Link>
           {showAssignee && item.kind === "task" && (item.assignee ? ` — ${item.assignee}` : " — Unassigned")}
         </span>
       </span>

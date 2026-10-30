@@ -104,6 +104,15 @@
   with purchase expenses). The AI has a read-only `get_inventory_status` tool.
 - Replaced the unused `resources`/`project_resources` tables (the migration refuses if they contain rows).
 
+## Trip planning (implemented, my defaults)
+- Trips belong to a project: destination, dates, purpose, status (planned/booked/completed/cancelled),
+  optional budget, travelers (organization members; the creator by default).
+- Itinerary items: flight/train/car/hotel/meeting/other, date within the trip, optional local "HH:MM" times,
+  location, booking reference, estimated cost. Trip dates can't change so that items fall outside them.
+- Spend = valid expenses linked to the trip (part of the project's spending, not extra). Estimate = sum of item costs.
+- Contributors and up plan trips; managers or the trip's creator edit/delete. Deleting unlinks its expenses.
+- Upcoming planned/booked trips appear in the dashboard "Coming up" list and in the AI project summary.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

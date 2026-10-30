@@ -14,7 +14,7 @@ from typing import Callable, Optional
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, User
+from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User
 from . import metrics
 from . import projects as svc
 
@@ -144,6 +144,26 @@ def _milestones(project: Project, tasks: list, today: date) -> list[dict]:
     return out
 
 
+def _trips(project: Project) -> list[dict]:
+    trips = Trip.query.filter_by(project_id=project.id).order_by(Trip.start_date, Trip.id).limit(MAX_LIST).all()
+    out = []
+    for t in trips:
+        spent = metrics.total_actual_expenses(Expense.query.filter_by(trip_id=t.id).all())
+        out.append(
+            {
+                "title": t.title,
+                "destination": t.destination,
+                "start_date": t.start_date.isoformat(),
+                "end_date": t.end_date.isoformat(),
+                "status": t.status.value,
+                "budget": _m(t.budget),
+                "actual": _m(spent),
+                "travelers": len(t.travelers),
+            }
+        )
+    return out
+
+
 # ---------- tools ----------
 
 
@@ -197,6 +217,7 @@ def get_project_summary(ctx: ToolContext, args: dict) -> dict:
         },
         "valid_expense_count": sum(1 for e in expenses if e.status.value == metrics.VALID_EXPENSE_STATUS),
         "milestones": _milestones(project, tasks, ctx.today),
+        "trips": _trips(project),
     }
 
 

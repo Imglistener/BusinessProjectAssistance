@@ -47,6 +47,13 @@ export const TASK_STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+export const TRIP_STATUS_LABEL: Record<string, string> = {
+  planned: "Planned",
+  booked: "Booked",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
 export const PRIORITY_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
 
 export const todayIso = () => {

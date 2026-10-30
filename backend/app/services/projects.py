@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, Milestone, Project, ProjectStatus, Task, User
+from ..models import Expense, Milestone, Project, ProjectStatus, Task, Trip, TripStatus, User
 from . import metrics
 from .permissions import get_membership
 
@@ -128,7 +128,31 @@ def deadlines(org_id: int, tz_name: str, user_id: int) -> dict:
                     "project_name": projects[m.project_id].name,
                 }
             )
-    items.sort(key=lambda i: (i["due_date"], i["kind"] != "milestone", i["id"]))
+    trips = (
+        Trip.query.filter(
+            Trip.project_id.in_(ids),
+            Trip.start_date >= today,
+            Trip.start_date <= horizon,
+            Trip.status.in_([TripStatus.PLANNED, TripStatus.BOOKED]),
+        ).all()
+        if ids
+        else []
+    )
+    for t in trips:
+        items.append(
+            {
+                "kind": "trip",
+                "id": t.id,
+                "title": f"{t.title} ({t.destination})",
+                "due_date": t.start_date.isoformat(),
+                "days_until_due": (t.start_date - today).days,
+                "overdue": False,
+                "project_id": t.project_id,
+                "project_name": projects[t.project_id].name,
+            }
+        )
+    order = {"milestone": 0, "trip": 1, "task": 2}
+    items.sort(key=lambda i: (i["due_date"], order[i["kind"]], i["id"]))
 
     mine = sorted(
         (t for t in tasks if t.assignee_id == user_id and _open_task(t)),

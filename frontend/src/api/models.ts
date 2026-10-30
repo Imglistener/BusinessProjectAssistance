@@ -44,6 +44,7 @@ export interface Expense {
   description: string | null;
   expense_date: string;
   status: ExpenseStatus;
+  trip_id: number | null;
 }
 
 export type TaskStatus = "todo" | "in_progress" | "blocked" | "done" | "cancelled";
@@ -78,7 +79,7 @@ export interface Milestone {
 }
 
 export interface DeadlineItem {
-  kind: "task" | "milestone";
+  kind: "task" | "milestone" | "trip";
   id: number;
   title: string;
   due_date: string | null;
@@ -137,6 +138,57 @@ export interface Movement {
   note: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+export type TripStatus = "planned" | "booked" | "completed" | "cancelled";
+export type TripItemKind = "flight" | "train" | "car" | "hotel" | "meeting" | "other";
+
+export interface TripItem {
+  id: number;
+  trip_id: number;
+  kind: TripItemKind;
+  title: string;
+  date: string;
+  /** local "HH:MM" */
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  confirmation: string | null;
+  estimated_cost: string | null;
+  notes: string | null;
+}
+
+export interface Trip {
+  id: number;
+  project_id: number;
+  title: string;
+  destination: string;
+  purpose: string | null;
+  start_date: string;
+  end_date: string;
+  nights: number;
+  status: TripStatus;
+  currency: string;
+  budget: string | null;
+  estimated_cost: string;
+  actual: string;
+  remaining: string | null;
+  over_budget: boolean;
+  travelers: { user_id: number; name: string }[];
+  item_count: number;
+  created_by: number;
+  /** only on GET /trips/:id */
+  items?: TripItem[];
+  expenses?: {
+    id: number;
+    category: string;
+    amount: string;
+    expense_date: string;
+    description: string | null;
+    status: ExpenseStatus;
+  }[];
+  project_name?: string;
+  can_edit?: boolean;
 }
 
 export interface CurrencyTotals {

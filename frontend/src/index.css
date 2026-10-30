@@ -1686,6 +1686,72 @@ a {
   box-shadow: var(--focus);
 }
 
+/* ---------- Trips ---------- */
+.trip__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.trip__link:hover {
+  color: var(--blue-600);
+  text-decoration: underline;
+}
+
+.form__row--three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+  .form__row--three {
+    grid-template-columns: 1fr;
+  }
+}
+
+.travelers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.itinerary__day h3 {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.itinerary__item {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.itinerary__item > span:last-child {
+  display: grid;
+}
+
+.itinerary__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.itinerary__kind {
+  margin-left: 0;
+  margin-right: 0.35rem;
+}
+
+@media print {
+  .rail {
+    display: none;
+  }
+  .shell {
+    display: block;
+  }
+  .main {
+    max-width: none;
+    padding: 0;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

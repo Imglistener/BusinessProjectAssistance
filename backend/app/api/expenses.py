@@ -16,18 +16,20 @@ from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, requir
 from . import api_bp
 from .auth import current_user
 from .projects import project_payload
+from .trips import check_trip
 from .validation import (
     get_json_body,
     optional_str,
     parse_date,
     parse_enum,
     parse_money,
+    parse_optional_id,
     require_str,
 )
 
 DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 200
-AUDITED_VALUE_FIELDS = ("amount", "category", "expense_date")
+AUDITED_VALUE_FIELDS = ("amount", "category", "expense_date", "trip_id")
 
 
 def expense_to_dict(e: Expense) -> dict:
@@ -41,6 +43,7 @@ def expense_to_dict(e: Expense) -> dict:
         "description": e.description,
         "expense_date": e.expense_date.isoformat(),
         "status": e.status.value,
+        "trip_id": e.trip_id,
     }
 
 
@@ -92,6 +95,8 @@ def create_expense(project_id: int):
     require_role(membership, *CONTRIBUTE_ROLES)
     svc.require_active_project(project)
     data = get_json_body()
+    trip_id = parse_optional_id(data, "trip_id")
+    check_trip(project, trip_id)
 
     expense = Expense(
         project_id=project.id,
@@ -102,6 +107,7 @@ def create_expense(project_id: int):
         description=optional_str(data, "description", max_len=5000),
         expense_date=parse_date(data, "expense_date", required=True),
         status=ExpenseStatus.VALID,
+        trip_id=trip_id,
     )
     db.session.add(expense)
     db.session.flush()
@@ -185,6 +191,10 @@ def update_expense(expense_id: int):
         changes["description"] = optional_str(data, "description", max_len=5000)
     if "expense_date" in data:
         changes["expense_date"] = parse_date(data, "expense_date", required=True)
+    if "trip_id" in data:
+        trip_id = parse_optional_id(data, "trip_id")
+        check_trip(project, trip_id)
+        changes["trip_id"] = trip_id
 
     audit_meta = {}
     for field, new in changes.items():

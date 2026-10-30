@@ -167,7 +167,66 @@ class Expense(db.Model):
     expense_date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.Enum(ExpenseStatus), nullable=False, default=ExpenseStatus.VALID)
     receipt_url = db.Column(db.String(500))  # attachments are "later"; kept nullable
+    trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), index=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class TripStatus(str, enum.Enum):
+    PLANNED = "planned"
+    BOOKED = "booked"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class TripItemKind(str, enum.Enum):
+    FLIGHT = "flight"
+    TRAIN = "train"
+    CAR = "car"
+    HOTEL = "hotel"
+    MEETING = "meeting"
+    OTHER = "other"
+
+
+trip_travelers = db.Table(
+    "trip_travelers",
+    db.Column("trip_id", db.Integer, db.ForeignKey("trips.id"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
+)
+
+
+class Trip(db.Model):
+    """Business travel for a project. Spend = valid expenses linked to the trip, in the project's currency."""
+
+    __tablename__ = "trips"
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    destination = db.Column(db.String(200), nullable=False)
+    purpose = db.Column(db.Text)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Enum(TripStatus), nullable=False, default=TripStatus.PLANNED)
+    budget = db.Column(db.Numeric(14, 2))
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    travelers = db.relationship("User", secondary=trip_travelers, lazy="selectin")
+
+
+class TripItem(db.Model):
+    """One itinerary entry. Times are local to where they happen ("HH:MM"), so no timezone conversion."""
+
+    __tablename__ = "trip_items"
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), nullable=False, index=True)
+    kind = db.Column(db.Enum(TripItemKind), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.String(5))
+    end_time = db.Column(db.String(5))
+    location = db.Column(db.String(200))
+    confirmation = db.Column(db.String(100))
+    estimated_cost = db.Column(db.Numeric(14, 2))
+    notes = db.Column(db.Text)
 
 
 class MovementKind(str, enum.Enum):
