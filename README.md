@@ -73,6 +73,19 @@ Assistant page says it isn't set up and everything else works normally.
   per-user rate limit and a timeout. Each request logs token counts and cost in `ai_usage`;
   question and answer text are not stored on the server.
 
+Check the assistant against known answers (needs `demo-data` and a Groq key; about 3 minutes, a few
+thousand tokens per question, counted against the monthly cap):
+
+```bash
+flask --app wsgi ai-eval            # all 8 questions
+flask --app wsgi ai-eval --only draft
+```
+
+It asks fixed questions about the demo organization and checks the answers against figures the backend
+computes: budget variance, top spending category, overdue tasks, spend-rate estimate with assumptions,
+saying revenue isn't tracked instead of inventing it, refusing a delete request, labelling drafts, and
+ignoring instructions planted in the question.
+
 ## Email (password reset, invites)
 
 By default `EMAIL_PROVIDER=console`: emails are not sent, they're printed in the backend log, so

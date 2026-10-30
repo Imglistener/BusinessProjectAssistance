@@ -346,3 +346,46 @@ def test_groq_failures_raise_provider_error(monkeypatch, behaviour):
     monkeypatch.setattr(requests, "post", post)
     with pytest.raises(ProviderError):
         groq().chat([], None)
+
+
+def test_groq_waits_once_for_short_retry_after(monkeypatch):
+    import app.services.ai_provider as prov
+
+    calls = []
+
+    class Http(FakeHttp):
+        def __init__(self, status, payload, headers=None):
+            super().__init__(status, payload)
+            self.headers = headers or {}
+
+    def post(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            return Http(429, {}, {"retry-after": "2"})
+        return Http(200, {"choices": [{"message": {"content": "ok"}}], "usage": {}})
+
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(prov.time, "sleep", lambda s: calls.append(("slept", s)))
+    assert groq().chat([], None).content == "ok"
+    assert ("slept", 2.0) in calls
+
+
+def test_groq_long_retry_after_is_rate_limited_error(monkeypatch):
+    from app.services.ai_provider import ProviderRateLimited
+
+    class Http(FakeHttp):
+        headers = {"retry-after": "60"}
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: Http(429, {}))
+    with pytest.raises(ProviderRateLimited):
+        groq().chat([], None)
+
+
+def test_provider_rate_limit_gives_busy_message(client, fake):
+    from app.services.ai_provider import ProviderRateLimited
+
+    h, org_id, _ = setup(client)
+    fake(ProviderRateLimited("429"))
+    r = ask(client, h, org_id)
+    assert r.status_code == 503 and r.get_json()["error"]["code"] == "ai_busy"
+    assert AIUsage.query.one().status == "busy"

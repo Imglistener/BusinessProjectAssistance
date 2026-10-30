@@ -3,6 +3,7 @@ which Groq accepts as-is; other providers get an adapter that translates to and 
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Optional, Protocol
 
@@ -12,6 +13,14 @@ from flask import current_app
 
 class ProviderError(Exception):
     """The provider failed, timed out or answered with something we can't use."""
+
+
+class ProviderRateLimited(ProviderError):
+    """The provider's own usage limit (requests or tokens per minute) was hit."""
+
+
+# Wait for the provider's Retry-After once, if it's this short; longer waits fail fast with a clear message.
+MAX_RETRY_WAIT_SECONDS = 10
 
 
 class ProviderNotConfigured(Exception):
@@ -54,15 +63,22 @@ class GroqProvider:
         if tools:
             body["tools"] = tools
             body["tool_choice"] = "auto"
-        try:
-            r = requests.post(
-                f"{self.base_url}/chat/completions",
-                json=body,
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=self.timeout,
-            )
-        except requests.RequestException as e:
-            raise ProviderError(f"request failed: {type(e).__name__}") from e
+        for attempt in (1, 2):
+            try:
+                r = requests.post(
+                    f"{self.base_url}/chat/completions",
+                    json=body,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=self.timeout,
+                )
+            except requests.RequestException as e:
+                raise ProviderError(f"request failed: {type(e).__name__}") from e
+            if r.status_code != 429:
+                break
+            wait = _retry_after(r)
+            if attempt == 2 or wait is None or wait > MAX_RETRY_WAIT_SECONDS:
+                raise ProviderRateLimited("provider returned HTTP 429")
+            time.sleep(wait)
         if r.status_code != 200:
             # Status only: provider error bodies can echo the prompt back.
             raise ProviderError(f"provider returned HTTP {r.status_code}")
@@ -82,6 +98,13 @@ class GroqProvider:
             )
         except (ValueError, KeyError, IndexError, TypeError) as e:
             raise ProviderError("unexpected response shape") from e
+
+
+def _retry_after(r) -> Optional[float]:
+    try:
+        return float(r.headers.get("retry-after"))
+    except (TypeError, ValueError):
+        return None
 
 
 def get_provider() -> AIProvider:

@@ -17,7 +17,7 @@ from ..extensions import db
 from ..models import AIUsage, Organization, User, utcnow
 from . import ai_tools
 from . import projects as svc
-from .ai_provider import ProviderError, ProviderNotConfigured, ProviderResponse, get_provider
+from .ai_provider import ProviderError, ProviderNotConfigured, ProviderRateLimited, ProviderResponse, get_provider
 
 MAX_QUESTION_CHARS = 2000
 MAX_HISTORY_TURNS = 12
@@ -25,6 +25,7 @@ MAX_HISTORY_CHARS = 4000
 MILLION = Decimal(1_000_000)
 
 UNAVAILABLE = "The assistant isn't available right now. Try again in a moment; the rest of the app still works."
+BUSY = "The assistant is busy right now (the AI provider's usage limit). Try again in a minute."
 
 SYSTEM_PROMPT = """You are the read-only assistant inside a business project management app.
 Organization: {org_name}. Today is {today} ({timezone}). Default currency: {currency}.
@@ -176,6 +177,9 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
                 result, shown_args, ok = ai_tools.run_tool(ctx, call.name, call.arguments)
                 trace.append({"tool": call.name, "arguments": shown_args, "ok": ok})
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
+    except ProviderRateLimited as e:
+        status = "busy"
+        current_app.logger.warning("AI provider rate limit: %s", e)
     except ProviderError as e:
         status = "error"
         current_app.logger.warning("AI provider error: %s", e)  # no prompt or answer text in logs
@@ -195,6 +199,8 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
         )
         db.session.commit()
 
+    if status == "busy":
+        raise ApiError("ai_busy", BUSY, 503)
     if status == "error":
         raise ApiError("ai_unavailable", UNAVAILABLE, 503)
     if status == "capped":

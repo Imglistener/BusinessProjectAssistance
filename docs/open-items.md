@@ -87,6 +87,13 @@
 - Audit entries now carry `project_id` (backfilled by migration) so the list is a simple indexed query.
 - Organization-level events (members, invites) aren't shown per project; an organization activity view could come later.
 
+## AI evaluation (implemented)
+- `flask --app wsgi ai-eval`: 8 known-answer questions on the demo data, checked against backend figures.
+  Last run 2026-10-30 with openai/gpt-oss-120b on Groq: 8/8 passed.
+- Groq's per-minute token limit is low on this account: a few questions in a row can hit HTTP 429. The backend
+  waits once for short Retry-After values, otherwise tells the user the assistant is busy. A paid Groq tier
+  (or smaller prompts) would raise the limit.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
