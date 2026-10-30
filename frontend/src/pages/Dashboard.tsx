@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type DashboardSummary, type Organization, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
 import { ProjectForm } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
-import { Wordmark, ZellijField } from "../components/Zellij";
+import { AppShell } from "../components/AppShell";
+import { ZellijField } from "../components/Zellij";
 import { formatMoney } from "../lib/format";
-
-const NAV = [
-  { label: "Dashboard", active: true },
-  { label: "Projects" },
-  { label: "Expenses" },
-  { label: "Assistant" },
-];
 
 function greeting(hour: number) {
   if (hour < 12) return "Good morning";
@@ -23,8 +16,7 @@ function greeting(hour: number) {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [orgs, setOrgs] = useState<Organization[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -37,65 +29,26 @@ export default function Dashboard() {
   const org = orgs?.[0] ?? null;
 
   return (
-    <div className="shell">
-      <aside className="rail">
-        <Wordmark light />
-        <nav aria-label="Main">
-          <ul className="rail__nav">
-            {NAV.map((item) => (
-              <li key={item.label}>
-                {item.active ? (
-                  <a href="/app" className="rail__link rail__link--active" aria-current="page">
-                    {item.label}
-                  </a>
-                ) : (
-                  <span className="rail__link rail__link--soon" aria-disabled="true">
-                    {item.label}
-                    <small>Soon</small>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="rail__user">
-          <span className="rail__name">
-            {user?.first_name} {user?.last_name}
-          </span>
-          <button
-            type="button"
-            className="rail__logout"
-            onClick={() => {
-              logout();
-              navigate("/login", { replace: true });
-            }}
-          >
-            Log out
-          </button>
-        </div>
-      </aside>
+    <AppShell currentPage>
+      <header className="main__header">
+        <h1>
+          {greeting(new Date().getHours())}, {user?.first_name}
+        </h1>
+        {org && (
+          <p className="main__org">
+            {org.name}. Amounts in {org.default_currency}.
+          </p>
+        )}
+      </header>
 
-      <main className="main">
-        <header className="main__header">
-          <h1>
-            {greeting(new Date().getHours())}, {user?.first_name}
-          </h1>
-          {org && (
-            <p className="main__org">
-              {org.name}. Amounts in {org.default_currency}.
-            </p>
-          )}
-        </header>
+      <FormError message={loadError} />
 
-        <FormError message={loadError} />
+      {orgs === null && !loadError && <p className="muted">Loading…</p>}
 
-        {orgs === null && !loadError && <p className="muted">Loading…</p>}
+      {orgs !== null && !org && <CreateOrganization onCreated={(o) => setOrgs([o])} />}
 
-        {orgs !== null && !org && <CreateOrganization onCreated={(o) => setOrgs([o])} />}
-
-        {org && <OrgOverview org={org} />}
-      </main>
-    </div>
+      {org && <OrgOverview org={org} />}
+    </AppShell>
   );
 }
 

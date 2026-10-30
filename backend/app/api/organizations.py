@@ -2,7 +2,7 @@ from flask import current_app, jsonify
 from flask_jwt_extended import jwt_required
 
 from ..extensions import db
-from ..models import Organization, OrganizationMember, Role
+from ..models import Organization, OrganizationMember, Role, User
 from ..services.audit import log_action
 from ..services.permissions import get_membership
 from . import api_bp
@@ -75,3 +75,23 @@ def get_organization(org_id: int):
     membership = get_membership(org_id, user.id)
     org = db.session.get(Organization, org_id)
     return jsonify(organization=org_to_dict(org, membership.role))
+
+
+@api_bp.get("/organizations/<int:org_id>/members")
+@jwt_required()
+def list_members(org_id: int):
+    """Active members, for assignee pickers. Emails are not exposed to other members."""
+    user = current_user()
+    get_membership(org_id, user.id)
+    rows = (
+        db.session.query(User, OrganizationMember.role)
+        .join(OrganizationMember, OrganizationMember.user_id == User.id)
+        .filter(OrganizationMember.organization_id == org_id, OrganizationMember.status == "active")
+        .order_by(User.first_name, User.last_name, User.id)
+        .all()
+    )
+    return jsonify(
+        members=[
+            {"user_id": u.id, "name": f"{u.first_name} {u.last_name}", "role": role.value} for u, role in rows
+        ]
+    )

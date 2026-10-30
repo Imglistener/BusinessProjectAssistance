@@ -34,6 +34,12 @@ def get_project_for_user(project_id: int, user_id: int):
     return project, membership
 
 
+def require_active_project(project: Project) -> None:
+    """Archived projects are read-only; restore one (status -> active) before changing its records."""
+    if project.status == ProjectStatus.ARCHIVED:
+        raise ApiError("project_archived", "This project is archived. Restore it to make changes.", 409)
+
+
 def _group(rows: Iterable, key: str) -> dict:
     grouped = defaultdict(list)
     for row in rows:

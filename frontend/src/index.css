@@ -818,6 +818,187 @@ a {
   }
 }
 
+/* ---------- Project page: expenses and tasks ---------- */
+.back {
+  justify-self: start;
+  margin-bottom: -1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back::before {
+  content: "\2190\00a0";
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.project__name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.project__name a:hover {
+  color: var(--blue-600);
+  text-decoration: underline;
+}
+
+.notice {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--blue-100);
+  font-weight: 550;
+}
+
+.budget-line {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: -1rem;
+}
+
+.field select,
+.status-select {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.field select:focus,
+.status-select:focus {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: var(--focus);
+}
+
+.status-select {
+  width: auto;
+  min-width: 9rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.status-select:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  opacity: 1;
+  appearance: none;
+  padding-right: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row__main {
+  min-width: 0;
+}
+
+.row__title {
+  font-weight: 650;
+}
+
+.row__meta {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.925rem;
+  overflow-wrap: anywhere;
+}
+
+.row__side {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.row__amount {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.row__confirm {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.row--voided .row__title,
+.row--voided .row__amount {
+  color: var(--muted);
+}
+
+.row--voided .row__amount {
+  text-decoration: line-through;
+}
+
+.tag {
+  margin-left: 0.6rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--blue-100);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  color: var(--blue-600);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.link-btn--danger {
+  color: var(--danger);
+}
+
+@media (max-width: 560px) {
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .row__side {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

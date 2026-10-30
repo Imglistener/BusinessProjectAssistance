@@ -30,3 +30,18 @@ export const STATUS_LABEL: Record<string, string> = {
   completed: "Completed",
   archived: "Archived",
 };
+
+export const TASK_STATUS_LABEL: Record<string, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  done: "Done",
+  cancelled: "Cancelled",
+};
+
+export const PRIORITY_LABEL: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
+
+export const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};

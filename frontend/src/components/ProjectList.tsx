@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { Project } from "../api/models";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
 
@@ -42,7 +43,9 @@ export function ProjectList({ projects }: { projects: Project[] }) {
         return (
           <li key={p.id} className="project">
             <div className="project__main">
-              <h3 className="project__name">{p.name}</h3>
+              <h3 className="project__name">
+                <Link to={`/app/projects/${p.id}`}>{p.name}</Link>
+              </h3>
               <p className="project__meta">
                 <span className={`status status--${p.status}`}>{STATUS_LABEL[p.status]}</span>
                 {dates && <span>{dates}</span>}

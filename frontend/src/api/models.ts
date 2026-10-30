@@ -10,6 +10,7 @@ export interface Organization {
 /** Money and percentages arrive as decimal strings (e.g. "12500.00") so no precision is lost. */
 export interface Project {
   id: number;
+  organization_id: number;
   name: string;
   status: "planned" | "active" | "on_hold" | "completed" | "archived";
   currency: string;
@@ -25,6 +26,39 @@ export interface Project {
   task_completion_pct: string | null;
   overdue_task_count: number;
   over_budget: boolean;
+  /** only on GET /projects/:id */
+  my_role?: Role;
+}
+
+export type ExpenseStatus = "valid" | "voided" | "refunded";
+
+export interface Expense {
+  id: number;
+  project_id: number;
+  created_by: number;
+  category: string;
+  amount: string;
+  currency: string;
+  description: string | null;
+  expense_date: string;
+  status: ExpenseStatus;
+}
+
+export type TaskStatus = "todo" | "in_progress" | "blocked" | "done" | "cancelled";
+export type TaskPriority = "low" | "medium" | "high";
+
+export interface Task {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  completed_at: string | null;
+  is_overdue: boolean;
 }
 
 export interface CurrencyTotals {
@@ -42,3 +76,6 @@ export interface DashboardSummary {
 }
 
 export const canManageProjects = (role: Role) => role === "owner" || role === "project_manager";
+
+/** Owners, project managers and contributors can record expenses and add tasks. */
+export const canContribute = (role: Role) => canManageProjects(role) || role === "contributor";

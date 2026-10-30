@@ -48,3 +48,20 @@ def test_cannot_read_another_organization_by_id(client):
     r = client.get(f"/api/organizations/{org_id}", headers=b)
     assert r.status_code == 404  # same as a non-existent id
     assert client.get("/api/organizations/99999", headers=b).status_code == 404
+
+
+def test_members_list_for_members_only(client):
+    from app.models import Role
+
+    from .test_projects import add_member
+
+    owner = auth_headers(client, email="owner@example.com")
+    org_id = create_org(client, owner).get_json()["organization"]["id"]
+    viewer = add_member(client, org_id, "v@example.com", Role.VIEWER)
+    outsider = auth_headers(client, email="out@example.com")
+
+    members = client.get(f"/api/organizations/{org_id}/members", headers=viewer).get_json()["members"]
+    assert sorted(m["role"] for m in members) == ["owner", "viewer"]
+    assert all(set(m) == {"user_id", "name", "role"} for m in members)  # no emails
+    assert client.get(f"/api/organizations/{org_id}/members", headers=outsider).status_code == 404
+    assert client.get(f"/api/organizations/{org_id}/members").status_code == 401

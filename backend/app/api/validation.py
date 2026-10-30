@@ -25,6 +25,13 @@ FIELD_LABELS = {
     "currency": "Currency",
     "start_date": "Start date",
     "end_date": "End date",
+    "category": "Category",
+    "amount": "Amount",
+    "expense_date": "Date",
+    "title": "Title",
+    "priority": "Priority",
+    "due_date": "Due date",
+    "assignee_id": "Assignee",
     "default_currency": "Currency",
 }
 
@@ -59,8 +66,13 @@ def optional_str(data: dict, field: str, *, max_len: int = 255) -> Optional[str]
     return value or None
 
 
-def parse_money(data: dict, field: str, *, required: bool = True) -> Optional[Decimal]:
-    """Non-negative amount with at most 2 decimals. Accepts a JSON number or numeric string."""
+def parse_money(
+    data: dict, field: str, *, required: bool = True, positive: bool = False
+) -> Optional[Decimal]:
+    """Amount with at most 2 decimals. Accepts a JSON number or numeric string.
+
+    Non-negative by default; `positive=True` also rejects zero (expenses).
+    """
     value = data.get(field)
     if value is None or value == "":
         if required:
@@ -76,6 +88,8 @@ def parse_money(data: dict, field: str, *, required: bool = True) -> Optional[De
         raise _bad(field, f"{_label(field)} must be an amount, like 1500 or 1500.50.")
     if amount < 0:
         raise _bad(field, f"{_label(field)} can't be negative.")
+    if positive and amount == 0:
+        raise _bad(field, f"{_label(field)} must be more than zero.")
     if amount > MAX_MONEY:
         raise _bad(field, f"{_label(field)} is too large.")
     if amount != amount.quantize(Decimal("0.01")):
@@ -83,9 +97,11 @@ def parse_money(data: dict, field: str, *, required: bool = True) -> Optional[De
     return amount.quantize(Decimal("0.01"))
 
 
-def parse_date(data: dict, field: str) -> Optional[date]:
+def parse_date(data: dict, field: str, *, required: bool = False) -> Optional[date]:
     value = data.get(field)
     if value is None or value == "":
+        if required:
+            raise _bad(field, f"{_label(field)} is required.")
         return None
     if not isinstance(value, str):
         raise _bad(field, f"{_label(field)} must be a valid date.")
@@ -102,3 +118,24 @@ def parse_currency(data: dict, field: str, default: str) -> str:
     if not isinstance(value, str) or len(value.strip()) != 3 or not value.strip().isalpha():
         raise _bad(field, f"{_label(field)} must be a 3-letter code, like MAD.")
     return value.strip().upper()
+
+
+def parse_enum(data: dict, field: str, enum_cls, default=None):
+    """Return the enum member for data[field]; `default` when the field is absent or null."""
+    raw = data.get(field)
+    if raw is None:
+        return default
+    try:
+        return enum_cls(raw)
+    except ValueError:
+        allowed = ", ".join(m.value for m in enum_cls)
+        raise _bad(field, f"{_label(field)} must be one of: {allowed}.")
+
+
+def parse_optional_id(data: dict, field: str) -> Optional[int]:
+    value = data.get(field)
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise _bad(field, f"{_label(field)} is not valid.")
+    return value

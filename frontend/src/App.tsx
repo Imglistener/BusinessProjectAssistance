@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import ProjectDetail from "./pages/ProjectDetail";
 import Signup from "./pages/Signup";
 import Splash from "./pages/Splash";
 
@@ -24,6 +25,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/projects/:projectId"
+        element={
+          <RequireAuth>
+            <ProjectDetail />
           </RequireAuth>
         }
       />

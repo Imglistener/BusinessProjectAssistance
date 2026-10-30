@@ -94,6 +94,31 @@ export function Field({
   );
 }
 
+interface SelectProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange(value: string): void;
+  options: { value: string; label: string }[];
+}
+
+export function SelectField({ label, name, value, onChange, options }: SelectProps) {
+  return (
+    <div className="field">
+      <label htmlFor={name}>{label}</label>
+      <div className="field__control">
+        <select id={name} name={name} value={value} onChange={(e) => onChange(e.target.value)}>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (

@@ -4,6 +4,13 @@ from ..models import OrganizationMember, Role
 # Roles allowed to manage organization members/settings (to confirm with the project owner).
 ORG_ADMIN_ROLES = (Role.OWNER,)
 
+# Who may create/edit/archive projects and edit any task or expense (to confirm).
+PROJECT_WRITE_ROLES = (Role.OWNER, Role.PROJECT_MANAGER)
+
+# Who may record expenses and add tasks. Contributors may only change their own
+# expenses and the status of tasks assigned to them (to confirm).
+CONTRIBUTE_ROLES = (Role.OWNER, Role.PROJECT_MANAGER, Role.CONTRIBUTOR)
+
 
 def get_membership(organization_id: int, user_id: int) -> OrganizationMember:
     """Return the user's active membership or raise 404.

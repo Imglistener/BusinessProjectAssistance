@@ -7,10 +7,10 @@ from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Organization, Project, ProjectStatus, Role
+from ..models import Organization, Project, ProjectStatus
 from ..services import projects as svc
 from ..services.audit import log_action
-from ..services.permissions import get_membership, require_role
+from ..services.permissions import PROJECT_WRITE_ROLES, get_membership, require_role
 from . import api_bp
 from .auth import current_user
 from .validation import (
@@ -21,10 +21,6 @@ from .validation import (
     parse_money,
     require_str,
 )
-
-# Roles that may create, edit and archive projects (to confirm with the project owner).
-PROJECT_WRITE_ROLES = (Role.OWNER, Role.PROJECT_MANAGER)
-
 
 def _money(value) -> str | None:
     return None if value is None else f"{Decimal(value):.2f}"
@@ -89,6 +85,12 @@ def _one_project_dict(project: Project, org: Organization) -> dict:
     tasks = svc.load_tasks([project.id])
     m = svc.project_metrics(project, expenses.get(project.id, []), tasks.get(project.id, []), svc.org_today(org.timezone))
     return project_to_dict(project, m)
+
+
+def project_payload(project: Project) -> dict:
+    """Project with fresh metrics; returned by endpoints that change budget-relevant records."""
+    org = db.session.get(Organization, project.organization_id)
+    return _one_project_dict(project, org)
 
 
 @api_bp.post("/organizations/<int:org_id>/projects")
@@ -175,9 +177,9 @@ def organization_dashboard(org_id: int):
 @jwt_required()
 def get_project(project_id: int):
     user = current_user()
-    project, _ = svc.get_project_for_user(project_id, user.id)
+    project, membership = svc.get_project_for_user(project_id, user.id)
     org = db.session.get(Organization, project.organization_id)
-    return jsonify(project=_one_project_dict(project, org))
+    return jsonify(project={**_one_project_dict(project, org), "my_role": membership.role.value})
 
 
 @api_bp.patch("/projects/<int:project_id>")
