@@ -1,0 +1,306 @@
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ApiError, api } from "../api/client";
+import type { ChatReply, Organization, Project, ToolTraceEntry } from "../api/models";
+import { AppShell } from "../components/AppShell";
+import { FormError } from "../components/AuthLayout";
+import { errorMessage } from "../lib/errors";
+
+const HISTORY_TURNS = 12;
+
+/** What each tool's result means to a person reading the answer. */
+const TOOL_LABEL: Record<string, string> = {
+  list_projects: "Project list",
+  get_project_summary: "Project summary",
+  calculate_budget_metrics: "Budget figures",
+  get_expense_breakdown: "Expense breakdown",
+  list_overdue_tasks: "Overdue tasks",
+  estimate_spend_rate: "Spend-rate estimate",
+  draft_project_update: "Project facts for the draft",
+};
+
+const GENERAL_PROMPTS = [
+  "Which projects need attention right now?",
+  "Are any projects over budget?",
+  "Which projects have overdue tasks?",
+];
+
+const PROJECT_PROMPTS = [
+  "How is the budget looking?",
+  "What are we spending the most on?",
+  "At the current spend rate, how long will the budget last?",
+  "Draft a short status update I can share.",
+];
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  trace?: ToolTraceEntry[];
+}
+
+export default function Assistant() {
+  const [params, setParams] = useSearchParams();
+  const [org, setOrg] = useState<Organization | null | undefined>(undefined);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ organizations: Organization[] }>("/organizations")
+      .then(async (r) => {
+        const first = r.organizations[0] ?? null;
+        setOrg(first);
+        if (first) {
+          const p = await api<{ projects: Project[] }>(`/organizations/${first.id}/projects`);
+          setProjects(p.projects);
+        }
+      })
+      .catch((e) => setLoadError(errorMessage(e, "Couldn't load your projects.")));
+  }, []);
+
+  const projectId = params.get("project") ?? "";
+  const setProjectId = (id: string) => setParams(id ? { project: id } : {}, { replace: true });
+
+  return (
+    <AppShell>
+      <header className="main__header">
+        <h1>Assistant</h1>
+        <p className="main__org">
+          Ask about your projects, budgets, expenses and deadlines. It reads your data; it can't change anything.
+        </p>
+      </header>
+
+      <FormError message={loadError} />
+      {org === undefined && !loadError && <p className="muted">Loading…</p>}
+      {org === null && (
+        <p className="muted">
+          Create your organization on the <Link to="/app">dashboard</Link> first.
+        </p>
+      )}
+      {org && <Chat org={org} projects={projects} projectId={projectId} onProjectChange={setProjectId} />}
+    </AppShell>
+  );
+}
+
+function Chat({
+  org,
+  projects,
+  projectId,
+  onProjectChange,
+}: {
+  org: Organization;
+  projects: Project[];
+  projectId: string;
+  onProjectChange(id: string): void;
+}) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: "end", behavior: "smooth" });
+  }, [messages, busy]);
+
+  const send = async (text: string) => {
+    const question = text.trim();
+    if (!question || busy) return;
+    const history = messages.slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content }));
+    setMessages((m) => [...m, { role: "user", content: question }]);
+    setDraft("");
+    setError(null);
+    setBusy(true);
+    try {
+      const r = await api<ChatReply>("/ai/chat", {
+        body: {
+          organization_id: org.id,
+          message: question,
+          project_id: projectId ? Number(projectId) : null,
+          history,
+        },
+      });
+      setMessages((m) => [...m, { role: "assistant", content: r.answer, trace: r.tool_trace }]);
+    } catch (e) {
+      // Put the question back so it isn't lost.
+      setMessages((m) => m.slice(0, -1));
+      setDraft(question);
+      setError(
+        e instanceof ApiError && e.code === "network"
+          ? e.message
+          : errorMessage(e, "The assistant couldn't answer. Try again."),
+      );
+    } finally {
+      setBusy(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    send(draft);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(draft);
+    }
+  };
+
+  const prompts = projectId ? PROJECT_PROMPTS : GENERAL_PROMPTS;
+
+  return (
+    <section className="chat" aria-label="Conversation">
+      <div className="chat__bar">
+        <div className="field chat__project">
+          <label htmlFor="chat-project">About</label>
+          <div className="field__control">
+            <select id="chat-project" value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={String(p.id)}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {messages.length > 0 && (
+          <button type="button" className="link-btn" onClick={() => setMessages([])} disabled={busy}>
+            New conversation
+          </button>
+        )}
+      </div>
+
+      <div className="chat__log" aria-live="polite">
+        {messages.length === 0 && (
+          <div className="chat__empty">
+            <p className="muted">Try one of these:</p>
+            <ul className="chips">
+              {prompts.map((p) => (
+                <li key={p}>
+                  <button type="button" className="chip" onClick={() => send(p)} disabled={busy}>
+                    {p}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {messages.map((m, i) =>
+          m.role === "user" ? (
+            <div key={i} className="bubble bubble--user">
+              <span className="visually-hidden">You: </span>
+              {m.content}
+            </div>
+          ) : (
+            <AssistantMessage key={i} message={m} />
+          ),
+        )}
+
+        {busy && (
+          <p className="chat__thinking" role="status">
+            Looking at your data…
+          </p>
+        )}
+        <div ref={endRef} />
+      </div>
+
+      <FormError message={error} />
+
+      <form className="composer" onSubmit={onSubmit}>
+        <label htmlFor="chat-input" className="visually-hidden">
+          Your question
+        </label>
+        <textarea
+          id="chat-input"
+          ref={inputRef}
+          rows={2}
+          maxLength={2000}
+          placeholder={projectId ? "Ask about this project…" : "Ask about your projects…"}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        <button type="submit" className="btn btn--primary" disabled={busy || !draft.trim()}>
+          Ask
+        </button>
+      </form>
+
+      <p className="chat__disclosure">
+        Your question and the project figures needed to answer it are sent to an external AI provider. Answers are
+        AI-generated and can be wrong: check important figures on the project page.
+      </p>
+    </section>
+  );
+}
+
+function AssistantMessage({ message }: { message: Message }) {
+  const [copied, setCopied] = useState(false);
+  const sources = [...new Set((message.trace ?? []).filter((t) => t.ok).map((t) => TOOL_LABEL[t.tool] ?? t.tool))];
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked: nothing to do */
+    }
+  };
+
+  return (
+    <article className="bubble bubble--ai">
+      <p className="bubble__label">
+        <span className="tag">AI-generated</span>
+      </p>
+      <RichText text={message.content} />
+      <footer className="bubble__foot">
+        <span>{sources.length > 0 ? `Based on: ${sources.join(", ")}` : "Not based on project data"}</span>
+        <button type="button" className="link-btn" onClick={copy}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </footer>
+    </article>
+  );
+}
+
+/**
+ * Model output is untrusted: render it as plain text only (React escapes it), with paragraphs
+ * and "- " bullet lists recognised. Never use dangerouslySetInnerHTML here.
+ */
+function RichText({ text }: { text: string }) {
+  const blocks = text.replace(/\r\n/g, "\n").split(/\n\s*\n/);
+  return (
+    <div className="rich">
+      {blocks.map((block, i) => {
+        const lines = block.split("\n").filter((l) => l.trim());
+        const bullet = /^\s*(?:[-*•]|\d+[.)])\s+/;
+        if (lines.length > 0 && lines.every((l) => bullet.test(l))) {
+          return (
+            <ul key={i}>
+              {lines.map((l, j) => (
+                <li key={j}>{strip(l.replace(bullet, ""))}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={i}>
+            {lines.map((l, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {strip(l)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Drop markdown emphasis markers the model sometimes adds despite the prompt. */
+const strip = (line: string) => line.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s+/, "");

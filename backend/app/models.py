@@ -178,6 +178,23 @@ class AIMessage(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class AIUsage(db.Model):
+    """One row per assistant request: operational metadata only, never prompt or answer text."""
+
+    __tablename__ = "ai_usage"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    provider = db.Column(db.String(30), nullable=False)
+    model = db.Column(db.String(100), nullable=False)
+    prompt_tokens = db.Column(db.Integer, nullable=False, default=0)
+    completion_tokens = db.Column(db.Integer, nullable=False, default=0)
+    tool_calls = db.Column(db.Integer, nullable=False, default=0)
+    cost_usd = db.Column(db.Numeric(12, 6), nullable=False, default=0)
+    status = db.Column(db.String(20), nullable=False)  # ok / error
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+
+
 class AuditLog(db.Model):
     __tablename__ = "audit_logs"
     id = db.Column(db.Integer, primary_key=True)

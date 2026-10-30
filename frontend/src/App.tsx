@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import Assistant from "./pages/Assistant";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import ProjectDetail from "./pages/ProjectDetail";
@@ -25,6 +26,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Dashboard />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/assistant"
+        element={
+          <RequireAuth>
+            <Assistant />
           </RequireAuth>
         }
       />

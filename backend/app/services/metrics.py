@@ -88,6 +88,36 @@ def spend_rate_per_day(expenses: Iterable, period_days: int, today: date) -> Opt
     return q(total_actual_expenses(expenses, start, today) / Decimal(period_days))
 
 
+def days_until_budget_exhausted(remaining, per_day) -> Optional[int]:
+    """Whole days the remaining budget lasts at `per_day`. None when nothing remains or nothing is spent."""
+    r, rate = _d(remaining), _d(per_day)
+    if r <= 0 or rate <= 0:
+        return None
+    return int(r // rate)
+
+
+def expense_breakdown(
+    expenses: Iterable, group_by: str, start: Optional[date] = None, end: Optional[date] = None
+) -> list[dict]:
+    """Valid expenses grouped by "category" (largest first) or "month" (YYYY-MM, oldest first)."""
+    if group_by not in ("category", "month"):
+        raise ValueError("group_by must be 'category' or 'month'")
+    groups: dict[str, list] = {}
+    for e in expenses:
+        if _status(e.status) != VALID_EXPENSE_STATUS:
+            continue
+        if (start and e.expense_date < start) or (end and e.expense_date > end):
+            continue
+        key = e.category if group_by == "category" else e.expense_date.strftime("%Y-%m")
+        groups.setdefault(key, []).append(e)
+    rows = [{"key": k, "total": total_actual_expenses(v), "count": len(v)} for k, v in groups.items()]
+    if group_by == "category":
+        rows.sort(key=lambda r: (-r["total"], r["key"]))
+    else:
+        rows.sort(key=lambda r: r["key"])
+    return rows
+
+
 @dataclass
 class BudgetMetrics:
     budget: Decimal

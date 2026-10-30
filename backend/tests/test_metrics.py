@@ -70,3 +70,43 @@ def test_spend_rate():
     assert m.spend_rate_per_day(es, 7, TODAY) == Decimal("10.00")
     with pytest.raises(ValueError):
         m.spend_rate_per_day(es, 0, TODAY)
+
+
+def cat_exp(amount, category, d=date(2026, 10, 1), status="valid"):
+    return NS(amount=Decimal(amount), expense_date=d, status=status, category=category)
+
+
+def test_breakdown_by_category_largest_first_and_valid_only():
+    es = [
+        cat_exp("100", "Design"),
+        cat_exp("300", "Travel"),
+        cat_exp("50.25", "Design"),
+        cat_exp("999", "Travel", status="voided"),
+    ]
+    rows = m.expense_breakdown(es, "category")
+    assert rows == [
+        {"key": "Travel", "total": Decimal("300.00"), "count": 1},
+        {"key": "Design", "total": Decimal("150.25"), "count": 2},
+    ]
+
+
+def test_breakdown_by_month_with_range():
+    es = [
+        cat_exp("10", "A", date(2026, 9, 30)),
+        cat_exp("20", "A", date(2026, 10, 1)),
+        cat_exp("30", "B", date(2026, 11, 2)),
+    ]
+    rows = m.expense_breakdown(es, "month", date(2026, 10, 1), date(2026, 12, 31))
+    assert [(r["key"], r["total"]) for r in rows] == [("2026-10", Decimal("20.00")), ("2026-11", Decimal("30.00"))]
+
+
+def test_breakdown_rejects_unknown_grouping():
+    with pytest.raises(ValueError):
+        m.expense_breakdown([], "week")
+
+
+def test_days_until_budget_exhausted():
+    assert m.days_until_budget_exhausted("1000", "30") == 33
+    assert m.days_until_budget_exhausted("0", "30") is None
+    assert m.days_until_budget_exhausted("-5", "30") is None
+    assert m.days_until_budget_exhausted("1000", "0") is None

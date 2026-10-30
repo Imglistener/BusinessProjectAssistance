@@ -19,4 +19,4 @@ def health():
 
 
 # Import route modules last so they can use api_bp.
-from . import auth, expenses, organizations, projects, tasks  # noqa: E402,F401
+from . import ai, auth, expenses, organizations, projects, tasks  # noqa: E402,F401

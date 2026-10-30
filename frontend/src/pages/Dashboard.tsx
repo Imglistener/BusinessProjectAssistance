@@ -29,7 +29,7 @@ export default function Dashboard() {
   const org = orgs?.[0] ?? null;
 
   return (
-    <AppShell currentPage>
+    <AppShell>
       <header className="main__header">
         <h1>
           {greeting(new Date().getHours())}, {user?.first_name}

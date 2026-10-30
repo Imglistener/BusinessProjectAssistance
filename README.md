@@ -45,6 +45,20 @@ npm run dev
 
 Run backend tests: `cd backend && pytest`
 
+## AI assistant
+
+Set `GROQ_API_KEY` in `.env` (server-side only) and restart the backend; without it the
+Assistant page says it isn't set up and everything else works normally.
+
+- `POST /api/ai/chat` with `{organization_id, message, project_id?, history?}` returns
+  `{answer, tool_trace, ai_generated}`.
+- The model can only call the read-only tools in `backend/app/services/ai_tools.py`; each one
+  re-checks organization membership and project access. All figures come from `metrics.py`.
+- Provider code is in `ai_provider.py` (Groq, OpenAI chat format); add another provider there.
+- Limits: monthly USD cap (`AI_MONTHLY_COST_CAP_USD`, priced with `AI_*_PRICE_PER_MTOK_USD`),
+  per-user rate limit and a timeout. Each request logs token counts and cost in `ai_usage`;
+  question and answer text are not stored on the server.
+
 ## Principles
 
 - Financial calculations live in `backend/app/services/metrics.py` (Decimal arithmetic, tested).

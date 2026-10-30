@@ -61,7 +61,10 @@ function ProjectHeader({ project }: { project: Project }) {
   return (
     <>
       <header className="main__header">
-        <h1>{project.name}</h1>
+        <div className="header-actions">
+          <h1>{project.name}</h1>
+          <Link to={`/app/assistant?project=${project.id}`}>Ask the assistant</Link>
+        </div>
         <p className="main__org">
           {STATUS_LABEL[project.status]}
           {dates ? `. ${dates}.` : "."}

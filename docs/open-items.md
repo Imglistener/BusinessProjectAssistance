@@ -24,7 +24,16 @@
 - Expenses with status other than "valid" are excluded from totals.
 - Rounding: ROUND_HALF_UP to 2 decimals.
 
+## AI assistant (approved defaults, 2026-10-30)
+- Model: `openai/gpt-oss-120b` on Groq (llama-3.3-70b-versatile is no longer offered on the account).
+- Cost cap: per-request cost = tokens x configured price per million tokens
+  (defaults 0.15 in / 0.75 out USD; verify against Groq's pricing page). The cap is app-wide, not per organization.
+- Conversations are not stored server-side: the browser keeps the conversation and sends the last
+  12 turns with each question. `ai_conversations`/`ai_messages` stay unused until a retention policy is chosen.
+- Data sent to the provider: project names, figures, task titles and assignee names. No emails, no expense descriptions.
+- Added a seventh read-only tool, `list_projects`, so the assistant can find project IDs.
+- Rate limit: 10 questions per user per minute (configurable).
+
 ## Still open
-- Token/cost accounting for the AI monthly cap (needs provider pricing).
 - Report export format, notifications, email provider for password reset.
 - Hosting and backup plan.

@@ -79,3 +79,15 @@ export const canManageProjects = (role: Role) => role === "owner" || role === "p
 
 /** Owners, project managers and contributors can record expenses and add tasks. */
 export const canContribute = (role: Role) => canManageProjects(role) || role === "contributor";
+
+export interface ToolTraceEntry {
+  tool: string;
+  arguments: Record<string, string | number | boolean>;
+  ok: boolean;
+}
+
+export interface ChatReply {
+  answer: string;
+  tool_trace: ToolTraceEntry[];
+  ai_generated: true;
+}
