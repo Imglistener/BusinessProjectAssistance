@@ -67,7 +67,15 @@
 - Deleting a milestone keeps its tasks and unlinks them.
 - The AI project summary includes milestones.
 
+## Project report and exports (implemented, default format)
+- Report page per project (budget, spending by category and month with shares, tasks, overdue,
+  next 14 days, milestones, definitions). PDF via the browser's "Save as PDF" print option.
+- CSV exports of expenses (all statuses, with a status column) and tasks. UTF-8 with BOM for Excel;
+  cells that would run as formulas (=, +, -, @) are prefixed with an apostrophe.
+- Any member who can see the project can view and export it. Exports aren't audited (they change nothing).
+- Excel (.xlsx) export and a server-generated PDF are possible later if needed.
+
 ## Still open
-- Report export format, notifications.
+- Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting and backup plan.

@@ -8,6 +8,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Login from "./pages/Login";
 import Members from "./pages/Members";
 import ProjectDetail from "./pages/ProjectDetail";
+import Report from "./pages/Report";
 import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
 import Splash from "./pages/Splash";
@@ -57,6 +58,14 @@ export default function App() {
         element={
           <RequireAuth>
             <ProjectDetail />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/projects/:projectId/report"
+        element={
+          <RequireAuth>
+            <Report />
           </RequireAuth>
         }
       />

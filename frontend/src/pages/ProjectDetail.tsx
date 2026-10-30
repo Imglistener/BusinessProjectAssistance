@@ -173,7 +173,10 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
       <header className="main__header">
         <div className="header-actions">
           <h1>{project.name}</h1>
-          <Link to={`/app/assistant?project=${project.id}`}>Ask the assistant</Link>
+          <span className="header-links">
+            <Link to={`/app/projects/${project.id}/report`}>Report</Link>
+            <Link to={`/app/assistant?project=${project.id}`}>Ask the assistant</Link>
+          </span>
         </div>
         <p className="main__org">
           {STATUS_LABEL[project.status]}

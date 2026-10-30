@@ -16,6 +16,14 @@ export function formatDate(iso: string): string {
   return dateFmt.format(new Date(y, m - 1, d));
 }
 
+const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" });
+
+/** "2026-10" -> "Oct 2026" */
+export function formatMonth(yearMonth: string): string {
+  const [y, m] = yearMonth.split("-").map(Number);
+  return monthFmt.format(new Date(y, m - 1, 1));
+}
+
 export function formatDateRange(start: string | null, end: string | null): string | null {
   if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
   if (end) return `Ends ${formatDate(end)}`;

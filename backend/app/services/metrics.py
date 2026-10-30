@@ -59,6 +59,14 @@ def budget_consumed_pct(budget, actual) -> Optional[Decimal]:
     return q(_d(actual) / b * 100)
 
 
+def share_pct(part, total) -> Optional[Decimal]:
+    """part / total * 100; None when the total is zero."""
+    t = _d(total)
+    if t == 0:
+        return None
+    return q(_d(part) / t * 100)
+
+
 def task_completion_pct(tasks: Iterable) -> Optional[Decimal]:
     """Completed / non-cancelled tasks * 100. None when no eligible tasks."""
     eligible = [t for t in tasks if _status(t.status) != CANCELLED]

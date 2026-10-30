@@ -134,3 +134,66 @@ export interface InvitationPreview {
 }
 
 export const canManageMembers = (role: Role) => role === "owner";
+
+export interface ReportTask {
+  id: number;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  assignee: string | null;
+  milestone: string | null;
+  days_overdue: number | null;
+}
+
+export interface SpendingRow {
+  group: string;
+  total: string;
+  expense_count: number;
+  /** share of actual spend; null when nothing has been spent */
+  share_pct: string | null;
+}
+
+export interface ProjectReport {
+  generated_at: string;
+  as_of: string;
+  organization: { name: string; timezone: string };
+  project: {
+    id: number;
+    name: string;
+    description: string | null;
+    status: Project["status"];
+    owner: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    currency: string;
+  };
+  budget: {
+    approved: string;
+    actual: string;
+    remaining: string;
+    variance: string;
+    consumed_pct: string | null;
+    over_budget: boolean;
+    valid_expense_count: number;
+    excluded_expense_count: number;
+  };
+  spending_by_category: SpendingRow[];
+  spending_by_month: SpendingRow[];
+  tasks: {
+    total: number;
+    by_status: Partial<Record<TaskStatus, number>>;
+    completion_pct: string | null;
+    overdue: ReportTask[];
+    upcoming: ReportTask[];
+  };
+  milestones: {
+    title: string;
+    due_date: string | null;
+    status: "open" | "done";
+    is_overdue: boolean;
+    task_count: number;
+    task_completion_pct: string | null;
+  }[];
+  definitions: Record<string, string>;
+}
