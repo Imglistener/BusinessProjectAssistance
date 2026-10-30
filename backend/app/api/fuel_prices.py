@@ -7,10 +7,12 @@ from flask_jwt_extended import jwt_required
 from ..errors import ApiError
 from ..extensions import db
 from ..models import FuelPrice, FuelType, Organization
+from ..services import fuel_sync
 from ..services import projects as svc
 from ..services.audit import log_action
 from ..services.permissions import PROJECT_WRITE_ROLES, get_membership, require_role
 from ..services.travel import STALE_PRICE_DAYS
+from ..services.tokens import aware
 from . import api_bp
 from .auth import current_user
 from .validation import get_json_body, optional_str, parse_date, parse_enum, parse_money
@@ -25,6 +27,8 @@ def price_to_dict(p: FuelPrice, today) -> dict:
         "currency": p.currency,
         "as_of": p.as_of.isoformat(),
         "stale": (today - p.as_of).days > STALE_PRICE_DAYS,
+        "source": p.source or "manual",
+        "fetched_at": aware(p.fetched_at).isoformat() if p.fetched_at else None,
     }
 
 
@@ -37,7 +41,29 @@ def list_fuel_prices(org_id: int):
     today = svc.org_today(org.timezone)
     rows = FuelPrice.query.filter_by(organization_id=org_id).all()
     rows.sort(key=lambda p: (p.city != "", p.city.lower(), p.fuel_type.value))
-    return jsonify(prices=[price_to_dict(p, today) for p in rows], stale_after_days=STALE_PRICE_DAYS)
+    return jsonify(
+        prices=[price_to_dict(p, today) for p in rows],
+        stale_after_days=STALE_PRICE_DAYS,
+        sync={"source": fuel_sync.SOURCE_LABEL, "url": fuel_sync.BASE_URL, "available": org.default_currency == "MAD"},
+    )
+
+
+@api_bp.post("/organizations/<int:org_id>/fuel-prices/sync")
+@jwt_required()
+def sync_fuel_prices(org_id: int):
+    """Update prices from prix-gasoil-maroc.teraedge.ma (national average + main cities). Cached for hours."""
+    user = current_user()
+    require_role(get_membership(org_id, user.id), *PROJECT_WRITE_ROLES)
+    org = db.session.get(Organization, org_id)
+    try:
+        snapshot = fuel_sync.fetch()
+        written = fuel_sync.apply(org_id, user.id, snapshot, svc.org_today(org.timezone))
+    except fuel_sync.FuelSyncError as e:
+        raise ApiError("fuel_sync_failed", str(e), 502)
+    log_action(organization_id=org_id, actor_id=user.id, action="fuel_price.synced", entity_type="organization",
+               entity_id=org_id, meta={"source": fuel_sync.SOURCE_LABEL, "rows": written})
+    db.session.commit()
+    return list_fuel_prices(org_id)
 
 
 @api_bp.put("/organizations/<int:org_id>/fuel-prices")
@@ -66,6 +92,7 @@ def save_fuel_price(org_id: int):
         db.session.add(row)
     old = None if row.price_per_litre is None else f"{row.price_per_litre:.2f}"
     row.price_per_litre, row.currency, row.as_of, row.updated_by = price, org.default_currency, as_of, user.id
+    row.source, row.fetched_at = "manual", None
     db.session.flush()
     log_action(organization_id=org_id, actor_id=user.id, action="fuel_price.saved", entity_type="fuel_price",
                entity_id=row.id, meta={"city": city or None, "fuel_type": fuel.value, "price": [old, f"{price:.2f}"]})

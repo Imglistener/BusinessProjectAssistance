@@ -24,10 +24,11 @@ def create_app(config_object=Config):
     app.register_blueprint(api_bp, url_prefix="/api")
 
     from .ai_eval import ai_eval
-    from .cli import demo_data
+    from .cli import demo_data, fuel_prices_sync
 
     app.cli.add_command(demo_data)
     app.cli.add_command(ai_eval)
+    app.cli.add_command(fuel_prices_sync)
 
     # Consistent JSON errors for JWT problems.
     def _jwt_error(code, message):

@@ -33,6 +33,7 @@ from .models import (
     User,
     utcnow,
 )
+from .services import fuel_sync
 from .services.audit import log_action
 from .services.notifications import human_date
 from .services.projects import org_today
@@ -40,6 +41,27 @@ from .services.projects import org_today
 DEMO_EMAIL = "demo@example.com"
 DEMO_PASSWORD = "demo-password"
 TEAMMATE_EMAIL = "salma.demo@example.com"
+
+
+@click.command("fuel-prices-sync")
+@click.option("--force", is_flag=True, help="Ignore the cache and read the site now.")
+def fuel_prices_sync(force: bool) -> None:
+    """Update every MAD organization's fuel prices from prix-gasoil-maroc.teraedge.ma (run daily, e.g. via cron)."""
+    try:
+        snapshot = fuel_sync.fetch(force=force)
+    except fuel_sync.FuelSyncError as e:
+        raise click.ClickException(str(e))
+    for cp in snapshot.prices:
+        click.echo(f"  {cp.city or 'National average'}: diesel {cp.diesel}, petrol {cp.petrol}")
+    updated = 0
+    for org in Organization.query.filter_by(default_currency="MAD"):
+        owner = OrganizationMember.query.filter_by(organization_id=org.id, role=Role.OWNER, status="active").first()
+        if owner is None:
+            continue
+        fuel_sync.apply(org.id, owner.user_id, snapshot, org_today(org.timezone))
+        updated += 1
+    db.session.commit()
+    click.echo(f"Updated {updated} organization(s). Source: {fuel_sync.SOURCE_LABEL}")
 
 
 @click.command("demo-data")

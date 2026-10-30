@@ -147,7 +147,9 @@ def estimate_fuel(
         f"Vehicle: {profile.label}, {low}-{high} L/100 km" + (" (your figure)" if l_per_100km else " (typical range)") + ".",
         f"{vehicle_count} vehicle{'s' if vehicle_count != 1 else ''}.",
         f"Fuel: {profile.fuel.value} at {_m(lookup.price.price_per_litre)} {lookup.price.currency}/L "
-        f"({price_city}, as of {lookup.price.as_of.isoformat()}), +/-3% for station differences.",
+        f"({price_city}, as of {lookup.price.as_of.isoformat()}"
+        + (", average from prix-gasoil-maroc.teraedge.ma" if lookup.price.source == "teraedge" else ", entered by your team")
+        + "), +/-3% for station differences.",
         f"Up to {distance_variance_pct}% extra distance for detours and traffic in the high estimate.",
     ]
     warnings = []
