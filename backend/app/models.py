@@ -227,6 +227,8 @@ class AuditLog(db.Model):
     __tablename__ = "audit_logs"
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), index=True)
+    # Set for project-level entries (the project itself, its tasks, expenses, milestones) for the activity view.
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), index=True)
     actor_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     action = db.Column(db.String(80), nullable=False)
     entity_type = db.Column(db.String(60), nullable=False)

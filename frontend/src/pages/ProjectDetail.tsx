@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type Milestone, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
+import { ActivitySection } from "../components/ActivitySection";
 import { AppShell } from "../components/AppShell";
 import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
@@ -33,10 +34,12 @@ export default function ProjectDetail() {
   }, [projectId]);
 
   // Expense and task changes return fresh project figures; keep my_role from the first load.
-  const merge = useCallback(
-    (p: Project) => setProject((prev) => (prev ? { ...prev, ...p, my_role: prev.my_role } : p)),
-    [],
-  );
+  // Every save also refreshes the activity list.
+  const [activityKey, setActivityKey] = useState(0);
+  const merge = useCallback((p: Project) => {
+    setProject((prev) => (prev ? { ...prev, ...p, my_role: prev.my_role } : p));
+    setActivityKey((k) => k + 1);
+  }, []);
 
   const [milestones, setMilestones] = useState<Milestone[] | null>(null);
   const loadMilestones = useCallback(() => {
@@ -71,7 +74,14 @@ export default function ProjectDetail() {
       {project && user && (
         <>
           <ProjectHeader project={project} onProjectChange={merge} />
-          <MilestoneSection project={project} milestones={milestones} onChanged={loadMilestones} />
+          <MilestoneSection
+            project={project}
+            milestones={milestones}
+            onChanged={() => {
+              loadMilestones();
+              setActivityKey((k) => k + 1);
+            }}
+          />
           <TaskSection
             project={project}
             userId={user.id}
@@ -79,6 +89,7 @@ export default function ProjectDetail() {
             onProjectChange={onTaskChange}
           />
           <ExpenseSection project={project} userId={user.id} onProjectChange={merge} />
+          <ActivitySection project={project} refreshKey={activityKey} />
         </>
       )}
     </AppShell>

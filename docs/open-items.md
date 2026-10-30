@@ -82,6 +82,11 @@
 - Logins last 12 hours (was the library default of 15 minutes); the app returns to the login page when one expires.
 - CORS origins and proxy settings are configurable; weak or placeholder secrets log a warning at startup.
 
+## Project activity (implemented)
+- Project page "Activity" list from the audit log, newest first, 10 at a time; visible to anyone who can see the project.
+- Audit entries now carry `project_id` (backfilled by migration) so the list is a simple indexed query.
+- Organization-level events (members, invites) aren't shown per project; an organization activity view could come later.
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
