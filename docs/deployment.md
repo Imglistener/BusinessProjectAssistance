@@ -30,6 +30,7 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `APP_BASE_URL` | The frontend address, used in emailed links. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
+| `VITE_GOOGLE_MAPS_API_KEY` | Optional, set at frontend build time. Enable Maps JavaScript, Places and Directions APIs and restrict the key to your site's address (HTTP referrer). It is visible in the browser by design. |
 | `GROQ_API_KEY`, `AI_*` | AI provider key and limits. The key stays on the server. |
 
 ## First deployment

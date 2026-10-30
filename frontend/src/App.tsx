@@ -11,6 +11,7 @@ import Members from "./pages/Members";
 import Notifications from "./pages/Notifications";
 import ProjectDetail from "./pages/ProjectDetail";
 import Report from "./pages/Report";
+import Settings from "./pages/Settings";
 import TripDetail from "./pages/TripDetail";
 import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
@@ -47,6 +48,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Notifications />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/settings"
+        element={
+          <RequireAuth>
+            <Settings />
           </RequireAuth>
         }
       />

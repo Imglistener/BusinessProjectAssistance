@@ -159,6 +159,68 @@ export interface TripItem {
   notes: string | null;
 }
 
+export interface TripRoute {
+  origin: string | null;
+  origin_lat: number | null;
+  origin_lng: number | null;
+  destination_lat: number | null;
+  destination_lng: number | null;
+  /** one way, km */
+  distance_km: string | null;
+  distance_source: "route" | "straight_line" | "manual" | null;
+  vehicle_type: string | null;
+  vehicle_count: number;
+  round_trip: boolean;
+  fuel_city: string | null;
+}
+
+export interface Range {
+  low: string;
+  expected: string;
+  high: string;
+}
+
+export interface FuelEstimate {
+  currency: string;
+  vehicle: { type: string; label: string; fuel: "petrol" | "diesel"; l_per_100km_low: string; l_per_100km_high: string };
+  vehicle_count: number;
+  round_trip: boolean;
+  one_way_km: string;
+  total_km: string;
+  distance_source: string;
+  fuel_price: { price_per_litre: string; city: string | null; as_of: string; stale: boolean };
+  litres: Range;
+  cost: Range;
+  assumptions: string[];
+  warnings: string[];
+}
+
+export interface VehicleProfile {
+  type: string;
+  label: string;
+  fuel: "petrol" | "diesel";
+  l_per_100km_low: string;
+  l_per_100km_high: string;
+}
+
+export interface TravelReference {
+  vehicles: VehicleProfile[];
+  default_vehicle: string;
+  cities: { name: string; lat: number; lng: number }[];
+  road_factor: string;
+}
+
+export interface FuelPrice {
+  id: number;
+  /** null = default for any city */
+  city: string | null;
+  fuel_type: "petrol" | "diesel";
+  price_per_litre: string;
+  currency: string;
+  as_of: string;
+  stale: boolean;
+}
+
 export interface Trip {
   id: number;
   project_id: number;
@@ -178,6 +240,7 @@ export interface Trip {
   travelers: { user_id: number; name: string }[];
   item_count: number;
   created_by: number;
+  route: TripRoute;
   /** only on GET /trips/:id */
   items?: TripItem[];
   expenses?: {

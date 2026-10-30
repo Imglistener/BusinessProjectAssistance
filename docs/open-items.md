@@ -129,6 +129,17 @@
 - Sidebar count refreshes every minute while the tab is visible. Email copies of notifications can be added
   once email is configured (needs the email domain).
 
+## Trip routes, fuel estimates, calculations (implemented, my defaults)
+- Map picker uses Google Maps (Places + Directions) only when `VITE_GOOGLE_MAPS_API_KEY` is set; otherwise
+  a built-in list of 18 Moroccan cities with straight-line distance x 1.3, or a distance typed by hand.
+- Fuel prices are maintained by the organization (city or default, petrol/diesel, as-of date); there is no
+  live price feed. Flagged when older than 30 days. Demo prices are examples, not real current prices.
+- Vehicle consumption: built-in typical ranges for 10 vehicle classes (L/100 km). Estimate range: lowest
+  consumption x planned distance x price -3%, up to highest consumption x (distance + variance) x price +3%.
+- AI tools: calculate (safe Decimal evaluator), vat (default 20%), budget_what_if, estimate_trip_fuel_cost,
+  estimate_fuel_cost. The assistant is told to use tools for every calculation.
+
 ## Still open
+- A Google Maps API key (billing-enabled Google Cloud project) if the map picker is wanted.
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.

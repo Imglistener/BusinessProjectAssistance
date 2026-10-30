@@ -18,12 +18,21 @@ const TOOL_LABEL: Record<string, string> = {
   list_overdue_tasks: "Overdue tasks",
   estimate_spend_rate: "Spend-rate estimate",
   draft_project_update: "Project facts for the draft",
+  get_inventory_status: "Inventory",
+  calculate: "Calculator",
+  vat: "VAT calculation",
+  budget_what_if: "Budget what-if",
+  estimate_trip_fuel_cost: "Trip fuel estimate",
+  estimate_fuel_cost: "Fuel estimate",
 };
 
 const GENERAL_PROMPTS = [
   "Which projects need attention right now?",
   "Are any projects over budget?",
   "Which projects have overdue tasks?",
+  "What would it cost in fuel to drive a van from Casablanca to Marrakech and back?",
+  "What's the VAT on 12,500 MAD, and the total including VAT?",
+  "What's running low in stock?",
 ];
 
 const PROJECT_PROMPTS = [
@@ -31,6 +40,8 @@ const PROJECT_PROMPTS = [
   "What are we spending the most on?",
   "At the current spend rate, how long will the budget last?",
   "Draft a short status update I can share.",
+  "If we spend 5,000 more, how much budget is left?",
+  "How much fuel will our planned trips cost?",
 ];
 
 interface Message {
@@ -73,7 +84,16 @@ export default function Assistant() {
           Create your organization on the <Link to="/app">dashboard</Link> first.
         </p>
       )}
-      {org && <Chat key={org.id} org={org} projects={projects} projectId={projectId} onProjectChange={setProjectId} />}
+      {org && (
+        <Chat
+          key={org.id}
+          org={org}
+          projects={projects}
+          projectId={projectId}
+          onProjectChange={setProjectId}
+          initialQuestion={params.get("q") ?? ""}
+        />
+      )}
     </AppShell>
   );
 }
@@ -83,14 +103,17 @@ function Chat({
   projects,
   projectId,
   onProjectChange,
+  initialQuestion,
 }: {
   org: Organization;
   projects: Project[];
   projectId: string;
   onProjectChange(id: string): void;
+  /** Pre-filled from ?q= (e.g. "Ask the assistant about this" on a trip). */
+  initialQuestion: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialQuestion.slice(0, 2000));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);

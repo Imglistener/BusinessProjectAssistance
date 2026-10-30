@@ -4,6 +4,7 @@ import { ApiError, api } from "../api/client";
 import type { Member, Trip, TripItem, TripItemKind, TripStatus } from "../api/models";
 import { AppShell } from "../components/AppShell";
 import { Field, FormError, SelectField, useSubmit } from "../components/AuthLayout";
+import { TripRoute } from "../components/TripRoute";
 import { TripForm } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { TRIP_STATUS_LABEL, formatDate, formatDateRange, formatMoney } from "../lib/format";
@@ -146,6 +147,7 @@ export default function TripDetail() {
             </div>
           </section>
 
+          <TripRoute trip={trip} onSaved={(t) => setTrip((prev) => (prev ? { ...prev, ...t } : t))} />
           <Travelers trip={trip} onSave={(ids) => patch({ traveler_ids: ids })} />
           <Itinerary trip={trip} onChanged={load} />
           <TripExpenses trip={trip} />

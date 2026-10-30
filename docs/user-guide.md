@@ -80,6 +80,25 @@ Plan business travel under the project it's for.
 
 **Print itinerary** gives a clean copy for the travelers.
 
+#### Route and fuel cost
+
+On a trip, select **Set route**:
+
+1. Choose where the trip **starts** and **ends**. With a map configured, search for a place or click the map
+   and the road distance comes from the route. Without a map, pick from the list of Moroccan cities (the
+   distance is the straight line × 1.3, marked as an estimate) or type the real distance.
+2. Choose the **vehicle** (each has a typical fuel consumption range), how many vehicles, and whether it's a
+   round trip.
+
+The trip page then shows the **estimated fuel cost**: an expected figure and a likely range. The range
+allows for the vehicle's consumption range, ±3% on the fuel price, and extra distance for detours and
+traffic (adjust it with the slider). **How this is calculated** lists every assumption, including the date
+of the fuel price used. Warnings appear when the price is more than 30 days old or the distance is an
+estimate.
+
+Fuel prices come from **Settings → Fuel prices**: owners and project managers enter the pump price per
+litre for diesel and petrol, either for a specific city or as a default for any city. Keep them current.
+
 ### Activity
 
 At the bottom of each project, **Activity** lists every change: who did what, and when.
@@ -114,9 +133,12 @@ Select **Assistant** (or **Ask the assistant** on a project) and ask in plain la
 - "At the current spend rate, how long will the budget last?"
 - "What's running low in stock?"
 - "Draft a short status update I can share."
+- "What's the VAT on 12500 MAD?" or "If we spend 5000 more, how much budget is left?"
+- "How much will fuel cost for the Furniture pickup trip?" or "…to drive a van from Casablanca to Marrakech
+  and back?"
 
 The assistant only **reads** your data: it can't change anything. Its figures come from the same
-calculations as the rest of the app, and it says when data is missing. Answers are marked "AI-generated":
+calculations as the rest of the app (it uses a calculator tool rather than doing sums itself), and it says when data is missing. Answers are marked "AI-generated":
 check important figures on the project page. Your question and the figures needed to answer it are sent to
 an external AI provider.
 

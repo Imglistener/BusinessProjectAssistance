@@ -183,84 +183,92 @@ function OrgOverview({ org }: { org: Organization }) {
         </ul>
       )}
 
-      <DeadlinesPanel orgId={org.id} refreshKey={refreshKey} />
+      <div className="dash-grid">
+        <aside className="dash-grid__side" aria-label="Deadlines">
+          <DeadlinesPanel orgId={org.id} refreshKey={refreshKey} />
+        </aside>
 
-      <section aria-labelledby="projects-heading" className="projects-section">
-        <div className="section-head">
-          <h2 id="projects-heading">Projects</h2>
-          {canCreate && !creating && !empty && (
-            <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-              New project
-            </button>
-          )}
-        </div>
-
-        {creating && (
-          <ProjectForm
-            org={org}
-            onCancel={() => setCreating(false)}
-            onSaved={() => {
-              setCreating(false);
-              load();
-            }}
-          />
-        )}
-
-        {!empty && (
-          <FilterBar label="Filter projects">
-            <label className="filter filter--grow">
-              <span className="filter__label">Search</span>
-              <input
-                type="search"
-                placeholder="Name or description"
-                value={search}
-                maxLength={100}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </label>
-            <FilterSelect label="Status" value={status} onChange={setStatus} options={STATUS_FILTERS} />
-            <FilterSelect label="Sort by" value={sort} onChange={setSort} options={SORT_OPTIONS} />
-            <FilterCheck label="Only over budget" checked={overBudget} onChange={setOverBudget} />
-          </FilterBar>
-        )}
-
-        {projects === null && !error && <p className="muted">Loading…</p>}
-
-        {noMatches && (
-          <p className="muted">
-            No projects match these filters.{" "}
-            <button type="button" className="link-btn" onClick={clearFilters}>
-              Clear filters
-            </button>
-          </p>
-        )}
-
-        {projects && projects.length > 0 && <ProjectList projects={projects} />}
-
-        {empty && !creating && (
-          <div className="empty">
-            <ZellijField className="empty__field" />
-            <div className="empty__body">
-              <h2>No projects yet</h2>
-              <p>
-                {canCreate
-                  ? "Add a project with a budget and dates. Totals, deadlines and warnings start showing here."
-                  : "Ask an organization owner or project manager to add the first project."}
-              </p>
-              {canCreate && (
-                <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-                  Create a project
-                </button>
-              )}
-            </div>
+        <section aria-labelledby="projects-heading" className="projects-section dash-grid__main">
+          <div className="section-head">
+            <h2 id="projects-heading">Projects</h2>
+            {canCreate && !creating && !empty && (
+              <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
+                New project
+              </button>
+            )}
           </div>
-        )}
-      </section>
+
+          {creating && (
+            <ProjectForm
+              org={org}
+              onCancel={() => setCreating(false)}
+              onSaved={() => {
+                setCreating(false);
+                load();
+              }}
+            />
+          )}
+
+          {!empty && (
+            <FilterBar label="Filter projects">
+              <label className="filter filter--grow">
+                <span className="filter__label">Search</span>
+                <input
+                  type="search"
+                  placeholder="Name or description"
+                  value={search}
+                  maxLength={100}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </label>
+              <FilterSelect label="Status" value={status} onChange={setStatus} options={STATUS_FILTERS} />
+              <FilterSelect label="Sort by" value={sort} onChange={setSort} options={SORT_OPTIONS} />
+              <FilterCheck label="Only over budget" checked={overBudget} onChange={setOverBudget} />
+            </FilterBar>
+          )}
+
+          {projects === null && !error && <p className="muted">Loading…</p>}
+
+          {noMatches && (
+            <p className="muted">
+              No projects match these filters.{" "}
+              <button type="button" className="link-btn" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </p>
+          )}
+
+          {projects && projects.length > 0 && <ProjectList projects={projects} />}
+
+          {empty && !creating && (
+            <div className="empty">
+              <ZellijField className="empty__field" />
+              <div className="empty__body">
+                <h2>No projects yet</h2>
+                <p>
+                  {canCreate
+                    ? "Add a project with a budget and dates. Totals, deadlines and warnings start showing here."
+                    : "Ask an organization owner or project manager to add the first project."}
+                </p>
+                {canCreate && (
+                  <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
+                    Create a project
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
     </>
   );
 }
 
 function Amount({ value, currency, negative = false }: { value: string; currency: string; negative?: boolean }) {
   if (value === "") return <span className="totals__value totals__value--empty">— {currency}</span>;
-  return <span className={negative ? "totals__value totals__value--over" : "totals__value"}>{formatMoney(value, currency)}</span>;
+  return (
+    <span className={negative ? "totals__value totals__value--over" : "totals__value"}>
+      {formatMoney(value, currency)}
+    </span>
+  );
 }

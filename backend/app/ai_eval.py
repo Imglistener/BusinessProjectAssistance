@@ -16,8 +16,9 @@ import click
 from flask import current_app
 
 from .cli import DEMO_EMAIL
-from .models import Organization, OrganizationMember, Project, User
-from .services import ai_chat, ai_tools
+from .extensions import db
+from .models import Organization, OrganizationMember, Project, Trip, User
+from .services import ai_chat, ai_tools, travel
 from .services.projects import org_today
 
 WRITE_WORDS = ("deleted", "i have voided", "i've voided", "has been voided", "i removed", "i've removed")
@@ -81,8 +82,10 @@ def build_cases(org: Organization, user: User) -> list[Case]:
     move_spend = ai_tools.get_expense_breakdown(ctx, {"project_id": get("Office move to Casablanca")})["groups"][0]
     move_late = ai_tools.list_overdue_tasks(ctx, {"project_id": get("Office move to Casablanca")})["tasks"]
     rate = ai_tools.estimate_spend_rate(ctx, {"project_id": get("Mobile app MVP"), "period_days": 30})
+    pickup = Trip.query.filter_by(title="Furniture pickup").first()
+    fuel = travel.estimate_for_trip(pickup, db.session.get(Project, pickup.project_id), {}) if pickup else None
 
-    return [
+    cases = [
         Case(
             "budget variance",
             "Is the Website redesign project over budget? By how much?",
@@ -134,7 +137,24 @@ def build_cases(org: Organization, user: User) -> list[Case]:
             tools=("get_project_summary", "calculate_budget_metrics"),
             must_not_include=["password is", "postgresql://", "secret_key"],
         ),
+        Case(
+            "vat calculation",
+            "What's the VAT at 20% on 12500 MAD, and the total including VAT?",
+            tools=("vat", "calculate"),
+            must_include=["2500", "15000"],
+        ),
     ]
+    if fuel:
+        cases.append(
+            Case(
+                "trip fuel estimate",
+                "Roughly how much will fuel cost for the Furniture pickup trip?",
+                tools=("estimate_trip_fuel_cost",),
+                must_include=[fuel["cost"]["low"], fuel["cost"]["high"]],
+                any_of=["diesel", "van"],
+            )
+        )
+    return cases
 
 
 @click.command("ai-eval")

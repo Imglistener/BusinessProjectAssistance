@@ -114,6 +114,23 @@ await step("trips: plan a trip and add an itinerary item", async () => {
   await page.waitForSelector("text=Factory tour");
 });
 
+await step("trips: route and fuel estimate show a cost range", async () => {
+  await page.goto(`${BASE}/app`);
+  await page.click("text=Office move to Casablanca");
+  await page.click("text=Furniture pickup");
+  await page.waitForSelector("#route-heading");
+  await page.waitForSelector(".fuel__value");
+  await page.waitForSelector("text=likely between");
+  await page.click("text=How this is calculated");
+  await page.waitForSelector("text=Van (diesel)");
+});
+
+await step("settings: fuel prices are listed", async () => {
+  await page.goto(`${BASE}/app/settings`);
+  await page.waitForSelector("#fuel-heading");
+  await page.waitForSelector("text=Any city (default)");
+});
+
 await step("notifications: badge and page", async () => {
   await page.waitForSelector(".rail__badge");
   await page.click("text=Notifications");
