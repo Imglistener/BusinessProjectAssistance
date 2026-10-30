@@ -17,6 +17,7 @@ from ..models import InventoryItem, InventoryMovement, MovementKind, Organizatio
 from ..services import metrics
 from ..services import projects as svc
 from ..services.audit import log_action
+from ..services.notifications import members_with_roles, notify
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, get_membership, require_role
 from ..services.tokens import aware
 from . import api_bp
@@ -106,6 +107,7 @@ def _audit(user_id: int, item: InventoryItem, action: str, meta: dict) -> None:
 
 
 def _apply(item: InventoryItem, user_id: int, kind: MovementKind, delta: Decimal, *, project_id=None, note=None):
+    was_low = metrics.is_low_stock(item.quantity_on_hand, item.reorder_level)
     after = item.quantity_on_hand + delta
     if after < 0:
         raise ApiError(
@@ -131,6 +133,16 @@ def _apply(item: InventoryItem, user_id: int, kind: MovementKind, delta: Decimal
     if project_id:
         meta["project_id"] = project_id  # shows the issue in that project's activity
     _audit(user_id, item, f"inventory.{kind.value}", meta)
+    if not was_low and metrics.is_low_stock(after, item.reorder_level):
+        notify(
+            organization_id=item.organization_id,
+            user_ids=members_with_roles(item.organization_id, *PROJECT_WRITE_ROLES),
+            actor_id=user_id,
+            kind="low_stock",
+            title=f"Low stock: {item.name}",
+            body=f"{_q(after)} {item.unit} left (reorder level {_q(item.reorder_level)}).",
+            link="/app/inventory",
+        )
     return movement
 
 

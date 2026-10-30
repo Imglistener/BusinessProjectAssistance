@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import Login from "./pages/Login";
 import Members from "./pages/Members";
+import Notifications from "./pages/Notifications";
 import ProjectDetail from "./pages/ProjectDetail";
 import Report from "./pages/Report";
 import TripDetail from "./pages/TripDetail";
@@ -38,6 +39,14 @@ export default function App() {
         element={
           <RequireAuth>
             <Inventory />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/notifications"
+        element={
+          <RequireAuth>
+            <Notifications />
           </RequireAuth>
         }
       />

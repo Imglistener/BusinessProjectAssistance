@@ -202,6 +202,19 @@ export interface Attachment {
   created_at: string;
 }
 
+export interface AppNotification {
+  id: number;
+  kind: "task_assigned" | "trip_traveler" | "low_stock" | "project_over_budget" | "invite_accepted" | string;
+  title: string;
+  body: string | null;
+  /** frontend path to open */
+  link: string | null;
+  organization_id: number;
+  organization_name: string | null;
+  created_at: string;
+  read: boolean;
+}
+
 export interface CurrencyTotals {
   currency: string;
   budget: string;

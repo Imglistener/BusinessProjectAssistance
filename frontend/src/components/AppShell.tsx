@@ -1,8 +1,33 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
 import { Wordmark } from "./Zellij";
+
+/** Fired after notifications are read, so the sidebar count refreshes at once. */
+export const NOTIFICATIONS_CHANGED = "bpa:notifications-changed";
+const POLL_MS = 60_000;
+
+function useUnreadCount(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const check = () =>
+      api<{ unread_count: number }>("/notifications?limit=1")
+        .then((r) => alive && setCount(r.unread_count))
+        .catch(() => undefined);
+    check();
+    const timer = window.setInterval(() => document.visibilityState === "visible" && check(), POLL_MS);
+    window.addEventListener(NOTIFICATIONS_CHANGED, check);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, check);
+    };
+  }, []);
+  return count;
+}
 
 /** Sidebar and page frame shared by every signed-in screen. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -13,8 +38,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const onAssistant = pathname.startsWith("/app/assistant");
   const onMembers = pathname.startsWith("/app/members");
   const onInventory = pathname.startsWith("/app/inventory");
+  const onNotifications = pathname.startsWith("/app/notifications");
+  const unread = useUnreadCount();
   // Project pages belong to the dashboard section.
-  const onDashboard = !onAssistant && !onMembers && !onInventory;
+  const onDashboard = !onAssistant && !onMembers && !onInventory && !onNotifications;
   const linkClass = (active: boolean) => (active ? "rail__link rail__link--active" : "rail__link");
 
   return (
@@ -67,6 +94,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 aria-current={onInventory ? "page" : undefined}
               >
                 Inventory
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/app/notifications"
+                className={linkClass(onNotifications)}
+                aria-current={onNotifications ? "page" : undefined}
+              >
+                Notifications
+                {unread > 0 && (
+                  <span className="rail__badge" aria-label={`${unread} unread`}>
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                )}
               </Link>
             </li>
             <li>

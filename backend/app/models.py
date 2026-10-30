@@ -318,6 +318,21 @@ class AIUsage(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
 
+class Notification(db.Model):
+    """An in-app message for one user. `link` is a frontend path, e.g. /app/projects/3."""
+
+    __tablename__ = "notifications"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False)
+    kind = db.Column(db.String(40), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.String(500))
+    link = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    read_at = db.Column(db.DateTime(timezone=True))
+
+
 class AuditLog(db.Model):
     __tablename__ = "audit_logs"
     id = db.Column(db.Integer, primary_key=True)

@@ -9,8 +9,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, Milestone, Project, ProjectStatus, Task, Trip, TripStatus, User
+from ..models import Expense, Milestone, Project, ProjectStatus, Role, Task, Trip, TripStatus, User
 from . import metrics
+from .notifications import members_with_roles, notify
 from .permissions import get_membership
 
 
@@ -57,6 +58,26 @@ def load_tasks(project_ids: list[int]) -> dict:
     if not project_ids:
         return {}
     return _group(Task.query.filter(Task.project_id.in_(project_ids)).all(), "project_id")
+
+
+def is_over_budget(project: Project) -> bool:
+    expenses = load_expenses([project.id]).get(project.id, [])
+    return metrics.calculate_budget_metrics(project.budget, expenses).variance > 0
+
+
+def notify_if_now_over_budget(project: Project, was_over: bool, actor_id: int) -> None:
+    """Tell the project's owner and the organization owners when a change tips the project over budget."""
+    if was_over or not is_over_budget(project):
+        return
+    notify(
+        organization_id=project.organization_id,
+        user_ids=[project.owner_id, *members_with_roles(project.organization_id, Role.OWNER)],
+        actor_id=actor_id,
+        kind="project_over_budget",
+        title=f"{project.name} is over budget",
+        body="Recorded spending is now above the approved budget.",
+        link=f"/app/projects/{project.id}",
+    )
 
 
 def project_metrics(project: Project, expenses: list, tasks: list, today: date) -> dict:

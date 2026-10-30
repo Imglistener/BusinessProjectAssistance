@@ -120,6 +120,19 @@ calculations as the rest of the app, and it says when data is missing. Answers a
 check important figures on the project page. Your question and the figures needed to answer it are sent to
 an external AI provider.
 
+## Notifications
+
+**Notifications** in the left-hand menu shows a count of unread items. You're told when:
+
+- a task is assigned to you,
+- you're added as a traveler on a trip,
+- a project you own goes over budget (organization owners are told too),
+- a stock item drops to its reorder level (owners and project managers),
+- someone accepts an invite you sent.
+
+You aren't notified about your own changes. Select a notification to go straight to it, or
+**Mark all as read**.
+
 ## Members
 
 Owners manage people under **Members**:

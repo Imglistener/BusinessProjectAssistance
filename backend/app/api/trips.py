@@ -18,6 +18,7 @@ from ..models import Expense, OrganizationMember, Project, Trip, TripItem, TripI
 from ..services import metrics
 from ..services import projects as svc
 from ..services.audit import log_action
+from ..services.notifications import human_date, notify
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, require_role
 from . import api_bp
 from .auth import current_user
@@ -151,6 +152,18 @@ def _travelers(project: Project, data: dict) -> list[User] | None:
     return User.query.filter(User.id.in_(ids)).all()
 
 
+def _notify_travelers(trip: Trip, project: Project, user_ids, actor_id: int) -> None:
+    notify(
+        organization_id=project.organization_id,
+        user_ids=user_ids,
+        actor_id=actor_id,
+        kind="trip_traveler",
+        title=f"You're on a trip: {trip.title}",
+        body=f"{trip.destination}, {human_date(trip.start_date)} to {human_date(trip.end_date)}.",
+        link=f"/app/projects/{project.id}/trips/{trip.id}",
+    )
+
+
 def _check_dates(start: date, end: date) -> None:
     if end < start:
         raise ApiError("validation_error", "The trip can't end before it starts.", 400, {"field": "end_date"})
@@ -203,6 +216,7 @@ def create_trip(project_id: int):
     db.session.add(trip)
     db.session.flush()
     _audit(user.id, project, "trip.created", trip, {"destination": trip.destination, "start_date": start.isoformat()})
+    _notify_travelers(trip, project, [u.id for u in trip.travelers], user.id)
     db.session.commit()
     return jsonify(trip=trip_to_dict(trip, project, [], [], full=True)), 201
 
@@ -273,7 +287,9 @@ def update_trip(trip_id: int):
             meta[field] = [v.value if hasattr(v, "value") else (v.isoformat() if hasattr(v, "isoformat") else _m(v)) for v in (old, new)]
     travelers = _travelers(project, data)
     if travelers is not None and {u.id for u in travelers} != {u.id for u in trip.travelers}:
+        added = {u.id for u in travelers} - {u.id for u in trip.travelers}
         trip.travelers = travelers
+        _notify_travelers(trip, project, added, user.id)
         meta["travelers"] = "changed"
     if meta:
         _audit(user.id, project, "trip.updated", trip, meta)

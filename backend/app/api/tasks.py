@@ -11,6 +11,7 @@ from ..models import OrganizationMember, Project, Role, Task, TaskPriority, Task
 from ..services import metrics
 from ..services import projects as svc
 from ..services.audit import log_action
+from ..services.notifications import human_date, notify
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, require_role
 from . import api_bp
 from .auth import current_user
@@ -96,6 +97,19 @@ def _audit_value(v):
     return v
 
 
+def _notify_assignee(task: Task, project: Project, actor_id: int) -> None:
+    due = f" Due {human_date(task.due_date)}." if task.due_date else ""
+    notify(
+        organization_id=project.organization_id,
+        user_ids=[task.assignee_id],
+        actor_id=actor_id,
+        kind="task_assigned",
+        title=f"New task for you: {task.title}",
+        body=f"In {project.name}.{due}",
+        link=f"/app/projects/{project.id}",
+    )
+
+
 def _set_status(task: Task, status: TaskStatus) -> None:
     task.status = status
     # completed_at follows the status so "done" dates stay trustworthy.
@@ -134,6 +148,7 @@ def create_task(project_id: int):
         task,
         {"priority": task.priority.value, "assignee_id": task.assignee_id},
     )
+    _notify_assignee(task, project, user.id)
     db.session.commit()
     return jsonify(task=_one(task, project), project=project_payload(project)), 201
 
@@ -226,5 +241,7 @@ def update_task(task_id: int):
 
     if audit_meta:
         _audit(user.id, project, "task.updated", task, audit_meta)
+        if "assignee_id" in audit_meta:
+            _notify_assignee(task, project, user.id)
         db.session.commit()
     return jsonify(task=_one(task, project), project=project_payload(project))

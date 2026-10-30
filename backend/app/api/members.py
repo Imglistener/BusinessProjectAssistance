@@ -15,6 +15,7 @@ from ..extensions import db
 from ..models import Organization, OrganizationInvitation, OrganizationMember, Role, User, utcnow
 from ..services.audit import log_action
 from ..services.email import app_link, invitation_email, send_email
+from ..services.notifications import notify
 from ..services.permissions import ORG_ADMIN_ROLES, get_membership, require_role
 from ..services.tokens import aware as _aware, hash_token as _hash, new_token
 from . import api_bp
@@ -309,6 +310,15 @@ def accept_invitation(token: str):
         entity_type="organization_member",
         entity_id=member.id,
         meta={"invitation_id": inv.id, "role": member.role.value},
+    )
+    notify(
+        organization_id=inv.organization_id,
+        user_ids=[inv.invited_by],
+        actor_id=user.id,
+        kind="invite_accepted",
+        title=f"{user.first_name} {user.last_name} joined",
+        body=f"They accepted your invite as {ROLE_LABELS.get(member.role, member.role.value)}.",
+        link="/app/members",
     )
     db.session.commit()
     org = db.session.get(Organization, inv.organization_id)

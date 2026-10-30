@@ -122,7 +122,13 @@
   (S3-compatible) by implementing save/read/delete in `services/storage.py`.
 - Always served as downloads with `nosniff`, through permission-checked endpoints. No virus scanning yet.
 
+## In-app notifications (implemented, my defaults)
+- Stored per user; created for: task assigned, added as trip traveler, project crosses over budget (project owner
+  + organization owners), item crosses into low stock (owners + project managers), invite accepted (inviter).
+- Never for your own actions; only to active members; hidden after leaving the organization.
+- Sidebar count refreshes every minute while the tab is visible. Email copies of notifications can be added
+  once email is configured (needs the email domain).
+
 ## Still open
-- Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.

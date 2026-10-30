@@ -1800,6 +1800,76 @@ a {
   gap: 0.5rem 1rem;
 }
 
+/* ---------- Notifications ---------- */
+.rail__badge {
+  min-width: 1.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--saffron);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.note {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.85rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note:hover {
+  background: var(--surface);
+}
+
+.note--unread {
+  background: var(--blue-100);
+}
+
+.note--unread:hover {
+  background: #dfe3fa;
+}
+
+.note__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 650;
+}
+
+.note__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--blue-600);
+  flex-shrink: 0;
+}
+
+.note__body,
+.note__meta {
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+.note__meta {
+  font-size: 0.85rem;
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

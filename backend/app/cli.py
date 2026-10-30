@@ -14,6 +14,7 @@ from .models import (
     InventoryItem,
     InventoryMovement,
     MovementKind,
+    Notification,
     Milestone,
     Organization,
     OrganizationMember,
@@ -31,6 +32,7 @@ from .models import (
     utcnow,
 )
 from .services.audit import log_action
+from .services.notifications import human_date
 from .services.projects import org_today
 
 DEMO_EMAIL = "demo@example.com"
@@ -192,6 +194,17 @@ def demo_data(yes: bool) -> None:
     db.session.add(InventoryMovement(organization_id=org.id, item_id=chairs.id, kind=MovementKind.ISSUE,
                                      quantity_delta=Decimal("-6"), quantity_after=Decimal("8"), project_id=move.id,
                                      note="Meeting room", created_by=mate.id))
+
+    # A few notifications so the bell isn't empty.
+    for user, kind, title, body, link in [
+        (owner, "project_over_budget", "Website redesign is over budget",
+         "Recorded spending is now above the approved budget.", f"/app/projects/{web.id}"),
+        (owner, "low_stock", "Low stock: Printer paper A4", "4.00 box left (reorder level 6.00).", "/app/inventory"),
+        (owner, "trip_traveler", "You're on a trip: User testing sessions", f"Rabat, {human_date(day(9))} to {human_date(day(10))}.",
+         f"/app/projects/{app_.id}/trips/{trip.id}"),
+        (mate, "task_assigned", "New task for you: Booking form QA", "In Website redesign.", f"/app/projects/{web.id}"),
+    ]:
+        db.session.add(Notification(user_id=user.id, organization_id=org.id, kind=kind, title=title, body=body, link=link))
 
     # Planned and archived ones so filters have something to show.
     project("Trade fair stand", "Stand for the autumn trade fair.", "25000.00", day(30), day(60), ProjectStatus.PLANNED)

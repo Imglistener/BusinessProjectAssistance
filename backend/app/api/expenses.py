@@ -102,6 +102,7 @@ def create_expense(project_id: int):
     data = get_json_body()
     trip_id = parse_optional_id(data, "trip_id")
     check_trip(project, trip_id)
+    was_over = svc.is_over_budget(project)
 
     expense = Expense(
         project_id=project.id,
@@ -123,6 +124,7 @@ def create_expense(project_id: int):
         expense,
         {"amount": _audit_value(expense.amount), "currency": expense.currency, "category": expense.category},
     )
+    svc.notify_if_now_over_budget(project, was_over, user.id)
     db.session.commit()
     return jsonify(expense=expense_to_dict(expense), project=project_payload(project)), 201
 
@@ -192,6 +194,7 @@ def update_expense(expense_id: int):
     if expense.status != ExpenseStatus.VALID:
         raise ApiError("expense_not_editable", "Only valid expenses can be edited.", 409)
     data = get_json_body()
+    was_over = svc.is_over_budget(project)
 
     changes: dict = {}
     if "category" in data:
@@ -217,6 +220,8 @@ def update_expense(expense_id: int):
 
     if audit_meta:
         _audit(user.id, project, "expense.updated", expense, audit_meta)
+        db.session.flush()
+        svc.notify_if_now_over_budget(project, was_over, user.id)
         db.session.commit()
     return jsonify(expense=expense_to_dict(expense), project=project_payload(project))
 
