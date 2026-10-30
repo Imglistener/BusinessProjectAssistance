@@ -23,6 +23,10 @@ def create_app(config_object=Config):
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    from .cli import demo_data
+
+    app.cli.add_command(demo_data)
+
     # Consistent JSON errors for JWT problems.
     def _jwt_error(code, message):
         return jsonify(error={"code": code, "message": message}), 401

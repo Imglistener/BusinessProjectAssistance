@@ -45,6 +45,20 @@ npm run dev
 
 Run backend tests: `cd backend && pytest`
 
+## Demo data
+
+To see the app with realistic data, run once (after `db upgrade`):
+
+```bash
+cd backend
+flask --app wsgi demo-data
+```
+
+It creates the organization "Atlas Studio" with five projects (one over budget, one behind schedule, one
+on track, one planned, one archived), tasks, expenses and milestones dated around today. Log in as
+`demo@example.com` / `demo-password` (owner) or `salma.demo@example.com` / `demo-password` (contributor).
+On a non-SQLite database it asks for `--yes` first.
+
 ## AI assistant
 
 Set `GROQ_API_KEY` in `.env` (server-side only) and restart the backend; without it the
