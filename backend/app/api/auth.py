@@ -1,17 +1,24 @@
 import re
+from datetime import timedelta
 
 from flask import jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
-from ..models import OrganizationMember, User
+from ..models import OrganizationMember, PasswordResetToken, User, utcnow
+from ..services.audit import log_action
+from ..services.email import app_link, password_reset_email, send_email
+from ..services.tokens import aware, hash_token, new_token
 from . import api_bp
 from .errors import ApiError
 from .validation import get_json_body, require_str
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
+RESET_TTL_MINUTES = 30
+MAX_RESETS_PER_HOUR = 3
+RESET_REQUESTED = "If an account exists for that email, we've sent a link to reset the password."
 
 
 def user_to_dict(user: User) -> dict:
@@ -88,3 +95,53 @@ def me():
             {"organization_id": m.organization_id, "role": m.role.value} for m in memberships
         ],
     )
+
+
+@api_bp.post("/auth/password-reset")
+def request_password_reset():
+    """Always the same answer, so the form can't be used to find out who has an account."""
+    data = get_json_body()
+    email = require_str(data, "email").lower()
+    user = User.query.filter_by(email=email, status="active").first()
+    if user is not None:
+        recent = PasswordResetToken.query.filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.created_at >= utcnow() - timedelta(hours=1),
+        ).count()
+        if recent < MAX_RESETS_PER_HOUR:
+            # A new link replaces any earlier unused one.
+            PasswordResetToken.query.filter_by(user_id=user.id, used_at=None).update({"used_at": utcnow()})
+            token = new_token()
+            row = PasswordResetToken(
+                user_id=user.id,
+                token_hash=hash_token(token),
+                expires_at=utcnow() + timedelta(minutes=RESET_TTL_MINUTES),
+            )
+            db.session.add(row)
+            db.session.commit()
+            send_email(
+                password_reset_email(user.email, user.first_name, app_link(f"/reset-password/{token}"), RESET_TTL_MINUTES),
+                idempotency_key=f"password-reset/{row.id}",
+            )
+    return jsonify(ok=True, message=RESET_REQUESTED)
+
+
+@api_bp.post("/auth/password-reset/confirm")
+def confirm_password_reset():
+    data = get_json_body()
+    token = data.get("token")
+    password = require_str(data, "password", max_len=128, min_len=MIN_PASSWORD_LENGTH)
+    row = (
+        PasswordResetToken.query.filter_by(token_hash=hash_token(token)).first()
+        if isinstance(token, str) and token
+        else None
+    )
+    user = db.session.get(User, row.user_id) if row else None
+    if row is None or row.used_at is not None or aware(row.expires_at) <= utcnow() or user is None or user.status != "active":
+        raise ApiError("reset_link_invalid", "This reset link has expired or was already used. Ask for a new one.", 400)
+
+    user.password_hash = generate_password_hash(password)
+    row.used_at = utcnow()
+    log_action(organization_id=None, actor_id=user.id, action="user.password_reset", entity_type="user", entity_id=user.id)
+    db.session.commit()
+    return jsonify(ok=True)

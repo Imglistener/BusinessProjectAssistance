@@ -12,6 +12,13 @@ class Config:
 
     DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY", "MAD")
 
+    # Email: "console" logs emails instead of sending them; "resend" sends through Resend.
+    EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "console")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+    # Frontend address used in emailed links.
+    APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5173")
+
     AI_PROVIDER = os.getenv("AI_PROVIDER", "groq")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
@@ -29,3 +36,5 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     GROQ_API_KEY = ""  # tests never reach a real provider
+    EMAIL_PROVIDER = "console"
+    RESEND_API_KEY = ""

@@ -56,6 +56,18 @@ class User(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class PasswordResetToken(db.Model):
+    """Single-use reset link. Only a SHA-256 of the token is stored."""
+
+    __tablename__ = "password_reset_tokens"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    used_at = db.Column(db.DateTime(timezone=True))
+
+
 class Organization(db.Model):
     __tablename__ = "organizations"
     id = db.Column(db.Integer, primary_key=True)
@@ -75,6 +87,22 @@ class OrganizationMember(db.Model):
     role = db.Column(db.Enum(Role), nullable=False, default=Role.VIEWER)
     status = db.Column(db.String(20), nullable=False, default="active")
     joined_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class OrganizationInvitation(db.Model):
+    """A link-based invite. Only a SHA-256 of the token is stored; the link is shown once."""
+
+    __tablename__ = "organization_invitations"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    role = db.Column(db.Enum(Role), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    invited_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="pending")  # pending / accepted / revoked
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    accepted_at = db.Column(db.DateTime(timezone=True))
 
 
 class Project(db.Model):

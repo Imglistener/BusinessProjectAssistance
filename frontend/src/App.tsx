@@ -2,9 +2,13 @@ import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import Assistant from "./pages/Assistant";
+import Invite from "./pages/Invite";
 import Dashboard from "./pages/Dashboard";
+import ForgotPassword from "./pages/ForgotPassword";
 import Login from "./pages/Login";
+import Members from "./pages/Members";
 import ProjectDetail from "./pages/ProjectDetail";
+import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
 import Splash from "./pages/Splash";
 
@@ -21,6 +25,17 @@ export default function App() {
       <Route path="/" element={<Splash />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/invite/:token" element={<Invite />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route
+        path="/app/members"
+        element={
+          <RequireAuth>
+            <Members />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/app"
         element={

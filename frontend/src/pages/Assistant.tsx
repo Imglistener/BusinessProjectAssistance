@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { ChatReply, Organization, Project, ToolTraceEntry } from "../api/models";
+import { useOrg } from "../auth/OrgContext";
 import { AppShell } from "../components/AppShell";
 import { FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
@@ -40,22 +41,18 @@ interface Message {
 
 export default function Assistant() {
   const [params, setParams] = useSearchParams();
-  const [org, setOrg] = useState<Organization | null | undefined>(undefined);
+  const { orgs, org, error: orgError } = useOrg();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const loadError = orgError ?? projectError;
 
   useEffect(() => {
-    api<{ organizations: Organization[] }>("/organizations")
-      .then(async (r) => {
-        const first = r.organizations[0] ?? null;
-        setOrg(first);
-        if (first) {
-          const p = await api<{ projects: Project[] }>(`/organizations/${first.id}/projects`);
-          setProjects(p.projects);
-        }
-      })
-      .catch((e) => setLoadError(errorMessage(e, "Couldn't load your projects.")));
-  }, []);
+    setProjects([]);
+    if (!org) return;
+    api<{ projects: Project[] }>(`/organizations/${org.id}/projects`)
+      .then((r) => setProjects(r.projects))
+      .catch((e) => setProjectError(errorMessage(e, "Couldn't load your projects.")));
+  }, [org]);
 
   const projectId = params.get("project") ?? "";
   const setProjectId = (id: string) => setParams(id ? { project: id } : {}, { replace: true });
@@ -70,13 +67,13 @@ export default function Assistant() {
       </header>
 
       <FormError message={loadError} />
-      {org === undefined && !loadError && <p className="muted">Loading…</p>}
-      {org === null && (
+      {orgs === null && !loadError && <p className="muted">Loading…</p>}
+      {orgs !== null && !org && (
         <p className="muted">
           Create your organization on the <Link to="/app">dashboard</Link> first.
         </p>
       )}
-      {org && <Chat org={org} projects={projects} projectId={projectId} onProjectChange={setProjectId} />}
+      {org && <Chat key={org.id} org={org} projects={projects} projectId={projectId} onProjectChange={setProjectId} />}
     </AppShell>
   );
 }

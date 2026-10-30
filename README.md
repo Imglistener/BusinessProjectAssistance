@@ -59,6 +59,19 @@ Assistant page says it isn't set up and everything else works normally.
   per-user rate limit and a timeout. Each request logs token counts and cost in `ai_usage`;
   question and answer text are not stored on the server.
 
+## Email (password reset, invites)
+
+By default `EMAIL_PROVIDER=console`: emails are not sent, they're printed in the backend log, so
+reset and invite links can be tested locally. To send real email through Resend:
+
+1. Add a sending subdomain (e.g. `mail.yourdomain.com`) in the Resend dashboard and add the DNS
+   records it shows (SPF, DKIM; DMARC recommended) at your DNS provider, then verify the domain.
+2. Create an API key with **sending access only**, restricted to that domain.
+3. In `.env`: `EMAIL_PROVIDER=resend`, `RESEND_API_KEY=...`, `EMAIL_FROM=BusinessProjectAssistance <no-reply@mail.yourdomain.com>`,
+   and `APP_BASE_URL` set to the deployed frontend address. Restart the backend.
+
+Sending uses idempotency keys and one retry; failures are logged without the email body.
+
 ## Principles
 
 - Financial calculations live in `backend/app/services/metrics.py` (Decimal arithmetic, tested).

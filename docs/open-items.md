@@ -34,6 +34,25 @@
 - Added a seventh read-only tool, `list_projects`, so the assistant can find project IDs.
 - Rate limit: 10 questions per user per minute (configurable).
 
+## Members and invites (implemented, to confirm)
+- No email provider yet: an owner creates an invite and gets a link to send themselves. The link
+  works only for the account with that email, expires after 7 days, and only its SHA-256 hash is stored.
+- Only owners invite, change roles and remove members (spec: project managers invite "only if granted";
+  not granted for now). Anyone can leave. The last owner can't leave, be removed or be demoted.
+- System administrator can't be given through the app.
+- Removed members keep their row (status "removed") for the audit trail; their tasks stay assigned to them.
+- Members' emails are visible to owners only.
+- Users can belong to several organizations; the sidebar shows a switcher when they do.
+
+## Email and password reset (implemented)
+- Provider: Resend, behind an `EmailSender` interface; `console` mode until a domain is verified.
+- Reset: same reply whether or not the email has an account; single-use link, 30 minutes, newest link
+  replaces older ones, at most 3 per account per hour; only the token hash is stored.
+- Existing login tokens aren't revoked by a reset (JWTs are stateless and expire on their own).
+- Invites are also emailed when Resend is on; the copy-link option stays.
+- Templates live in the code (`services/email.py`), not in Resend, so they're versioned and tested with the app.
+
 ## Still open
-- Report export format, notifications, email provider for password reset.
+- Report export format, notifications.
+- A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting and backup plan.

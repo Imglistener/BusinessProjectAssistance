@@ -91,3 +91,30 @@ export interface ChatReply {
   tool_trace: ToolTraceEntry[];
   ai_generated: true;
 }
+
+export interface Member {
+  user_id: number;
+  name: string;
+  role: Role;
+  /** only returned to owners */
+  email?: string;
+}
+
+export interface Invitation {
+  id: number;
+  email: string;
+  role: Role;
+  state: "pending" | "expired" | "accepted" | "revoked";
+  created_at: string;
+  expires_at: string;
+}
+
+export interface InvitationPreview {
+  organization_name: string;
+  role: Role;
+  email: string;
+  invited_by: string | null;
+  state: Invitation["state"];
+}
+
+export const canManageMembers = (role: Role) => role === "owner";

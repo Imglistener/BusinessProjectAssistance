@@ -45,3 +45,24 @@ export const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
+
+export const ROLE_LABEL: Record<string, string> = {
+  owner: "Owner",
+  project_manager: "Project manager",
+  contributor: "Contributor",
+  viewer: "Viewer",
+  system_admin: "System administrator",
+};
+
+/** Roles an owner can give, with what each one can do. */
+export const ROLE_HINT: Record<string, string> = {
+  owner: "Everything, including members and settings",
+  project_manager: "Create and manage projects, tasks and expenses",
+  contributor: "Add tasks and expenses; update their own",
+  viewer: "Read only",
+};
+
+/** Where to go after logging in: only same-site paths, never "//host" or full URLs. */
+export function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/app";
+}

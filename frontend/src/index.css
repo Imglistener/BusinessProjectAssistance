@@ -1184,6 +1184,90 @@ a {
   }
 }
 
+/* ---------- Members and invites ---------- */
+.rail__org {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: -1.25rem;
+}
+
+.rail__org label {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rail__org select {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+}
+
+.rail__org option {
+  color: var(--ink);
+}
+
+.invite__lede {
+  margin-top: 0.35rem;
+}
+
+.invite__form {
+  margin-top: 1rem;
+}
+
+.invite__hint {
+  margin-top: -0.5rem;
+  font-size: 0.9rem;
+}
+
+.invite__link {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: var(--blue-100);
+}
+
+.invite__copy {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.invite__copy input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.btn--link {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+}
+
+@media (max-width: 560px) {
+  .invite__copy {
+    flex-direction: column;
+  }
+}
+
+.form__aside {
+  justify-self: end;
+  margin-top: -0.5rem;
+  font-size: 0.925rem;
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type DashboardSummary, type Organization, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
+import { useOrg } from "../auth/OrgContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
 import { ProjectForm } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
@@ -17,16 +18,7 @@ function greeting(hour: number) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [orgs, setOrgs] = useState<Organization[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<{ organizations: Organization[] }>("/organizations")
-      .then((r) => setOrgs(r.organizations))
-      .catch((e) => setLoadError(e instanceof ApiError ? e.message : "Couldn't load your organizations."));
-  }, []);
-
-  const org = orgs?.[0] ?? null;
+  const { orgs, org, error: loadError, add } = useOrg();
 
   return (
     <AppShell>
@@ -45,9 +37,9 @@ export default function Dashboard() {
 
       {orgs === null && !loadError && <p className="muted">Loading…</p>}
 
-      {orgs !== null && !org && <CreateOrganization onCreated={(o) => setOrgs([o])} />}
+      {orgs !== null && !org && <CreateOrganization onCreated={add} />}
 
-      {org && <OrgOverview org={org} />}
+      {org && <OrgOverview key={org.id} org={org} />}
     </AppShell>
   );
 }

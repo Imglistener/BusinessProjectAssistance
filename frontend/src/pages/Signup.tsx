@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
+import { safeNext } from "../lib/format";
 
 const MIN_PASSWORD = 8;
 
 export default function Signup() {
   const { user, register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", password: "" });
+  const [params] = useSearchParams();
+  const next = safeNext(params.get("next"));
+  const invited = next.startsWith("/invite/");
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: params.get("email") ?? "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -24,7 +28,7 @@ export default function Signup() {
         return;
       }
       await register({ ...form, email: form.email.trim() });
-      navigate("/app", { replace: true });
+      navigate(next, { replace: true });
     },
     (e) => {
       if (e instanceof ApiError && e.code === "email_taken") {
@@ -37,10 +41,10 @@ export default function Signup() {
     },
   );
 
-  if (user) return <Navigate to="/app" replace />;
+  if (user) return <Navigate to={next} replace />;
 
   return (
-    <AuthLayout title="Create your account" subtitle="You'll set up your organization next.">
+    <AuthLayout title="Create your account" subtitle={invited ? "Then you can accept your invite." : "You'll set up your organization next."}>
       <form onSubmit={submit} className="form">
         <FormError message={error} />
         <div className="form__row">
@@ -85,7 +89,7 @@ export default function Signup() {
         </button>
       </form>
       <p className="auth__switch">
-        Already have an account? <Link to="/login">Log in</Link>
+        Already have an account? <Link to={params.get("next") ? `/login?next=${encodeURIComponent(next)}` : "/login"}>Log in</Link>
       </p>
     </AuthLayout>
   );
