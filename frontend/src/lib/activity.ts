@@ -94,6 +94,22 @@ export function describe(e: ActivityEntry, people: Record<string, string>, curre
         }),
       );
     }
+    case "inventory.receive":
+    case "inventory.issue":
+    case "inventory.adjust":
+    case "inventory.count": {
+      const verb = { receive: "received", issue: "issued", adjust: "adjusted", count: "counted" }[
+        e.action.split(".")[1]
+      ];
+      const delta = typeof m.delta === "string" ? Number(m.delta) : 0;
+      const amount =
+        `${Math.abs(delta).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${String(m.unit ?? "")}`.trim();
+      const item = String(m.item ?? "an item");
+      if (e.action === "inventory.count")
+        return `counted ${item}: ${delta >= 0 ? "+" : "-"}${amount} against the records`;
+      if (e.action === "inventory.adjust") return `adjusted ${item} by ${delta >= 0 ? "+" : "-"}${amount}`;
+      return `${verb} ${amount} of ${item}`;
+    }
     default:
       return e.action.replace(".", " ").replace("_", " ");
   }

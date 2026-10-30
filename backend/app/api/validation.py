@@ -34,6 +34,13 @@ FIELD_LABELS = {
     "assignee_id": "Assignee",
     "milestone_id": "Milestone",
     "default_currency": "Currency",
+    "quantity": "Quantity",
+    "counted": "Counted quantity",
+    "unit_cost": "Unit cost",
+    "reorder_level": "Reorder level",
+    "unit": "Unit",
+    "sku": "SKU",
+    "location": "Location",
 }
 
 
@@ -140,3 +147,44 @@ def parse_optional_id(data: dict, field: str) -> Optional[int]:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise _bad(field, f"{_label(field)} is not valid.")
     return value
+
+
+MAX_QUANTITY = Decimal("9999999999.99")  # fits Numeric(12, 2)
+
+
+def parse_quantity(data: dict, field: str, *, required: bool = True, positive: bool = False) -> Optional[Decimal]:
+    """A stock quantity with at most 2 decimals (e.g. 12 or 2.5 kg). Non-negative; `positive` also rejects 0."""
+    value = data.get(field)
+    if value is None or value == "":
+        if required:
+            raise _bad(field, f"{_label(field)} is required.")
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise _bad(field, f"{_label(field)} must be a number, like 12 or 2.5.")
+    try:
+        qty = Decimal(str(value).strip())
+    except InvalidOperation:
+        raise _bad(field, f"{_label(field)} must be a number, like 12 or 2.5.")
+    if not qty.is_finite():
+        raise _bad(field, f"{_label(field)} must be a number, like 12 or 2.5.")
+    if qty < 0:
+        raise _bad(field, f"{_label(field)} can't be negative.")
+    if positive and qty == 0:
+        raise _bad(field, f"{_label(field)} must be more than zero.")
+    if qty > MAX_QUANTITY:
+        raise _bad(field, f"{_label(field)} is too large.")
+    if qty != qty.quantize(Decimal("0.01")):
+        raise _bad(field, f"{_label(field)} can have at most 2 decimal places.")
+    return qty.quantize(Decimal("0.01"))
+
+
+def parse_signed_quantity(data: dict, field: str) -> Decimal:
+    """A non-zero quantity that may be negative, e.g. "-3" for three damaged units."""
+    raw = data.get(field)
+    negative = (isinstance(raw, str) and raw.strip().startswith("-")) or (
+        isinstance(raw, (int, float)) and not isinstance(raw, bool) and raw < 0
+    )
+    if negative:
+        raw = raw.strip()[1:] if isinstance(raw, str) else -raw
+    magnitude = parse_quantity({field: raw}, field, positive=True)
+    return -magnitude if negative else magnitude

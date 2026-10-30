@@ -94,6 +94,16 @@
   waits once for short Retry-After values, otherwise tells the user the assistant is busy. A paid Groq tier
   (or smaller prompts) would raise the limit.
 
+## Inventory (implemented, my defaults)
+- Organization-level stock items (name, SKU, unit, unit cost in the default currency, reorder level, location).
+- Quantities change only through movements: receive, issue (optionally to a project), adjust (signed, reason
+  required) and stock counts (set to the counted quantity; differences recorded). Stock can't go below zero.
+- Roles: owners/project managers manage items and adjust; contributors receive, issue and count; viewers read.
+- Stock value = quantity x current unit cost (no FIFO/average costing). Items without a cost are left out of the value.
+- Stock issued to a project is listed under "Materials used" but not added to project spending (no double counting
+  with purchase expenses). The AI has a read-only `get_inventory_status` tool.
+- Replaced the unused `resources`/`project_resources` tables (the migration refuses if they contain rows).
+
 ## Still open
 - Notifications (FR-19, "Could / later").
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

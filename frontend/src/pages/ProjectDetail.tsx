@@ -8,6 +8,7 @@ import { AppShell } from "../components/AppShell";
 import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
 import { MilestoneSection } from "../components/MilestoneSection";
+import { MaterialsSection } from "../components/MaterialsSection";
 import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
 import { errorMessage } from "../lib/errors";
@@ -89,6 +90,7 @@ export default function ProjectDetail() {
             onProjectChange={onTaskChange}
           />
           <ExpenseSection project={project} userId={user.id} onProjectChange={merge} />
+          <MaterialsSection projectId={project.id} refreshKey={activityKey} />
           <ActivitySection project={project} refreshKey={activityKey} />
         </>
       )}

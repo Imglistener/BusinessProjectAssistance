@@ -170,23 +170,45 @@ class Expense(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
-class Resource(db.Model):
-    __tablename__ = "resources"
+class MovementKind(str, enum.Enum):
+    RECEIVE = "receive"  # stock in (delivery, purchase)
+    ISSUE = "issue"  # stock out (used, optionally on a project)
+    ADJUST = "adjust"  # manual correction (damage, loss, found)
+    COUNT = "count"  # stock count: sets the quantity to what was counted
+
+
+class InventoryItem(db.Model):
+    """Something the organization keeps in stock. Quantity changes only through InventoryMovement."""
+
+    __tablename__ = "inventory_items"
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
-    type = db.Column(db.String(60))
-    unit_cost = db.Column(db.Numeric(14, 2))
+    sku = db.Column(db.String(60))
+    unit = db.Column(db.String(20), nullable=False, default="pcs")
+    unit_cost = db.Column(db.Numeric(14, 2))  # in the organization's default currency
+    quantity_on_hand = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    reorder_level = db.Column(db.Numeric(12, 2))
+    location = db.Column(db.String(120))
     description = db.Column(db.Text)
+    archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
-class ProjectResource(db.Model):
-    __tablename__ = "project_resources"
+class InventoryMovement(db.Model):
+    """Append-only stock history. quantity_after is the on-hand quantity once the movement applied."""
+
+    __tablename__ = "inventory_movements"
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False, index=True)
-    resource_id = db.Column(db.Integer, db.ForeignKey("resources.id"), nullable=False)
-    quantity = db.Column(db.Numeric(12, 2), nullable=False, default=1)
-    total_cost = db.Column(db.Numeric(14, 2))
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    kind = db.Column(db.Enum(MovementKind), nullable=False)
+    quantity_delta = db.Column(db.Numeric(12, 2), nullable=False)
+    quantity_after = db.Column(db.Numeric(12, 2), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), index=True)
+    note = db.Column(db.String(500))
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
 
 class AIConversation(db.Model):

@@ -11,6 +11,9 @@ from werkzeug.security import generate_password_hash
 from .extensions import db
 from .models import (
     Expense,
+    InventoryItem,
+    InventoryMovement,
+    MovementKind,
     Milestone,
     Organization,
     OrganizationMember,
@@ -145,6 +148,27 @@ def demo_data(yes: bool) -> None:
         ("Choose tech stack", S.TODO, P.MEDIUM, 12, owner, None),
         ("Prototype review", S.TODO, P.HIGH, 21, owner, proto),
     ])
+
+    # Stock: one item low, one issued to the office move.
+    def stock(name, unit, cost, qty, reorder, location, sku=None):
+        item = InventoryItem(organization_id=org.id, name=name, unit=unit, unit_cost=Decimal(cost) if cost else None,
+                             quantity_on_hand=Decimal(qty), reorder_level=Decimal(reorder) if reorder else None,
+                             location=location, sku=sku, archived=False)
+        db.session.add(item)
+        db.session.flush()
+        db.session.add(InventoryMovement(organization_id=org.id, item_id=item.id, kind=MovementKind.COUNT,
+                                         quantity_delta=Decimal(qty), quantity_after=Decimal(qty),
+                                         note="Opening stock", created_by=owner.id))
+        return item
+
+    stock("Laptop (14-inch)", "pcs", "9500.00", "3", "2", "IT cupboard", "IT-LAP-14")
+    stock("Printer paper A4", "box", "65.00", "4", "6", "Store room")
+    stock("Branded tote bags", "pcs", "18.50", "220", "50", "Store room", "MKT-TOTE")
+    chairs = stock("Office chair", "pcs", "1450.00", "14", None, "Warehouse")
+    chairs.quantity_on_hand = Decimal("8")
+    db.session.add(InventoryMovement(organization_id=org.id, item_id=chairs.id, kind=MovementKind.ISSUE,
+                                     quantity_delta=Decimal("-6"), quantity_after=Decimal("8"), project_id=move.id,
+                                     note="Meeting room", created_by=mate.id))
 
     # Planned and archived ones so filters have something to show.
     project("Trade fair stand", "Stand for the autumn trade fair.", "25000.00", day(30), day(60), ProjectStatus.PLANNED)

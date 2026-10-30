@@ -1620,6 +1620,72 @@ a {
   font-size: 0.9rem;
 }
 
+/* ---------- Inventory ---------- */
+.inventory__note {
+  margin-top: -1.25rem;
+  font-size: 0.9rem;
+}
+
+.row--stacked {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.row--plain {
+  padding: 0;
+  border: 0;
+}
+
+.inventory__actions {
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.925rem;
+}
+
+.inventory__value {
+  display: block;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.inventory__form {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.inventory__history {
+  margin-top: 0.25rem;
+}
+
+.inventory__done {
+  margin-top: 1rem;
+}
+
+.tag--warn {
+  background: #fdf0d5;
+  color: #7a4b00;
+}
+
+.count-table td {
+  vertical-align: middle;
+}
+
+.count-input {
+  width: 6.5rem;
+  padding: 0.4rem 0.55rem;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  text-align: right;
+}
+
+.count-input:focus {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: var(--focus);
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

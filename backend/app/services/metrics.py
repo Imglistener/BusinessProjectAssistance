@@ -152,3 +152,18 @@ def calculate_budget_metrics(budget, expenses: Iterable) -> BudgetMetrics:
         variance=budget_variance(budget, actual),
         consumed_pct=budget_consumed_pct(budget, actual),
     )
+
+
+# ---------- inventory ----------
+
+
+def stock_value(quantity, unit_cost) -> Optional[Decimal]:
+    """quantity x unit cost; None when the item has no cost."""
+    if unit_cost is None:
+        return None
+    return q(_d(quantity) * _d(unit_cost))
+
+
+def is_low_stock(quantity, reorder_level) -> bool:
+    """At or below the reorder level. Items without a level are never low."""
+    return reorder_level is not None and _d(quantity) <= _d(reorder_level)

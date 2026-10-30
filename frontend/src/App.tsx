@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import Assistant from "./pages/Assistant";
+import Inventory from "./pages/Inventory";
 import Invite from "./pages/Invite";
 import Dashboard from "./pages/Dashboard";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -31,6 +32,14 @@ export default function App() {
       <Route path="/invite/:token" element={<Invite />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route
+        path="/app/inventory"
+        element={
+          <RequireAuth>
+            <Inventory />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/app/members"
         element={

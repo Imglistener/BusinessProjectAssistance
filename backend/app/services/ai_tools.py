@@ -13,7 +13,8 @@ from decimal import Decimal
 from typing import Callable, Optional
 
 from ..errors import ApiError
-from ..models import Milestone, Project, ProjectStatus, Task, User
+from ..extensions import db
+from ..models import InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, User
 from . import metrics
 from . import projects as svc
 
@@ -311,6 +312,37 @@ def draft_project_update(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+def get_inventory_status(ctx: ToolContext, args: dict) -> dict:
+    items = InventoryItem.query.filter_by(organization_id=ctx.organization_id, archived=False).all()
+    currency = db.session.get(Organization, ctx.organization_id).default_currency if items else None
+    low = sorted(
+        (i for i in items if metrics.is_low_stock(i.quantity_on_hand, i.reorder_level)), key=lambda i: i.name
+    )
+    total = Decimal("0")
+    unpriced = 0
+    for i in items:
+        v = metrics.stock_value(i.quantity_on_hand, i.unit_cost)
+        if v is None:
+            unpriced += 1
+        else:
+            total += v
+    return {
+        "currency": currency,
+        "item_count": len(items),
+        "stock_value": _m(metrics.q(total)),
+        "unpriced_item_count": unpriced,
+        "low_stock": [
+            {"name": i.name, "sku": i.sku, "on_hand": _m(i.quantity_on_hand), "unit": i.unit,
+             "reorder_level": _m(i.reorder_level), "location": i.location}
+            for i in low[:MAX_LIST]
+        ],
+        "notes": [
+            "Low stock = at or below the item's reorder level; items without a level are never low.",
+            "Stock value = quantity on hand x unit cost; items without a cost are left out of the value.",
+        ],
+    }
+
+
 _PROJECT_ID = {"project_id": {"type": "integer", "description": "Project ID from list_projects."}}
 
 # name -> (function, description, JSON-schema parameters)
@@ -364,6 +396,11 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
             },
             "required": ["project_id"],
         },
+    ),
+    "get_inventory_status": (
+        get_inventory_status,
+        "Organization stock: item count, total stock value and items at or below their reorder level.",
+        {"type": "object", "properties": {}},
     ),
     "draft_project_update": (
         draft_project_update,

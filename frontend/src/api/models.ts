@@ -101,6 +101,44 @@ export interface Deadlines {
   my_task_count: number;
 }
 
+export interface InventoryItem {
+  id: number;
+  name: string;
+  sku: string | null;
+  unit: string;
+  unit_cost: string | null;
+  currency: string;
+  quantity_on_hand: string;
+  reorder_level: string | null;
+  location: string | null;
+  description: string | null;
+  archived: boolean;
+  /** null when the item has no unit cost */
+  stock_value: string | null;
+  low_stock: boolean;
+}
+
+export interface InventorySummary {
+  item_count: number;
+  low_stock_count: number;
+  stock_value: string;
+  unpriced_item_count: number;
+  currency: string;
+}
+
+export interface Movement {
+  id: number;
+  item_id: number;
+  kind: "receive" | "issue" | "adjust" | "count";
+  quantity_delta: string;
+  quantity_after: string;
+  project_id: number | null;
+  project_name: string | null;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface CurrencyTotals {
   currency: string;
   budget: string;
