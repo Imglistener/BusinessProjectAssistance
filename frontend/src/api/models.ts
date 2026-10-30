@@ -12,6 +12,8 @@ export interface Project {
   id: number;
   organization_id: number;
   name: string;
+  description: string | null;
+  type: string | null;
   status: "planned" | "active" | "on_hold" | "completed" | "archived";
   currency: string;
   start_date: string | null;

@@ -192,7 +192,7 @@ function OrgOverview({ org }: { org: Organization }) {
           <ProjectForm
             org={org}
             onCancel={() => setCreating(false)}
-            onCreated={() => {
+            onSaved={() => {
               setCreating(false);
               load();
             }}

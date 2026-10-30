@@ -27,6 +27,7 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
   const [categories, setCategories] = useState<string[]>([]);
   const [matching, setMatching] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const filtering = category !== "" || from !== "" || to !== "";
 
@@ -58,7 +59,9 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
   }, [load]);
 
   const canChange = (e: Expense) =>
-    editable && e.status === "valid" && (canManageProjects(role) || (role === "contributor" && e.created_by === userId));
+    editable &&
+    e.status === "valid" &&
+    (canManageProjects(role) || (role === "contributor" && e.created_by === userId));
 
   return (
     <section className="projects-section" aria-labelledby="expenses-heading">
@@ -128,20 +131,36 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
 
       {expenses && expenses.length > 0 && (
         <ul className="rows">
-          {expenses.map((e) => (
-            <ExpenseRow
-              key={e.id}
-              expense={e}
-              canChange={canChange(e)}
-              onVoided={(p, updated) => {
-                onProjectChange(p);
-                setError(null);
-                if (showVoided) setExpenses((prev) => prev?.map((x) => (x.id === updated.id ? updated : x)) ?? prev);
-                else load(0);
-              }}
-              onError={setError}
-            />
-          ))}
+          {expenses.map((e) =>
+            editingId === e.id ? (
+              <li key={e.id} className="row row--editing">
+                <ExpenseForm
+                  project={project}
+                  expense={e}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={(p) => {
+                    setEditingId(null);
+                    onProjectChange(p);
+                    load(0);
+                  }}
+                />
+              </li>
+            ) : (
+              <ExpenseRow
+                key={e.id}
+                expense={e}
+                canChange={canChange(e)}
+                onEdit={() => setEditingId(e.id)}
+                onVoided={(p, updated) => {
+                  onProjectChange(p);
+                  setError(null);
+                  if (showVoided) setExpenses((prev) => prev?.map((x) => (x.id === updated.id ? updated : x)) ?? prev);
+                  else load(0);
+                }}
+                onError={setError}
+              />
+            ),
+          )}
         </ul>
       )}
 
@@ -158,10 +177,12 @@ function ExpenseRow({
   expense,
   canChange,
   onVoided,
+  onEdit,
   onError,
 }: {
   expense: Expense;
   canChange: boolean;
+  onEdit(): void;
   onVoided(project: Project, expense: Expense): void;
   onError(message: string): void;
 }) {
@@ -207,9 +228,14 @@ function ExpenseRow({
               </button>
             </span>
           ) : (
-            <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
-              Void
-            </button>
+            <span className="row__confirm">
+              <button type="button" className="link-btn" onClick={onEdit}>
+                Edit
+              </button>
+              <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
+                Void
+              </button>
+            </span>
           ))}
       </div>
     </li>
@@ -218,14 +244,25 @@ function ExpenseRow({
 
 function ExpenseForm({
   project,
+  expense,
   onSaved,
   onCancel,
 }: {
   project: Project;
+  /** Edit this expense instead of adding one. */
+  expense?: Expense;
   onSaved(project: Project): void;
   onCancel(): void;
 }) {
-  const [form, setForm] = useState({ category: CATEGORIES[0], amount: "", expense_date: todayIso(), description: "" });
+  const [form, setForm] = useState({
+    category: expense?.category ?? CATEGORIES[0],
+    amount: expense?.amount ?? "",
+    expense_date: expense?.expense_date ?? todayIso(),
+    description: expense?.description ?? "",
+  });
+  // Unique field ids when an edit form and the add form are open together.
+  const id = expense ? `expense_${expense.id}_` : "expense_";
+  const categoryOptions = [...new Set([...CATEGORIES, form.category])].map((c) => ({ value: c, label: c }));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -234,14 +271,15 @@ function ExpenseForm({
     async () => {
       setError(null);
       setFieldErrors({});
-      const r = await api<{ project: Project }>(`/projects/${project.id}/expenses`, {
-        body: {
-          category: form.category,
-          amount: form.amount.trim().replace(",", "."),
-          expense_date: form.expense_date,
-          description: form.description.trim() || null,
-        },
-      });
+      const body = {
+        category: form.category,
+        amount: form.amount.trim().replace(",", "."),
+        expense_date: form.expense_date,
+        description: form.description.trim() || null,
+      };
+      const r = expense
+        ? await api<{ project: Project }>(`/expenses/${expense.id}`, { method: "PATCH", body })
+        : await api<{ project: Project }>(`/projects/${project.id}/expenses`, { body });
       onSaved(r.project);
     },
     (e) => {
@@ -251,20 +289,20 @@ function ExpenseForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label="Add expense">
-      <h3 className="panel__title">Add expense</h3>
+    <form onSubmit={submit} className="panel form" aria-label={expense ? "Edit expense" : "Add expense"}>
+      <h3 className="panel__title">{expense ? "Edit expense" : "Add expense"}</h3>
       <FormError message={error} />
       <div className="form__row">
         <SelectField
           label="Category"
-          name="expense_category"
+          name={`${id}category`}
           value={form.category}
           onChange={set("category")}
-          options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+          options={categoryOptions}
         />
         <Field
           label={`Amount (${project.currency})`}
-          name="expense_amount"
+          name={`${id}amount`}
           value={form.amount}
           onChange={set("amount")}
           error={fieldErrors.amount}
@@ -274,7 +312,7 @@ function ExpenseForm({
       <div className="form__row">
         <Field
           label="Date"
-          name="expense_date"
+          name={`${id}date`}
           type="date"
           value={form.expense_date}
           onChange={set("expense_date")}
@@ -282,7 +320,7 @@ function ExpenseForm({
         />
         <Field
           label="Note"
-          name="expense_note"
+          name={`${id}note`}
           value={form.description}
           onChange={set("description")}
           error={fieldErrors.description}
@@ -291,7 +329,7 @@ function ExpenseForm({
       </div>
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save expense"}
+          {busy ? "Saving…" : expense ? "Save changes" : "Save expense"}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
           Cancel

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { Project } from "../api/models";
+import { canManageProjects, type Project } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
+import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
 import { errorMessage } from "../lib/errors";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
@@ -44,7 +45,7 @@ export default function ProjectDetail() {
 
       {project && user && (
         <>
-          <ProjectHeader project={project} />
+          <ProjectHeader project={project} onProjectChange={merge} />
           <ExpenseSection project={project} userId={user.id} onProjectChange={merge} />
           <TaskSection project={project} userId={user.id} onProjectChange={merge} />
         </>
@@ -53,7 +54,85 @@ export default function ProjectDetail() {
   );
 }
 
-function ProjectHeader({ project }: { project: Project }) {
+function ProjectActions({ project, onProjectChange }: { project: Project; onProjectChange(p: Project): void }) {
+  const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const archived = project.status === "archived";
+
+  const run = async (path: string, options: { method: string; body?: unknown }) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ project: Project }>(path, options);
+      onProjectChange(r.project);
+      setConfirming(false);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <ProjectForm
+        project={project}
+        onCancel={() => setEditing(false)}
+        onSaved={(p) => {
+          onProjectChange(p);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="project-actions">
+      <FormError message={error} />
+      {archived ? (
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={busy}
+          onClick={() => run(`/projects/${project.id}`, { method: "PATCH", body: { status: "active" } })}
+        >
+          {busy ? "Restoring…" : "Restore project"}
+        </button>
+      ) : (
+        <>
+          <button type="button" className="btn btn--secondary" onClick={() => setEditing(true)}>
+            Edit project
+          </button>
+          {confirming ? (
+            <span className="row__confirm">
+              <span>Archive it? Its expenses and tasks become read-only.</span>
+              <button
+                type="button"
+                className="link-btn link-btn--danger"
+                disabled={busy}
+                onClick={() => run(`/projects/${project.id}/archive`, { method: "POST" })}
+              >
+                {busy ? "Archiving…" : "Archive"}
+              </button>
+              <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
+                Keep
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
+              Archive
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProjectHeader({ project, onProjectChange }: { project: Project; onProjectChange(p: Project): void }) {
+  const canManage = project.my_role !== undefined && canManageProjects(project.my_role);
   const dates = formatDateRange(project.start_date, project.end_date);
   const used = project.consumed_pct === null ? 0 : Math.min(Number(project.consumed_pct), 100);
   const hasBudget = Number(project.budget) > 0;
@@ -70,13 +149,17 @@ function ProjectHeader({ project }: { project: Project }) {
           {dates ? `. ${dates}.` : "."}
           {project.task_completion_pct !== null && ` ${formatPct(project.task_completion_pct)} of tasks done.`}
         </p>
+        {project.description && <p className="project__description">{project.description}</p>}
       </header>
 
       {project.status === "archived" && (
         <p className="notice" role="status">
           This project is archived, so its expenses and tasks are read-only.
+          {canManage ? " Restore it to make changes." : ""}
         </p>
       )}
+
+      {canManage && <ProjectActions project={project} onProjectChange={onProjectChange} />}
 
       <section className="totals" aria-label="Budget">
         <div>

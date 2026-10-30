@@ -34,6 +34,7 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
@@ -106,7 +107,12 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
       {tasks && tasks.length > 0 && (
         <FilterBar label="Filter tasks">
           <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
-          <FilterSelect label="Assignee" value={assigneeFilter} onChange={setAssigneeFilter} options={assigneeOptions} />
+          <FilterSelect
+            label="Assignee"
+            value={assigneeFilter}
+            onChange={setAssigneeFilter}
+            options={assigneeOptions}
+          />
           <FilterCheck label="Only overdue" checked={overdueOnly} onChange={setOverdueOnly} />
         </FilterBar>
       )}
@@ -132,41 +138,62 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
 
       {shown.length > 0 && (
         <ul className="rows">
-          {shown.map((t) => (
-            <li key={t.id} className={t.status === "done" || t.status === "cancelled" ? "row row--voided" : "row"}>
-              <div className="row__main">
-                <p className="row__title">{t.title}</p>
-                <p className="row__meta">
-                  {PRIORITY_LABEL[t.priority]} priority
-                  {t.assignee_name ? ` — ${t.assignee_name}` : " — Unassigned"}
-                  {t.due_date && (
-                    <>
-                      {" — "}
-                      <span className={t.is_overdue ? "overdue" : undefined}>
-                        {t.is_overdue ? "Overdue, was due " : "Due "}
-                        {formatDate(t.due_date)}
-                      </span>
-                    </>
+          {shown.map((t) =>
+            editingId === t.id ? (
+              <li key={t.id} className="row row--editing">
+                <TaskForm
+                  project={project}
+                  members={members}
+                  task={t}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={(task, p) => {
+                    setEditingId(null);
+                    setTasks((prev) => prev?.map((x) => (x.id === task.id ? task : x)).sort(byDueDate) ?? prev);
+                    onProjectChange(p);
+                  }}
+                />
+              </li>
+            ) : (
+              <li key={t.id} className={t.status === "done" || t.status === "cancelled" ? "row row--voided" : "row"}>
+                <div className="row__main">
+                  <p className="row__title">{t.title}</p>
+                  <p className="row__meta">
+                    {PRIORITY_LABEL[t.priority]} priority
+                    {t.assignee_name ? ` — ${t.assignee_name}` : " — Unassigned"}
+                    {t.due_date && (
+                      <>
+                        {" — "}
+                        <span className={t.is_overdue ? "overdue" : undefined}>
+                          {t.is_overdue ? "Overdue, was due " : "Due "}
+                          {formatDate(t.due_date)}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="row__side">
+                  <select
+                    className="status-select"
+                    aria-label={`Status of ${t.title}`}
+                    value={t.status}
+                    disabled={!canChangeStatus(t)}
+                    onChange={(e) => changeStatus(t, e.target.value as TaskStatus)}
+                  >
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  {editable && canManageProjects(role) && (
+                    <button type="button" className="link-btn" onClick={() => setEditingId(t.id)}>
+                      Edit
+                    </button>
                   )}
-                </p>
-              </div>
-              <div className="row__side">
-                <select
-                  className="status-select"
-                  aria-label={`Status of ${t.title}`}
-                  value={t.status}
-                  disabled={!canChangeStatus(t)}
-                  onChange={(e) => changeStatus(t, e.target.value as TaskStatus)}
-                >
-                  {STATUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </li>
-          ))}
+                </div>
+              </li>
+            ),
+          )}
         </ul>
       )}
     </section>
@@ -184,15 +211,32 @@ function byDueDate(a: Task, b: Task) {
 function TaskForm({
   project,
   members,
+  task,
   onSaved,
   onCancel,
 }: {
   project: Project;
   members: Member[];
+  /** Edit this task instead of adding one. */
+  task?: Task;
   onSaved(task: Task, project: Project): void;
   onCancel(): void;
 }) {
-  const [form, setForm] = useState({ title: "", priority: "medium", due_date: "", assignee_id: "" });
+  const [form, setForm] = useState({
+    title: task?.title ?? "",
+    priority: task?.priority ?? "medium",
+    due_date: task?.due_date ?? "",
+    assignee_id: task?.assignee_id ? String(task.assignee_id) : "",
+  });
+  const id = task ? `task_${task.id}_` : "task_";
+  // Keep a current assignee who has since left the organization selectable.
+  const assigneeOptions = [
+    { value: "", label: "Unassigned" },
+    ...members.map((m) => ({ value: String(m.user_id), label: m.name })),
+    ...(task?.assignee_id && !members.some((m) => m.user_id === task.assignee_id)
+      ? [{ value: String(task.assignee_id), label: task.assignee_name ?? "Former member" }]
+      : []),
+  ];
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -201,14 +245,19 @@ function TaskForm({
     async () => {
       setError(null);
       setFieldErrors({});
-      const r = await api<{ task: Task; project: Project }>(`/projects/${project.id}/tasks`, {
-        body: {
-          title: form.title.trim(),
-          priority: form.priority as TaskPriority,
-          due_date: form.due_date || null,
-          assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
-        },
-      });
+      const body = {
+        title: form.title.trim(),
+        priority: form.priority as TaskPriority,
+        due_date: form.due_date || null,
+        assignee_id: form.assignee_id ? Number(form.assignee_id) : null,
+      };
+      if (task && body.assignee_id === task.assignee_id) {
+        // Unchanged: don't re-validate an assignee who may have left the organization.
+        delete (body as Partial<typeof body>).assignee_id;
+      }
+      const r = task
+        ? await api<{ task: Task; project: Project }>(`/tasks/${task.id}`, { method: "PATCH", body })
+        : await api<{ task: Task; project: Project }>(`/projects/${project.id}/tasks`, { body });
       onSaved(r.task, r.project);
     },
     (e) => {
@@ -218,21 +267,21 @@ function TaskForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label="Add task">
-      <h3 className="panel__title">Add task</h3>
+    <form onSubmit={submit} className="panel form" aria-label={task ? "Edit task" : "Add task"}>
+      <h3 className="panel__title">{task ? "Edit task" : "Add task"}</h3>
       <FormError message={error} />
-      <Field label="Title" name="task_title" value={form.title} onChange={set("title")} error={fieldErrors.title} />
+      <Field label="Title" name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
       <div className="form__row">
         <SelectField
           label="Priority"
-          name="task_priority"
+          name={`${id}priority`}
           value={form.priority}
           onChange={set("priority")}
           options={Object.entries(PRIORITY_LABEL).map(([value, label]) => ({ value, label }))}
         />
         <Field
           label="Due date"
-          name="task_due"
+          name={`${id}due`}
           type="date"
           value={form.due_date}
           onChange={set("due_date")}
@@ -242,15 +291,15 @@ function TaskForm({
       </div>
       <SelectField
         label="Assigned to"
-        name="task_assignee"
+        name={`${id}assignee`}
         value={form.assignee_id}
         onChange={set("assignee_id")}
-        options={[{ value: "", label: "Unassigned" }, ...members.map((m) => ({ value: String(m.user_id), label: m.name }))]}
+        options={assigneeOptions}
       />
       {fieldErrors.assignee_id && <p className="field__message field__message--error">{fieldErrors.assignee_id}</p>}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save task"}
+          {busy ? "Saving…" : task ? "Save changes" : "Save task"}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
           Cancel
