@@ -4,11 +4,23 @@ import { canManageProjects, type DashboardSummary, type Organization, type Proje
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
+import { FilterBar, FilterCheck, FilterSelect, useDebounced } from "../components/Filters";
 import { ProjectForm } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
 import { AppShell } from "../components/AppShell";
 import { ZellijField } from "../components/Zellij";
-import { formatMoney } from "../lib/format";
+import { STATUS_LABEL, formatMoney } from "../lib/format";
+
+const STATUS_FILTERS = [
+  { value: "", label: "All except archived" },
+  ...["planned", "active", "on_hold", "completed", "archived"].map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+];
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "name", label: "Name" },
+  { value: "end_date", label: "End date" },
+];
 
 function greeting(hour: number) {
   if (hour < 12) return "Good morning";
@@ -81,26 +93,53 @@ function OrgOverview({ org }: { org: Organization }) {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = canManageProjects(org.role);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [overBudget, setOverBudget] = useState(false);
+  const q = useDebounced(search.trim());
+  const filtering = q !== "" || status !== "" || overBudget;
 
-  const load = useCallback(() => {
-    setError(null);
-    Promise.all([
-      api<{ summary: DashboardSummary }>(`/organizations/${org.id}/dashboard`),
-      api<{ projects: Project[] }>(`/organizations/${org.id}/projects`),
-    ])
-      .then(([s, p]) => {
-        setSummary(s.summary);
+  const query = new URLSearchParams({ sort });
+  if (q) query.set("q", q);
+  if (status) query.set("status", status);
+  if (overBudget) query.set("over_budget", "true");
+  const queryString = query.toString();
+
+  const loadSummary = useCallback(() => {
+    api<{ summary: DashboardSummary }>(`/organizations/${org.id}/dashboard`)
+      .then((s) => setSummary(s.summary))
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Couldn't load your totals."));
+  }, [org.id]);
+
+  const loadProjects = useCallback(() => {
+    api<{ projects: Project[] }>(`/organizations/${org.id}/projects?${queryString}`)
+      .then((p) => {
+        setError(null);
         setProjects(p.projects);
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Couldn't load your projects."));
-  }, [org.id]);
+  }, [org.id, queryString]);
 
-  useEffect(load, [load]);
+  useEffect(loadSummary, [loadSummary]);
+  useEffect(loadProjects, [loadProjects]);
+
+  const load = () => {
+    loadSummary();
+    loadProjects();
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("");
+    setOverBudget(false);
+  };
 
   const totals = summary?.totals.length
     ? summary.totals
     : [{ currency: org.default_currency, budget: "", actual: "", remaining: "" }];
-  const empty = projects !== null && projects.length === 0;
+  const empty = projects !== null && projects.length === 0 && !filtering;
+  const noMatches = projects !== null && projects.length === 0 && filtering;
 
   return (
     <>
@@ -160,7 +199,34 @@ function OrgOverview({ org }: { org: Organization }) {
           />
         )}
 
+        {!empty && (
+          <FilterBar label="Filter projects">
+            <label className="filter filter--grow">
+              <span className="filter__label">Search</span>
+              <input
+                type="search"
+                placeholder="Name or description"
+                value={search}
+                maxLength={100}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <FilterSelect label="Status" value={status} onChange={setStatus} options={STATUS_FILTERS} />
+            <FilterSelect label="Sort by" value={sort} onChange={setSort} options={SORT_OPTIONS} />
+            <FilterCheck label="Only over budget" checked={overBudget} onChange={setOverBudget} />
+          </FilterBar>
+        )}
+
         {projects === null && !error && <p className="muted">Loading…</p>}
+
+        {noMatches && (
+          <p className="muted">
+            No projects match these filters.{" "}
+            <button type="button" className="link-btn" onClick={clearFilters}>
+              Clear filters
+            </button>
+          </p>
+        )}
 
         {projects && projects.length > 0 && <ProjectList projects={projects} />}
 

@@ -52,6 +52,12 @@
 - Invites are also emailed when Resend is on; the copy-link option stays.
 - Templates live in the code (`services/email.py`), not in Resend, so they're versioned and tested with the app.
 
+## Search and filters (implemented)
+- Projects: text search on name and description (case-insensitive, wildcards treated as text), status,
+  over budget, has overdue tasks; sort by newest, name or end date. No pagination yet (fine for small teams).
+- Expenses: category, date range and voided; the response includes the valid total for the whole filter.
+- Tasks: status (incl. "open"), assignee (incl. "assigned to me", unassigned) and overdue, filtered in the browser.
+
 ## Still open
 - Report export format, notifications.
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

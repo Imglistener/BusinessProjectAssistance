@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from flask import jsonify, request
+from sqlalchemy import or_
 from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
@@ -21,6 +22,16 @@ from .validation import (
     parse_money,
     require_str,
 )
+
+MAX_SEARCH_LEN = 100
+SORTS = ("newest", "name", "end_date")
+
+
+def _like(term: str) -> str:
+    """Case-insensitive 'contains' pattern with LIKE wildcards in the search text escaped."""
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
 
 def _money(value) -> str | None:
     return None if value is None else f"{Decimal(value):.2f}"
@@ -148,16 +159,40 @@ def list_projects(org_id: int):
     elif request.args.get("include_archived") != "true":
         query = query.filter(Project.status != ProjectStatus.ARCHIVED)
 
-    projects = query.order_by(Project.created_at.desc(), Project.id.desc()).all()
+    q = (request.args.get("q") or "").strip()
+    if len(q) > MAX_SEARCH_LEN:
+        raise ApiError("validation_error", "Search text is too long.", 400, {"field": "q"})
+    if q:
+        pattern = _like(q)
+        query = query.filter(
+            or_(Project.name.ilike(pattern, escape="\\"), Project.description.ilike(pattern, escape="\\"))
+        )
+
+    sort = request.args.get("sort") or "newest"
+    if sort not in SORTS:
+        raise ApiError("validation_error", f"Sort must be one of: {', '.join(SORTS)}.", 400, {"field": "sort"})
+    if sort == "name":
+        query = query.order_by(Project.name, Project.id)
+    elif sort == "end_date":
+        # Soonest end date first; projects without one last.
+        query = query.order_by(Project.end_date.is_(None), Project.end_date, Project.id)
+    else:
+        query = query.order_by(Project.created_at.desc(), Project.id.desc())
+
+    projects = query.all()
     ids = [p.id for p in projects]
     expenses, tasks = svc.load_expenses(ids), svc.load_tasks(ids)
     today = svc.org_today(org.timezone)
-    return jsonify(
-        projects=[
-            project_to_dict(p, svc.project_metrics(p, expenses.get(p.id, []), tasks.get(p.id, []), today))
-            for p in projects
-        ]
-    )
+    rows = [
+        project_to_dict(p, svc.project_metrics(p, expenses.get(p.id, []), tasks.get(p.id, []), today))
+        for p in projects
+    ]
+    # Computed figures can't be filtered in SQL; filter after the metrics are known.
+    if request.args.get("over_budget") == "true":
+        rows = [r for r in rows if r["over_budget"]]
+    if request.args.get("has_overdue") == "true":
+        rows = [r for r in rows if r["overdue_task_count"] > 0]
+    return jsonify(projects=rows)
 
 
 @api_bp.get("/organizations/<int:org_id>/dashboard")

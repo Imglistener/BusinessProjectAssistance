@@ -4,6 +4,7 @@ import { canContribute, canManageProjects, type Expense, type Project } from "..
 import { errorMessage } from "../lib/errors";
 import { formatDate, formatMoney, todayIso } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
+import { FilterBar, FilterCheck, FilterDate, FilterSelect } from "./Filters";
 
 const CATEGORIES = ["Design", "Software", "Marketing", "Equipment", "Travel", "Services", "Other"];
 const PAGE = 50;
@@ -20,16 +21,33 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [total, setTotal] = useState(0);
   const [showVoided, setShowVoided] = useState(false);
+  const [category, setCategory] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [matching, setMatching] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const filtering = category !== "" || from !== "" || to !== "";
 
-  const query = showVoided ? "" : "&status=valid";
+  const params = new URLSearchParams();
+  if (!showVoided) params.set("status", "valid");
+  if (category) params.set("category", category);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.toString();
+
   const load = useCallback(
     (offset = 0) =>
-      api<{ expenses: Expense[]; total: number }>(`/projects/${project.id}/expenses?limit=${PAGE}&offset=${offset}${query}`)
+      api<{ expenses: Expense[]; total: number; matching_amount: string; categories: string[] }>(
+        `/projects/${project.id}/expenses?limit=${PAGE}&offset=${offset}&${query}`,
+      )
         .then((r) => {
+          setError(null);
           setExpenses((prev) => (offset === 0 || !prev ? r.expenses : [...prev, ...r.expenses]));
           setTotal(r.total);
+          setMatching(r.matching_amount);
+          setCategories(r.categories);
         })
         .catch((e) => setError(errorMessage(e, "Couldn't load expenses."))),
     [project.id, query],
@@ -67,16 +85,44 @@ export function ExpenseSection({ project, userId, onProjectChange }: Props) {
         />
       )}
 
-      <label className="check">
-        <input type="checkbox" checked={showVoided} onChange={(e) => setShowVoided(e.target.checked)} />
-        Show voided expenses
-      </label>
+      <FilterBar label="Filter expenses">
+        <FilterSelect
+          label="Category"
+          value={category}
+          onChange={setCategory}
+          options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+        />
+        <FilterDate label="From" value={from} onChange={setFrom} />
+        <FilterDate label="To" value={to} onChange={setTo} />
+        <FilterCheck label="Show voided" checked={showVoided} onChange={setShowVoided} />
+      </FilterBar>
+
+      {filtering && expenses && matching !== null && (
+        <p className="filters__summary" role="status">
+          {total} {total === 1 ? "expense" : "expenses"} match. Valid total: {formatMoney(matching, project.currency)}.{" "}
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => {
+              setCategory("");
+              setFrom("");
+              setTo("");
+            }}
+          >
+            Clear filters
+          </button>
+        </p>
+      )}
 
       {expenses === null && !error && <p className="muted">Loading…</p>}
 
       {expenses && expenses.length === 0 && (
         <p className="muted">
-          {showVoided ? "No expenses yet." : "No expenses yet. Spending you record counts against the budget."}
+          {filtering
+            ? "No expenses match these filters."
+            : showVoided
+              ? "No expenses yet."
+              : "No expenses yet. Spending you record counts against the budget."}
         </p>
       )}
 

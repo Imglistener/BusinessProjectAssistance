@@ -11,6 +11,7 @@ import {
 import { errorMessage } from "../lib/errors";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, formatDate } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
+import { FilterBar, FilterCheck, FilterSelect } from "./Filters";
 
 interface Member {
   user_id: number;
@@ -24,6 +25,8 @@ interface Props {
 }
 
 const STATUS_OPTIONS = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({ value, label }));
+const STATUS_FILTERS = [{ value: "", label: "All" }, { value: "open", label: "Open" }, ...STATUS_OPTIONS];
+const OPEN = (s: TaskStatus) => s !== "done" && s !== "cancelled";
 
 export function TaskSection({ project, userId, onProjectChange }: Props) {
   const role = project.my_role ?? "viewer";
@@ -32,6 +35,24 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
   const [members, setMembers] = useState<Member[]>([]);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const filtering = statusFilter !== "" || assigneeFilter !== "" || overdueOnly;
+
+  const shown = (tasks ?? []).filter(
+    (t) =>
+      (statusFilter === "" || (statusFilter === "open" ? OPEN(t.status) : t.status === statusFilter)) &&
+      (assigneeFilter === "" ||
+        (assigneeFilter === "none" ? t.assignee_id === null : t.assignee_id === Number(assigneeFilter))) &&
+      (!overdueOnly || t.is_overdue),
+  );
+  const assigneeOptions = [
+    { value: "", label: "Anyone" },
+    { value: String(userId), label: "Assigned to me" },
+    { value: "none", label: "Unassigned" },
+    ...members.filter((m) => m.user_id !== userId).map((m) => ({ value: String(m.user_id), label: m.name })),
+  ];
 
   useEffect(() => {
     api<{ tasks: Task[] }>(`/projects/${project.id}/tasks`)
@@ -82,12 +103,36 @@ export function TaskSection({ project, userId, onProjectChange }: Props) {
         />
       )}
 
+      {tasks && tasks.length > 0 && (
+        <FilterBar label="Filter tasks">
+          <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
+          <FilterSelect label="Assignee" value={assigneeFilter} onChange={setAssigneeFilter} options={assigneeOptions} />
+          <FilterCheck label="Only overdue" checked={overdueOnly} onChange={setOverdueOnly} />
+        </FilterBar>
+      )}
+
       {tasks === null && !error && <p className="muted">Loading…</p>}
       {tasks && tasks.length === 0 && <p className="muted">No tasks yet. Add the first step of this project.</p>}
+      {tasks && tasks.length > 0 && shown.length === 0 && filtering && (
+        <p className="muted">
+          No tasks match these filters.{" "}
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => {
+              setStatusFilter("");
+              setAssigneeFilter("");
+              setOverdueOnly(false);
+            }}
+          >
+            Clear filters
+          </button>
+        </p>
+      )}
 
-      {tasks && tasks.length > 0 && (
+      {shown.length > 0 && (
         <ul className="rows">
-          {tasks.map((t) => (
+          {shown.map((t) => (
             <li key={t.id} className={t.status === "done" || t.status === "cancelled" ? "row row--voided" : "row"}>
               <div className="row__main">
                 <p className="row__title">{t.title}</p>

@@ -1268,6 +1268,64 @@ a {
   font-size: 0.925rem;
 }
 
+/* ---------- Search and filters ---------- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+
+.filter {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 9rem;
+}
+
+.filter--grow {
+  flex: 1 1 14rem;
+}
+
+.filter__label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.filter input,
+.filter select {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.filter input:focus,
+.filter select:focus {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: var(--focus);
+}
+
+.filter__check {
+  padding-bottom: 0.55rem;
+}
+
+.filters__summary {
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+@media (max-width: 560px) {
+  .filter {
+    flex: 1 1 100%;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {

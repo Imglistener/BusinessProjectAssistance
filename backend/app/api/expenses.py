@@ -9,6 +9,7 @@ from flask_jwt_extended import jwt_required
 from ..errors import ApiError
 from ..extensions import db
 from ..models import Expense, ExpenseStatus, Project, Role
+from ..services import metrics
 from ..services import projects as svc
 from ..services.audit import log_action
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, require_role
@@ -141,11 +142,27 @@ def list_expenses(project_id: int):
     except ValueError:
         raise ApiError("validation_error", "limit and offset must be whole numbers.", 400)
 
+    if start and end and end < start:
+        raise ApiError("validation_error", "The end date can't be before the start date.", 400, {"field": "to"})
+
     total = query.count()
     rows = (
         query.order_by(Expense.expense_date.desc(), Expense.id.desc()).limit(limit).offset(offset).all()
     )
-    return jsonify(expenses=[expense_to_dict(e) for e in rows], total=total, limit=limit, offset=offset)
+    # Sum of valid expenses matching the filter (all pages), from the metrics service.
+    matching_amount = metrics.total_actual_expenses(query.all())
+    categories = [
+        c for (c,) in db.session.query(Expense.category).filter_by(project_id=project.id).distinct().order_by(Expense.category)
+    ]
+    return jsonify(
+        expenses=[expense_to_dict(e) for e in rows],
+        total=total,
+        limit=limit,
+        offset=offset,
+        matching_amount=f"{matching_amount:.2f}",
+        currency=project.currency,
+        categories=categories,
+    )
 
 
 @api_bp.patch("/expenses/<int:expense_id>")
