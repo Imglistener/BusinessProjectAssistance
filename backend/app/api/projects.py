@@ -208,6 +208,15 @@ def organization_dashboard(org_id: int):
     return jsonify(summary=summary)
 
 
+@api_bp.get("/organizations/<int:org_id>/deadlines")
+@jwt_required()
+def organization_deadlines(org_id: int):
+    user = current_user()
+    get_membership(org_id, user.id)
+    org = db.session.get(Organization, org_id)
+    return jsonify(svc.deadlines(org_id, org.timezone, user.id))
+
+
 @api_bp.get("/projects/<int:project_id>")
 @jwt_required()
 def get_project(project_id: int):

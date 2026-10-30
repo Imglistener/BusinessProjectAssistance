@@ -77,6 +77,30 @@ export interface Milestone {
   is_overdue: boolean;
 }
 
+export interface DeadlineItem {
+  kind: "task" | "milestone";
+  id: number;
+  title: string;
+  due_date: string | null;
+  /** negative when overdue */
+  days_until_due: number | null;
+  overdue: boolean;
+  project_id: number;
+  project_name: string;
+  assignee?: string | null;
+  priority?: TaskPriority;
+  status?: TaskStatus;
+}
+
+export interface Deadlines {
+  as_of: string;
+  horizon_days: number;
+  items: DeadlineItem[];
+  item_count: number;
+  my_tasks: DeadlineItem[];
+  my_task_count: number;
+}
+
 export interface CurrencyTotals {
   currency: string;
   budget: string;

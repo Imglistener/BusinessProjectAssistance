@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
 import { FilterBar, FilterCheck, FilterSelect, useDebounced } from "../components/Filters";
+import { DeadlinesPanel } from "../components/Deadlines";
 import { ProjectForm } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
 import { AppShell } from "../components/AppShell";
@@ -106,6 +107,9 @@ function OrgOverview({ org }: { org: Organization }) {
   if (overBudget) query.set("over_budget", "true");
   const queryString = query.toString();
 
+  // Bumped after a new project so the deadline panels refresh too.
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const loadSummary = useCallback(() => {
     api<{ summary: DashboardSummary }>(`/organizations/${org.id}/dashboard`)
       .then((s) => setSummary(s.summary))
@@ -127,6 +131,7 @@ function OrgOverview({ org }: { org: Organization }) {
   const load = () => {
     loadSummary();
     loadProjects();
+    setRefreshKey((k) => k + 1);
   };
 
   const clearFilters = () => {
@@ -177,6 +182,8 @@ function OrgOverview({ org }: { org: Organization }) {
           )}
         </ul>
       )}
+
+      <DeadlinesPanel orgId={org.id} refreshKey={refreshKey} />
 
       <section aria-labelledby="projects-heading" className="projects-section">
         <div className="section-head">
