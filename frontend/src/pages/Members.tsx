@@ -268,7 +268,7 @@ function InviteForm({ org, onInvited }: { org: Organization; onInvited(): void }
         Invite someone
       </h2>
       <p className="muted invite__lede">
-        We'll email them a link, and you can copy it too. It works only for that email address and expires in 7 days.
+        You'll get a link to send them (it's also emailed once email is set up). It works only for that email address and expires in 7 days.
       </p>
       <form onSubmit={submit} className="form invite__form">
         <FormError message={error} />

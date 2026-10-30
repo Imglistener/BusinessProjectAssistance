@@ -16,6 +16,15 @@ import {
   formatPct,
 } from "../lib/format";
 
+// The API sends definitions as an object (keys arrive sorted); show them in reading order with labels.
+const DEFINITION_ORDER = ["actual", "variance", "completion", "overdue"];
+const DEFINITION_LABEL: Record<string, string> = {
+  actual: "Spent",
+  variance: "Over/under budget",
+  completion: "Task completion",
+  overdue: "Overdue",
+};
+
 /** Printable project summary. Kept outside the app shell so it prints cleanly (Save as PDF from the print dialog). */
 export default function Report() {
   const { projectId } = useParams();
@@ -185,8 +194,10 @@ function ReportBody({ report: r }: { report: ProjectReport }) {
       <footer className="report__footer">
         <h2>How figures are calculated</h2>
         <ul>
-          {Object.values(r.definitions).map((d) => (
-            <li key={d}>{d}</li>
+          {DEFINITION_ORDER.filter((k) => r.definitions[k]).map((k) => (
+            <li key={k}>
+              <strong>{DEFINITION_LABEL[k]}:</strong> {r.definitions[k]}
+            </li>
           ))}
         </ul>
       </footer>

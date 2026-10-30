@@ -1628,6 +1628,7 @@ a {
 
 .row--stacked {
   display: grid;
+  justify-content: stretch;
   gap: 0.4rem;
 }
 
@@ -1665,6 +1666,10 @@ a {
 .tag--warn {
   background: #fdf0d5;
   color: #7a4b00;
+}
+
+.panel > p + .report__table {
+  margin-top: 0.75rem;
 }
 
 .count-table td {
