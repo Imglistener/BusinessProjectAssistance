@@ -106,7 +106,7 @@ const fr: Dictionary = {
   "Due {date}": "Échéance le {date}",
   "No date": "Sans date",
   "no tasks linked": "aucune tâche rattachée",
-  "{done} of {count} tasks done ({pct})": { one: "{done} tâche sur {count} terminée ({pct})", other: "{done} tâches sur {count} terminées ({pct})" },
+  "{done} of {count} tasks done ({pct})": "{done} sur {count} tâches terminées ({pct})",
   "Tasks done for {title}": "Tâches terminées pour {title}",
   "Deleting…": "Suppression…",
   "Delete milestone": "Supprimer le jalon",

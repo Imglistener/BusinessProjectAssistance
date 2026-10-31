@@ -34,19 +34,27 @@ Forgot your password? On the login page select **Forgot your password?** and fol
 
 The dashboard shows, for your organization:
 
-- **Totals**: budget, spent and remaining across active projects.
-- **Warnings**: how many projects are over budget and how many tasks are overdue.
-- **Coming up**: overdue tasks and milestones, and anything due (or any trip leaving) in the next 14 days.
-- **My tasks**: open tasks assigned to you.
-- **Projects**: search by name or description, filter by status or "only over budget", and sort.
+- **The budget bar** at the top: how much has been spent of everything budgeted across active projects, with
+  the percentage used and what's left to spend.
+- **Warnings** under it: how many projects are over budget (select it to list them) and how many tasks are
+  overdue.
+- **Agenda**: overdue work, then what's due today and tomorrow, this week and later: tasks, milestones and
+  trips leaving. Switch to **Mine** to see only the open tasks assigned to you.
+- **Projects**: search by name or description, filter by status or "Only over budget", and sort. Each project
+  shows its budget bar, dates and overdue tasks; a coloured edge marks projects over budget (red) or with
+  overdue work (yellow).
 
 If you belong to more than one organization, switch between them at the top of the left-hand menu.
+
+![The dashboard: budget bar, warnings, agenda and projects](images/en-dashboard.jpg)
 
 ## Projects
 
 Open a project from the dashboard. A project has a budget, dates and a status (planned, active, on hold,
 completed). Owners and project managers can **Edit project** or **Archive** it. Archived projects are
 read-only and hidden from the dashboard; open one through the status filter and select **Restore project**.
+
+![A project page: budget, spent, remaining, then milestones and tasks](images/en-project.jpg)
 
 ### Budget and expenses
 
@@ -96,6 +104,8 @@ traffic (adjust it with the slider). **How this is calculated** lists every assu
 of the fuel price used. Warnings appear when the price is more than 30 days old or the distance is an
 estimate.
 
+![Route and fuel estimate on a trip](images/en-trip-fuel.jpg)
+
 Fuel prices come from **Settings → Fuel prices**. Select **Update from website** to load today's average
 pump prices (national and main cities) from prix-gasoil-maroc.teraedge.ma, or enter a price yourself for a
 city or as the default for any city. Prices are community-reported averages; the pump price is what counts.
@@ -122,6 +132,8 @@ and only owners and project managers can create projects.
 
 **Inventory** in the left-hand menu tracks what your organization keeps in stock.
 
+![The inventory](images/en-inventory.jpg)
+
 - **Add item**: name, unit (pcs, box, kg…), unit cost, a reorder level and where it's kept. Items at or below
   their reorder level are marked **Low stock**.
 - **Receive** when stock arrives; **Issue** when it's used, optionally for a project (it then appears under
@@ -136,6 +148,9 @@ should count against a budget.
 ## The assistant
 
 Select **Assistant** (or **Ask the assistant** on a project) and ask in plain language, for example:
+
+![The assistant, with suggested questions](images/en-assistant.jpg)
+
 
 - "Which projects need attention right now?"
 - "What are we spending the most on in the office move?"
@@ -168,8 +183,8 @@ You aren't notified about your own changes. Select a notification to go straight
 
 Owners manage people under **Members**:
 
-- **Invite someone** with their email and a role. You get a link to send them; it works only for that
-  email address and expires after 7 days.
+- **Invite someone** with their email and a role. The invite is emailed to them, and you also get the link
+  to send yourself. It works only for that email address and expires after 7 days.
 - Change a member's role from the list, or **Remove** them. Every organization keeps at least one owner.
 - Anyone can **Leave** an organization.
 
