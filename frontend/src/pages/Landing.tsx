@@ -110,7 +110,7 @@ export default function Landing() {
                 <strong>{t("734 MAD")}</strong>
               </div>
               <div className="lp-range">
-                <span className="lp-range__dot" style={{ left: "42%" }} />
+                <span className="lp-range__dot" style={{ insetInlineStart: "42%" }} />
               </div>
               <div className="lp-frag__row lp-frag__muted">
                 <span>{t("581 MAD")}</span>
@@ -179,7 +179,7 @@ export default function Landing() {
           <div>
             <h2 id="assistant-title">{t("An assistant that shows its working.")}</h2>
             <p>
-              {t("Ask about your projects in plain language, in English or French. It looks up your figures and calculates with the same rules as the rest of the app, rather than guessing.")}
+              {t("Ask about your projects in plain language, in English, French or Arabic. It looks up your figures and calculates with the same rules as the rest of the app, rather than guessing.")}
             </p>
             <ul className="lp-promises">
               <li>

@@ -79,14 +79,14 @@ def _shape(key: str) -> str:
     return re.sub(r"\{\w+\}", "{x}", key)
 
 
-@pytest.mark.parametrize("catalog", [fr.MESSAGES], ids=["fr"])
+@pytest.mark.parametrize("catalog", [fr.MESSAGES, ar.MESSAGES], ids=["fr", "ar"])
 def test_every_api_message_has_a_translation(catalog):
     shapes = {_shape(k) for k in catalog}
     missing = sorted(m for m in _messages() if _shape(m) not in shapes)
     assert not missing, missing
 
 
-@pytest.mark.parametrize("catalog", [fr.MESSAGES], ids=["fr"])
+@pytest.mark.parametrize("catalog", [fr.MESSAGES, ar.MESSAGES], ids=["fr", "ar"])
 def test_labels_shown_inside_messages_are_translated(catalog):
     labels = set(FIELD_LABELS.values()) | set(ROLE_LABELS.values()) | {v.label for v in travel.VEHICLES.values()}
     labels |= {"diesel", "petrol", "road route from the map", "distance entered by hand"}
@@ -110,6 +110,12 @@ def test_translate_exact_and_templates():
     # A placeholder value that is itself in the catalog is translated too.
     assert translate("Project name is required.", "fr") == "Nom du projet : champ obligatoire."
     assert translate("In Website. Due 20 Nov 2026.", "fr") == "Dans Website. Échéance le 20 nov. 2026."
+
+
+def test_arabic_messages_and_dates():
+    assert translate("Incorrect email or password.", "ar") == "البريد الإلكتروني أو كلمة المرور غير صحيحة."
+    assert translate("Project name is required.", "ar") == "اسم المشروع: حقل مطلوب."
+    assert human_date(date(2026, 11, 8), "ar") == "8 نونبر 2026"
 
 
 def test_translate_leaves_unknown_text_and_english_alone():
@@ -137,6 +143,8 @@ def test_errors_follow_accept_language(client):
     r = client.post("/api/auth/login", json={"email": "alex@example.com", "password": "wrong"}, headers=FR)
     assert r.status_code == 401
     assert r.get_json()["error"] == {"code": "invalid_credentials", "message": "E-mail ou mot de passe incorrect."}
+    r = client.post("/api/auth/login", json={"email": "alex@example.com", "password": "wrong"}, headers={"Accept-Language": "ar"})
+    assert r.get_json()["error"]["message"] == "البريد الإلكتروني أو كلمة المرور غير صحيحة."
     r = client.post("/api/auth/login", json={"email": "alex@example.com", "password": "wrong"})
     assert r.get_json()["error"]["message"] == "Incorrect email or password."
 

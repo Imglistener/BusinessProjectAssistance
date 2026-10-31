@@ -134,8 +134,8 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
                       <span className="muted">
                         {" — "}
                         {PRIORITY_LABEL[x.priority]}
-                        {x.due_date ? `, ${t("due {date}", { date: formatDate(x.due_date) })}` : ""}
-                        {x.milestone ? `, ${x.milestone}` : ""}
+                        {x.due_date ? `${t(", ")}${t("due {date}", { date: formatDate(x.due_date) })}` : ""}
+                        {x.milestone ? `${t(", ")}${x.milestone}` : ""}
                       </span>
                     </span>
                   </label>

@@ -158,7 +158,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
             <h1>{hello}</h1>
             <p>
               {org.name}
-              {summary ? `, ${t("{count} active projects", { count: summary.project_count })}` : ""}.{" "}
+              {summary ? `${t(", ")}${t("{count} active projects", { count: summary.project_count })}` : ""}.{" "}
               {t("Amounts in {currency}.", { currency: org.default_currency })}
             </p>
           </div>

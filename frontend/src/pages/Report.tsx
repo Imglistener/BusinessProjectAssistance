@@ -152,7 +152,7 @@ function ReportBody({ report: r }: { report: ProjectReport }) {
               {t("{count} tasks, {pct} complete.", { count: r.tasks.total, pct: formatPct(r.tasks.completion_pct) })}{" "}
               {Object.entries(r.tasks.by_status)
                 .map(([s, n]) => `${TASK_STATUS_LABEL[s]}: ${n}`)
-                .join(", ")}
+                .join(t(", "))}
               .
             </p>
             <h3>{t("Overdue")}</h3>

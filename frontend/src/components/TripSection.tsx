@@ -67,7 +67,7 @@ export function TripSection({ project, onTripsChange }: { project: Project; onTr
                 </p>
                 <p className="row__meta">
                   {x.destination} — {formatDateRange(x.start_date, x.end_date)}
-                  {x.travelers.length > 0 && ` — ${x.travelers.map((x) => x.name.split(" ")[0]).join(", ")}`}
+                  {x.travelers.length > 0 && ` — ${x.travelers.map((x) => x.name.split(" ")[0]).join(t(", "))}`}
                 </p>
               </div>
               <div className="row__side">

@@ -5,6 +5,7 @@ import { type ActivityEntry, describe, formatWhen } from "../lib/activity";
 import { errorMessage } from "../lib/errors";
 import { FormError } from "./AuthLayout";
 import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
 const PAGE = 10;
 
@@ -52,7 +53,10 @@ export function ActivitySection({ project, refreshKey }: { project: Project; ref
             <li key={e.id}>
               <time dateTime={e.at}>{formatWhen(e.at)}</time>
               <p>
-                <strong>{e.actor ?? t("Someone")}</strong> {describe(e, people, project.currency)}.
+                {tx("{actor} {action}.", {
+                  actor: <strong>{e.actor ?? t("Someone")}</strong>,
+                  action: describe(e, people, project.currency),
+                })}
               </p>
             </li>
           ))}

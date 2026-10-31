@@ -155,12 +155,15 @@
 - Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
 
 ## Languages (implemented, my defaults)
-- English and French, with Arabic next. The picker (sidebar, landing page, login pages) saves the choice in the
+- English, French and Arabic (Modern Standard Arabic, right-to-left layout, Moroccan month names). The picker (sidebar, landing page, login pages) saves the choice in the
   browser and on the account; emails (password reset, invites) use the account's language, invites the
   inviter's. Notifications, error messages and fuel-estimate notes are shown in the reader's language.
 - Translations are mine: worth a review by a native speaker before launch, especially the landing page.
 - Names you enter (projects, tasks, categories, items) are shown as typed; they aren't translated.
-- Numbers: 1 850,50 MAD in French (fr-FR grouping), 1,850.50 MAD in English.
+- Numbers: 1 850,50 MAD in French (fr-FR grouping), 1,850.50 MAD in English, 1.850,50 MAD in Arabic (ar-MA,
+  Latin digits).
+- Arabic activity lines and notifications use verbal nouns ("Salma: إنشاء المشروع") because the app doesn't know
+  people's gender, which Arabic verbs would need.
 
 ## Still open
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).

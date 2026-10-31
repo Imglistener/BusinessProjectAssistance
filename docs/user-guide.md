@@ -175,7 +175,7 @@ Owners manage people under **Members**:
 
 ## Language
 
-The app is available in English and French. Pick a language with the globe menu at the bottom of the sidebar
+The app is available in English, French and Arabic (Arabic pages read right to left). Pick a language with the globe menu at the bottom of the sidebar
 (or at the top of the login and sign-up pages). Your choice is remembered on this device and on your account,
 so password-reset emails and notifications arrive in the same language. The assistant answers in the language
 you write in.

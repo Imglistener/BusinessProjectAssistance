@@ -190,7 +190,7 @@ function Travelers({ trip, onSave }: { trip: Trip; onSave(ids: number[]): Promis
       {!editing && (
         <p>
           {trip.travelers.length ? (
-            trip.travelers.map((x) => x.name).join(", ")
+            trip.travelers.map((x) => x.name).join(t(", "))
           ) : (
             <span className="muted">{t("Nobody yet.")}</span>
           )}

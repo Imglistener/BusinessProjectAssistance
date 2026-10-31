@@ -77,7 +77,7 @@ export function describe(e: ActivityEntry, people: Record<string, string>, curre
       );
     case "expense.created": {
       const amount = typeof m.amount === "string" ? formatMoney(m.amount, String(m.currency ?? currency)) : "";
-      return t("recorded an expense: {details}", { details: [m.category, amount].filter(Boolean).join(", ") });
+      return t("recorded an expense: {details}", { details: [m.category, amount].filter(Boolean).join(t(", ")) });
     }
     case "expense.voided":
       return t("voided the expense {label}", { label: e.label ?? "" }).trim();
@@ -201,9 +201,9 @@ function changesSuffix(m: Record<string, unknown>, format: Record<string, (v: un
     const name = f === "description" ? t("note") : field(f);
     if (!isChange(change)) return name;
     const fmt = format[f] ?? ((v: unknown) => String(v ?? t("none")));
-    return `${name} ${fmt(change[0])} → ${fmt(change[1])}`;
+    return t("{field} {from} → {to}", { field: name, from: fmt(change[0]), to: fmt(change[1]) });
   });
-  return parts.length ? ` (${parts.join(", ")})` : "";
+  return parts.length ? ` (${parts.join(t(", "))})` : "";
 }
 
 const timeFmt = new Intl.DateTimeFormat(getLocale(), {

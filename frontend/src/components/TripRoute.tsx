@@ -523,7 +523,7 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
         role="img"
         aria-label={t("Range from {low} to {high}", { low: formatMoney(estimate.cost.low, c), high: formatMoney(estimate.cost.high, c) })}
       >
-        <span className="fuel__marker" style={{ left: `${pos}%` }} />
+        <span className="fuel__marker" style={{ insetInlineStart: `${pos}%` }} />
       </div>
       <div className="fuel__range-labels">
         <span>{formatMoney(estimate.cost.low, c)}</span>
