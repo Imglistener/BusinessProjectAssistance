@@ -336,7 +336,41 @@ export interface ChatReply {
   tool_trace: ToolTraceEntry[];
   /** Projects the assistant drafted; nothing is created until the user confirms. */
   proposals?: ProjectPlan[];
+  /** Stock changes the assistant drafted; nothing changes until the user confirms. */
+  stock_proposals?: StockDraft[];
   ai_generated: true;
+}
+
+export type StockChangeKind = "receive" | "issue" | "adjust" | "create";
+
+/** One drafted stock change, already matched to an item and project, with a preview of the result. */
+export interface StockDraftLine {
+  kind: StockChangeKind;
+  /** null for "create" (a new item) and for lines whose item wasn't found */
+  item_id: number | null;
+  name: string | null;
+  unit: string | null;
+  /** positive, except "adjust" (signed); for "create", the opening stock */
+  quantity: string | null;
+  on_hand_before: string | null;
+  on_hand_after: string | null;
+  project_id: number | null;
+  project_name: string | null;
+  note: string | null;
+  sku: string | null;
+  location: string | null;
+  unit_cost: string | null;
+  reorder_level: string | null;
+  low_after: boolean;
+  /** false when only an owner or project manager may confirm this line */
+  allowed: boolean;
+  /** why the line can't be applied as drafted, in the reader's language */
+  error: string | null;
+}
+
+export interface StockDraft {
+  lines: StockDraftLine[];
+  can_apply: boolean;
 }
 
 export interface Member {

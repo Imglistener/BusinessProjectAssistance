@@ -33,12 +33,15 @@ export class ApiError extends Error {
   code: string;
   status: number;
   field?: string;
+  /** Extra facts from the server, e.g. {line: 2} for a batch of stock changes. */
+  details?: Record<string, unknown>;
 
-  constructor(code: string, message: string, status: number, field?: string) {
+  constructor(code: string, message: string, status: number, field?: string, details?: Record<string, unknown>) {
     super(message);
     this.code = code;
     this.status = status;
     this.field = field;
+    this.details = details;
   }
 }
 
@@ -71,6 +74,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       err?.message ?? t("Something went wrong. Try again."),
       res.status,
       err?.details?.field,
+      err?.details,
     );
   }
   return data as T;

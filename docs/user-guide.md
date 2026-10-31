@@ -145,6 +145,12 @@ and only owners and project managers can create projects.
 Stock issued to a project isn't added to the project's spending; record purchases as expenses if they
 should count against a budget.
 
+You can also tell the assistant what happened, for example "We received 20 boxes of printer paper and
+2 office chairs broke". It drafts the stock changes and shows each one with the quantity before and after.
+Correct any quantity, untick what you don't want, and select **Confirm**. Nothing changes until you do.
+Deliveries of something you don't stock yet become a new item. The same rules apply as on the Stock page:
+contributors can confirm receipts and issues; adding items and adjustments need an owner or project manager.
+
 ## The assistant
 
 Select **Assistant** (or **Ask the assistant** on a project) and ask in plain language, for example:
@@ -161,7 +167,8 @@ Select **Assistant** (or **Ask the assistant** on a project) and ask in plain la
 - "How much will fuel cost for the Furniture pickup trip?" or "…to drive a van from Casablanca to Marrakech
   and back?"
 
-The assistant only **reads** your data: it can't change anything. Its figures come from the same
+The assistant **reads** your data. The only changes it can make are drafts you confirm: a new project, or stock
+changes (see Stock). Its figures come from the same
 calculations as the rest of the app (it uses a calculator tool rather than doing sums itself), and it says when data is missing. Answers are marked "AI-generated":
 check important figures on the project page. Your question and the figures needed to answer it are sent to
 an external AI provider.

@@ -154,6 +154,12 @@
   real test email on 2026-10-31. A generic SMTP option exists for other providers.
 - Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
 
+## Assistant drafts stock changes (implemented)
+- propose_stock_changes drafts receive / issue / adjust / new-item lines from plain language and previews the
+  quantity before and after; find_inventory_items looks up any item. Nothing is saved until the user confirms.
+- POST /organizations/:id/inventory/changes re-checks every line and saves them all or none, through the same
+  code as the Stock page (roles, low-stock alerts, history). A delivery of an untracked item becomes a new item.
+
 ## Languages (implemented, my defaults)
 - English, French and Arabic (Modern Standard Arabic, right-to-left layout, Moroccan month names). The picker (sidebar, landing page, login pages) saves the choice in the
   browser and on the account; emails (password reset, invites) use the account's language, invites the

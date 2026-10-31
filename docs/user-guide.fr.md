@@ -157,6 +157,13 @@ projets.
 Le stock sorti pour un projet n'est pas ajouté à ses dépenses ; enregistrez les achats comme dépenses s'ils
 doivent compter dans un budget.
 
+Vous pouvez aussi dire à l'assistant ce qui s'est passé, par exemple « On a reçu 20 boîtes de papier et
+2 chaises de bureau sont cassées ». Il prépare les mouvements de stock et affiche chacun avec la quantité avant
+et après. Corrigez une quantité si besoin, décochez ce que vous ne voulez pas, puis sélectionnez **Confirmer**.
+Rien ne change avant. La livraison d'un article que vous n'avez pas encore devient un nouvel article. Les règles
+sont les mêmes que sur la page Stock : les contributeurs peuvent confirmer les entrées et les sorties ; la création
+d'articles et les ajustements demandent un propriétaire ou un chef de projet.
+
 ## L'assistant
 
 Sélectionnez **Assistant** (ou **Demander à l'assistant** sur un projet) et posez votre question en langage
@@ -175,7 +182,8 @@ courant, par exemple :
 - « Combien coûtera le carburant pour le déplacement Furniture pickup ? » ou « …pour un aller-retour en
   fourgon de Casablanca à Marrakech ? »
 
-L'assistant ne fait que **lire** vos données : il ne peut rien modifier. Ses chiffres viennent des mêmes
+L'assistant **lit** vos données. Les seules modifications possibles sont des brouillons que vous confirmez : un
+nouveau projet ou des mouvements de stock (voir Stock). Ses chiffres viennent des mêmes
 calculs que le reste de l'application (il utilise une calculatrice plutôt que de compter lui-même), et il
 signale les données manquantes. Les réponses sont marquées « Généré par IA » : vérifiez les chiffres
 importants sur la page du projet. Votre question et les chiffres nécessaires pour y répondre sont envoyés à

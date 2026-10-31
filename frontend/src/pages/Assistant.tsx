@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { ChatReply, ProjectPlan, Organization, Project, ToolTraceEntry } from "../api/models";
+import type { ChatReply, ProjectPlan, Organization, Project, StockDraft, ToolTraceEntry } from "../api/models";
 import { useOrg } from "../auth/OrgContext";
 import { AppShell } from "../components/AppShell";
 import { ProjectProposal } from "../components/ProjectProposal";
+import { StockProposal } from "../components/StockProposal";
 import { FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
 import { t } from "../i18n";
@@ -22,6 +23,8 @@ const TOOL_LABEL: Record<string, string> = {
   estimate_spend_rate: t("Spend-rate estimate"),
   draft_project_update: t("Project facts for the draft"),
   get_inventory_status: t("Inventory"),
+  find_inventory_items: t("Stock items"),
+  propose_stock_changes: t("Stock changes draft"),
   calculate: t("Calculator"),
   vat: t("VAT calculation"),
   budget_what_if: t("Budget what-if"),
@@ -38,6 +41,7 @@ const GENERAL_PROMPTS = [
   t("What would it cost in fuel to drive a van from Casablanca to Marrakech and back?"),
   t("What's the VAT on 12,500 MAD, and the total including VAT?"),
   t("What's running low in stock?"),
+  t("We received 20 boxes of printer paper."),
 ];
 
 const PROJECT_PROMPTS = [
@@ -54,6 +58,7 @@ interface Message {
   content: string;
   trace?: ToolTraceEntry[];
   proposals?: ProjectPlan[];
+  stockProposals?: StockDraft[];
 }
 
 export default function Assistant() {
@@ -148,7 +153,13 @@ function Chat({
       });
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: r.answer, trace: r.tool_trace, proposals: r.proposals ?? [] },
+        {
+          role: "assistant",
+          content: r.answer,
+          trace: r.tool_trace,
+          proposals: r.proposals ?? [],
+          stockProposals: r.stock_proposals ?? [],
+        },
       ]);
     } catch (e) {
       // Put the question back so it isn't lost.
@@ -293,6 +304,9 @@ function AssistantMessage({ message, org }: { message: Message; org: Organizatio
       </footer>
       {message.proposals?.map((plan, i) => (
         <ProjectProposal key={i} plan={plan} org={org} />
+      ))}
+      {message.stockProposals?.map((draft, i) => (
+        <StockProposal key={i} draft={draft} org={org} />
       ))}
     </article>
   );

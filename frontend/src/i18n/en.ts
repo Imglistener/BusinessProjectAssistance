@@ -2,6 +2,8 @@
 import type { Dictionary } from ".";
 
 const en: Dictionary = {
+  "Stock updated: {count} changes saved.": { one: "Stock updated: {count} change saved.", other: "Stock updated: {count} changes saved." },
+  "Confirm {count} changes": { one: "Confirm {count} change", other: "Confirm {count} changes" },
   "{count} days late": { one: "{count} day late", other: "{count} days late" },
   "Leaves in {count} days": { one: "Leaves in {count} day", other: "Leaves in {count} days" },
   "In {count} days": { one: "In {count} day", other: "In {count} days" },

@@ -18,6 +18,8 @@ from ..models import Expense, InventoryItem, Milestone, Organization, Project, P
 from . import metrics, travel
 from .calculator import CalculationError, calculate as _calculate
 from .plans import PlanError, validate_plan
+from . import stock_plans
+from .permissions import get_membership
 from . import projects as svc
 
 MAX_LIST = 25
@@ -367,6 +369,40 @@ def get_inventory_status(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+def find_inventory_items(ctx: ToolContext, args: dict) -> dict:
+    query = args.get("query") if isinstance(args.get("query"), str) else None
+    items = stock_plans.find_items(ctx.organization_id, query, limit=MAX_LIST)
+    return {
+        "items": [
+            {"name": i.name, "sku": i.sku, "on_hand": _m(i.quantity_on_hand), "unit": i.unit,
+             "unit_cost": _m(i.unit_cost), "reorder_level": _m(i.reorder_level), "location": i.location,
+             "low_stock": metrics.is_low_stock(i.quantity_on_hand, i.reorder_level)}
+            for i in items
+        ],
+        "note": "Matches by name, SKU or location; archived items are left out." if query else "All active items.",
+    }
+
+
+def propose_stock_changes(ctx: ToolContext, args: dict) -> dict:
+    """Preview stock changes. Nothing is saved: the user reviews them and confirms in the app."""
+    role = get_membership(ctx.organization_id, ctx.user_id).role
+    try:
+        draft = stock_plans.draft_changes(ctx.organization_id, role, args.get("changes"))
+    except ValueError as e:
+        raise ToolError(str(e))
+    problems = [f"{line['name'] or '?'}: {line['error']}" for line in draft["lines"] if line["error"]]
+    not_allowed = [line["name"] for line in draft["lines"] if not line["allowed"]]
+    return {
+        "proposal": draft,
+        "status": "draft_not_saved",
+        "problems": problems,
+        "needs_manager": not_allowed,
+        "next_step": "Tell the user the changes are shown below your message with a 'Confirm' button and nothing "
+        "has changed yet. Mention any problems (e.g. an unknown item to create first) and lines only an owner or "
+        "project manager can confirm.",
+    }
+
+
 def calculate(ctx: ToolContext, args: dict) -> dict:
     expression = args.get("expression")
     try:
@@ -559,6 +595,36 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
         get_inventory_status,
         "Organization stock: item count, total stock value and items at or below their reorder level.",
         {"type": "object", "properties": {}},
+    ),
+    "find_inventory_items": (
+        find_inventory_items,
+        "Look up stock items by name, SKU or location: quantity on hand, unit, unit cost, reorder level. "
+        "Leave query empty to list all items.",
+        {"type": "object", "properties": {"query": {"type": "string"}}},
+    ),
+    "propose_stock_changes": (
+        propose_stock_changes,
+        "Draft stock changes for the user to confirm (saves nothing): receive (stock arrived), issue (stock used, "
+        "optionally for a project), adjust (signed correction with a reason, e.g. -2 damaged), create (new item with "
+        "optional opening quantity). Use the item names the user gave; one line per item.",
+        {
+            "type": "object",
+            "properties": {
+                "changes": {"type": "array", "items": {"type": "object", "properties": {
+                    "kind": {"type": "string", "enum": list(stock_plans.KINDS)},
+                    "item": {"type": "string", "description": "Item name or SKU (the new item's name for create)."},
+                    "quantity": {"type": "number", "description": "Positive; signed for adjust; opening stock for create."},
+                    "project": {"type": "string", "description": "Project name, for issue."},
+                    "note": {"type": "string", "description": "Reason (required for adjust) or short note, in the user's language."},
+                    "unit": {"type": "string", "description": "create only, e.g. pcs, box, kg."},
+                    "unit_cost": {"type": "number", "description": "create only."},
+                    "reorder_level": {"type": "number", "description": "create only."},
+                    "location": {"type": "string", "description": "create only."},
+                    "sku": {"type": "string", "description": "create only."},
+                }, "required": ["kind", "item"]}},
+            },
+            "required": ["changes"],
+        },
     ),
     "calculate": (
         calculate,

@@ -415,3 +415,27 @@ def record_count(org_id: int):
         value_change=_q(metrics.q(value_change)),
         currency=org.default_currency,
     )
+
+
+# ---------- changes confirmed from an assistant draft ----------
+
+
+@api_bp.post("/organizations/<int:org_id>/inventory/changes")
+@jwt_required()
+def apply_stock_changes(org_id: int):
+    """{changes: [{kind, item_id | name..., quantity, project_id?, note?}]}: all saved, or none.
+
+    The assistant drafts these (services.stock_plans); every line is checked again here.
+    """
+    from ..services import stock_plans
+
+    user = current_user()
+    membership, org = _org(org_id, user.id)
+    data = get_json_body()
+    try:
+        items = stock_plans.apply_changes(org_id, user.id, membership.role, data.get("changes"))
+        db.session.commit()
+    except ApiError:
+        db.session.rollback()
+        raise
+    return jsonify(items=[item_to_dict(i, org.default_currency) for i in items], applied=len(data["changes"])), 201
