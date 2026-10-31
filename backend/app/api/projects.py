@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from flask import jsonify, request
@@ -8,8 +9,9 @@ from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Organization, Project, ProjectStatus
+from ..models import Milestone, Organization, Project, ProjectStatus, Task, TaskPriority, TaskStatus
 from ..services import projects as svc
+from ..services.plans import PlanError, validate_plan
 from ..services.audit import log_action
 from ..services.permissions import PROJECT_WRITE_ROLES, get_membership, require_role
 from . import api_bp
@@ -137,6 +139,75 @@ def create_project(org_id: int):
         entity_type="project",
         entity_id=project.id,
         meta={"name": project.name, "budget": _money(project.budget), "currency": project.currency},
+    )
+    db.session.commit()
+    return jsonify(project=_one_project_dict(project, org)), 201
+
+
+@api_bp.post("/organizations/<int:org_id>/projects/from-plan")
+@jwt_required()
+def create_project_from_plan(org_id: int):
+    """Create a project with its milestones and tasks from a plan the user reviewed (usually drafted by the
+    assistant). The plan is validated again here; nothing from the draft is trusted."""
+    user = current_user()
+    membership = get_membership(org_id, user.id)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    org = db.session.get(Organization, org_id)
+    try:
+        plan = validate_plan(get_json_body(), default_currency=org.default_currency, today=svc.org_today(org.timezone))
+    except PlanError as e:
+        raise ApiError("validation_error", str(e), 400, {"field": e.field} if e.field else None)
+
+    project = Project(
+        organization_id=org_id,
+        owner_id=user.id,
+        name=plan["name"],
+        description=plan["description"],
+        status=ProjectStatus.PLANNED,
+        budget=Decimal(plan["budget"] or "0"),
+        currency=plan["currency"],
+        start_date=date.fromisoformat(plan["start_date"]) if plan["start_date"] else None,
+        end_date=date.fromisoformat(plan["end_date"]) if plan["end_date"] else None,
+    )
+    db.session.add(project)
+    db.session.flush()
+    milestone_ids = {}
+    for m in plan["milestones"]:
+        row = Milestone(
+            project_id=project.id,
+            title=m["title"],
+            due_date=date.fromisoformat(m["due_date"]) if m["due_date"] else None,
+            status="open",
+        )
+        db.session.add(row)
+        db.session.flush()
+        milestone_ids[m["title"].lower()] = row.id
+    for t in plan["tasks"]:
+        db.session.add(
+            Task(
+                project_id=project.id,
+                title=t["title"],
+                description=t["description"],
+                priority=TaskPriority(t["priority"]),
+                status=TaskStatus.TODO,
+                due_date=date.fromisoformat(t["due_date"]) if t["due_date"] else None,
+                milestone_id=milestone_ids.get((t["milestone"] or "").lower()),
+            )
+        )
+    log_action(
+        organization_id=org_id,
+        actor_id=user.id,
+        action="project.created",
+        entity_type="project",
+        entity_id=project.id,
+        meta={
+            "name": project.name,
+            "budget": _money(project.budget),
+            "currency": project.currency,
+            "source": "assistant_plan",
+            "milestones": len(plan["milestones"]),
+            "tasks": len(plan["tasks"]),
+        },
     )
     db.session.commit()
     return jsonify(project=_one_project_dict(project, org)), 201

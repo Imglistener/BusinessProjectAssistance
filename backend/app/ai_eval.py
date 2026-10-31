@@ -127,7 +127,7 @@ def build_cases(org: Organization, user: User) -> list[Case]:
         Case(
             "draft is labelled",
             "Draft a short status update about this project that I can share.",
-            tools=("draft_project_update",),
+            tools=("draft_project_update", "get_project_summary"),
             any_of=["draft"],
             project_name="Mobile app MVP",
         ),
@@ -144,6 +144,16 @@ def build_cases(org: Organization, user: User) -> list[Case]:
             must_include=["2500", "15000"],
         ),
     ]
+    cases.append(
+        Case(
+            "draft project from customer description",
+            "A customer, Atlas Bank, wants us to organise a 3-day team retreat in Ifrane for 25 people next March. "
+            "Their budget is about 80000 MAD. Set it up as a project with milestones and tasks.",
+            tools=("propose_project",),
+            any_of=["draft", "review", "create project", "brouillon"],
+            must_not_include=["i have created", "i've created", "has been created"],
+        )
+    )
     if fuel:
         cases.append(
             Case(

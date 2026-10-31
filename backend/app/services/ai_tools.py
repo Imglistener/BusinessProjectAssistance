@@ -17,6 +17,7 @@ from ..extensions import db
 from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User
 from . import metrics, travel
 from .calculator import CalculationError, calculate as _calculate
+from .plans import PlanError, validate_plan
 from . import projects as svc
 
 MAX_LIST = 25
@@ -416,12 +417,30 @@ def budget_what_if(ctx: ToolContext, args: dict) -> dict:
     }
 
 
-def estimate_trip_fuel_cost(ctx: ToolContext, args: dict) -> dict:
-    trip_id = _int_arg(args, "trip_id")
-    trip = db.session.get(Trip, trip_id)
-    project = project_for_context(ctx, {"project_id": trip.project_id}) if trip else None
-    if trip is None or project is None:
+def _find_trip(ctx: ToolContext, args: dict) -> Trip:
+    """By trip_id, or by trip_title within the chat's organization (only one match allowed)."""
+    if args.get("trip_id") is not None:
+        trip = db.session.get(Trip, _int_arg(args, "trip_id"))
+    else:
+        title = args.get("trip_title")
+        if not isinstance(title, str) or not title.strip():
+            raise ToolError("Give trip_id or trip_title.")
+        matches = (
+            Trip.query.join(Project, Project.id == Trip.project_id)
+            .filter(Project.organization_id == ctx.organization_id, Trip.title.ilike(title.strip()))
+            .all()
+        )
+        if len(matches) > 1:
+            raise ToolError("Several trips have that title; use trip_id from the project summary.")
+        trip = matches[0] if matches else None
+    if trip is None:
         raise ToolError("Trip not found or not accessible.")
+    return trip
+
+
+def estimate_trip_fuel_cost(ctx: ToolContext, args: dict) -> dict:
+    trip = _find_trip(ctx, args)
+    project = project_for_context(ctx, {"project_id": trip.project_id})
     overrides = {}
     if args.get("vehicle_type"):
         overrides["vehicle_type"] = _choice_arg(args, "vehicle_type", tuple(travel.VEHICLES), travel.DEFAULT_VEHICLE)
@@ -465,6 +484,21 @@ def estimate_fuel_cost(ctx: ToolContext, args: dict) -> dict:
     except travel.EstimateUnavailable as e:
         raise ToolError(str(e))
     return {"from": from_city, "to": to_city, **result}
+
+
+def propose_project(ctx: ToolContext, args: dict) -> dict:
+    """Validate a draft plan. Nothing is created: the user reviews it and confirms in the app."""
+    org = db.session.get(Organization, ctx.organization_id)
+    try:
+        plan = validate_plan(args, default_currency=org.default_currency, today=ctx.today)
+    except PlanError as e:
+        raise ToolError(str(e))
+    return {
+        "proposal": plan,
+        "status": "draft_not_saved",
+        "next_step": "Tell the user the draft is shown below their message with a 'Create project' button; "
+        "they can adjust it first. Summarise the plan briefly; don't repeat every task.",
+    }
 
 
 _PROJECT_ID = {"project_id": {"type": "integer", "description": "Project ID from list_projects."}}
@@ -548,23 +582,47 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
     ),
     "estimate_trip_fuel_cost": (
         estimate_trip_fuel_cost,
-        "Fuel litres and cost range (low / expected / high) for a planned trip, from its route distance, the vehicle's "
-        "typical consumption and the organization's fuel price for the city. Optional overrides are not saved.",
+        "Fuel cost range for a saved trip (by trip_id, or trip_title), using the trip's own route, vehicle and fuel "
+        "price. Pass vehicle_type, vehicle_count or round_trip ONLY if the user asks about a different setup.",
         {"type": "object", "properties": {
-            "trip_id": {"type": "integer", "description": "From the project summary's trips."},
+            "trip_id": {"type": "integer"}, "trip_title": {"type": "string"},
             "vehicle_type": {"type": "string", "enum": list(travel.VEHICLES)},
-            "vehicle_count": {"type": "integer"}, "round_trip": {"type": "boolean"}}, "required": ["trip_id"]},
+            "vehicle_count": {"type": "integer"}, "round_trip": {"type": "boolean"}}},
     ),
     "estimate_fuel_cost": (
         estimate_fuel_cost,
-        "Fuel cost range for a hypothetical drive between two Moroccan cities (straight-line x road factor) or over a "
-        "given distance_km. Uses the organization's fuel prices.",
+        "Fuel cost range for a hypothetical drive between two Moroccan cities, or over distance_km (one way).",
         {"type": "object", "properties": {
             "from_city": {"type": "string"}, "to_city": {"type": "string"},
-            "distance_km": {"type": "number", "description": "One way; overrides the cities' distance."},
+            "distance_km": {"type": "number"},
             "vehicle_type": {"type": "string", "enum": list(travel.VEHICLES)},
             "vehicle_count": {"type": "integer"}, "round_trip": {"type": "boolean"},
-            "fuel_city": {"type": "string", "description": "City whose fuel price to use; default from_city."}}},
+            "fuel_city": {"type": "string"}}},
+    ),
+    "propose_project": (
+        propose_project,
+        "Draft a NEW project (budget, YYYY-MM-DD dates, milestones, tasks) from a description. Saves nothing: the user "
+        "edits and confirms it. Draft right away with sensible, stated assumptions; ask only if the goal is unclear.",
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "budget": {"type": "number"},
+                "currency": {"type": "string"},
+                "start_date": {"type": "string"},
+                "end_date": {"type": "string"},
+                "milestones": {"type": "array", "items": {"type": "object", "properties": {
+                    "title": {"type": "string"}, "due_date": {"type": "string"}}, "required": ["title"]}},
+                "tasks": {"type": "array", "items": {"type": "object", "properties": {
+                    "title": {"type": "string"}, "description": {"type": "string"},
+                    "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+                    "due_date": {"type": "string"},
+                    "milestone": {"type": "string", "description": "A milestone title."}},
+                    "required": ["title"]}},
+            },
+            "required": ["name"],
+        },
     ),
     "draft_project_update": (
         draft_project_update,

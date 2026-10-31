@@ -214,3 +214,16 @@ def test_ai_fuel_tools(client):
     other_tid = new_trip(client, other_h, other_pid, distance_km="10", distance_source="manual").get_json()["trip"]["id"]
     res, _, ok = ai_tools.run_tool(ctx(org_id), "estimate_trip_fuel_cost", f'{{"trip_id": {other_tid}}}')
     assert not ok and res == {"error": "Project not found or not accessible."}
+
+
+def test_ai_trip_fuel_by_title_stays_in_organization(client):
+    h, org_id, pid = setup_project(client)
+    set_price(client, h, org_id, "12.00")
+    new_trip(client, h, pid, title="Furniture pickup", distance_km="100", distance_source="manual")
+    res, _, ok = ai_tools.run_tool(ctx(org_id), "estimate_trip_fuel_cost", '{"trip_title": "furniture pickup"}')
+    assert ok and res["title"] == "Furniture pickup"
+    other_h, other_org = make_org(client, email="rival@example.com", name="Rival")
+    res, _, ok = ai_tools.run_tool(ctx(other_org), "estimate_trip_fuel_cost", '{"trip_title": "Furniture pickup"}')
+    assert not ok and "not found" in res["error"]
+    res, _, ok = ai_tools.run_tool(ctx(org_id), "estimate_trip_fuel_cost", "{}")
+    assert not ok and "trip_id or trip_title" in res["error"]
