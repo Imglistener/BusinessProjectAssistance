@@ -30,7 +30,7 @@ export function ZellijField({ className }: { className?: string }) {
   );
 }
 
-/** The star as a single mark; `draw` animates the outline once (splash only). */
+/** The star as a single mark; `draw` animates the outline once. */
 export function StarMark({ size = 28, draw = false }: { size?: number; draw?: boolean }) {
   return (
     <svg

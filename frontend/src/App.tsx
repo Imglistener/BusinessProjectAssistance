@@ -4,6 +4,7 @@ import { useAuth } from "./auth/AuthContext";
 import Assistant from "./pages/Assistant";
 import Inventory from "./pages/Inventory";
 import Invite from "./pages/Invite";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import Login from "./pages/Login";
@@ -15,12 +16,16 @@ import Settings from "./pages/Settings";
 import TripDetail from "./pages/TripDetail";
 import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
-import Splash from "./pages/Splash";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="boot" role="status">Loading…</div>;
+  if (loading)
+    return (
+      <div className="boot" role="status">
+        Loading…
+      </div>
+    );
   // Come back to the same page after logging in again.
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   return <>{children}</>;
@@ -29,7 +34,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Splash />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/invite/:token" element={<Invite />} />

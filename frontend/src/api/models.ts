@@ -182,7 +182,13 @@ export interface Range {
 
 export interface FuelEstimate {
   currency: string;
-  vehicle: { type: string; label: string; fuel: "petrol" | "diesel"; l_per_100km_low: string; l_per_100km_high: string };
+  vehicle: {
+    type: string;
+    label: string;
+    fuel: "petrol" | "diesel";
+    l_per_100km_low: string;
+    l_per_100km_high: string;
+  };
   vehicle_count: number;
   round_trip: boolean;
   one_way_km: string;
@@ -219,6 +225,9 @@ export interface FuelPrice {
   currency: string;
   as_of: string;
   stale: boolean;
+  /** "teraedge" when read from prix-gasoil-maroc.teraedge.ma, else "manual" */
+  source: string;
+  fetched_at: string | null;
 }
 
 export interface Trip {
@@ -303,9 +312,28 @@ export interface ToolTraceEntry {
   ok: boolean;
 }
 
+export interface ProjectPlan {
+  name: string;
+  description: string | null;
+  currency: string;
+  budget: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  milestones: { title: string; due_date: string | null }[];
+  tasks: {
+    title: string;
+    description: string | null;
+    priority: TaskPriority;
+    due_date: string | null;
+    milestone: string | null;
+  }[];
+}
+
 export interface ChatReply {
   answer: string;
   tool_trace: ToolTraceEntry[];
+  /** Projects the assistant drafted; nothing is created until the user confirms. */
+  proposals?: ProjectPlan[];
   ai_generated: true;
 }
 

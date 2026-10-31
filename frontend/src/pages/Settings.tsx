@@ -34,15 +34,41 @@ function FuelPrices({ org }: { org: Organization }) {
   const [staleDays, setStaleDays] = useState(30);
   const [cities, setCities] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sync, setSync] = useState<{ source: string; url: string; available: boolean } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [synced, setSynced] = useState<string | null>(null);
+
+  type PriceList = {
+    prices: FuelPrice[];
+    stale_after_days: number;
+    sync: { source: string; url: string; available: boolean };
+  };
+  const show = (r: PriceList) => {
+    setPrices(r.prices);
+    setStaleDays(r.stale_after_days);
+    setSync(r.sync);
+  };
 
   const load = useCallback(() => {
-    api<{ prices: FuelPrice[]; stale_after_days: number }>(`/organizations/${org.id}/fuel-prices`)
-      .then((r) => {
-        setPrices(r.prices);
-        setStaleDays(r.stale_after_days);
-      })
+    api<PriceList>(`/organizations/${org.id}/fuel-prices`)
+      .then(show)
       .catch((e) => setError(errorMessage(e, "Couldn't load fuel prices.")));
   }, [org.id]);
+
+  const updateFromWebsite = async () => {
+    setSyncing(true);
+    setError(null);
+    setSynced(null);
+    try {
+      const r = await api<PriceList>(`/organizations/${org.id}/fuel-prices/sync`, { method: "POST" });
+      show(r);
+      setSynced(`Updated from ${r.sync.source}.`);
+    } catch (e) {
+      setError(errorMessage(e, "Couldn't read the website. Try again later or enter prices by hand."));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(load, [load]);
   useEffect(() => {
@@ -64,12 +90,31 @@ function FuelPrices({ org }: { org: Organization }) {
     <section className="card" aria-labelledby="fuel-heading">
       <div className="section-head">
         <h2 id="fuel-heading">Fuel prices</h2>
+        {canEdit && sync?.available && (
+          <button type="button" className="btn btn--secondary" onClick={updateFromWebsite} disabled={syncing}>
+            {syncing ? "Updating…" : "Update from website"}
+          </button>
+        )}
       </div>
       <p className="muted">
         Pump prices used for trip fuel estimates, per litre in {org.default_currency}. A price without a city is used
         wherever no city price is set. Prices older than {staleDays} days are flagged in estimates, so keep them
         current.
       </p>
+      {sync?.available && (
+        <p className="muted">
+          <strong>Update from website</strong> loads today's average prices (national and main cities) from{" "}
+          <a href={sync.url} target="_blank" rel="noreferrer">
+            {sync.source}
+          </a>
+          , a community price service. They're averages: the pump price is what counts.
+        </p>
+      )}
+      {synced && (
+        <p className="notice" role="status">
+          {synced}
+        </p>
+      )}
       <FormError message={error} />
       {prices === null && !error && <p className="muted">Loading…</p>}
       {prices && prices.length === 0 && (
@@ -85,6 +130,7 @@ function FuelPrices({ org }: { org: Organization }) {
                 Per litre
               </th>
               <th scope="col">As of</th>
+              <th scope="col">Source</th>
               {canEdit && <th scope="col" aria-label="Actions" />}
             </tr>
           </thead>
@@ -98,6 +144,7 @@ function FuelPrices({ org }: { org: Organization }) {
                   {formatDate(p.as_of)}
                   {p.stale ? " (out of date)" : ""}
                 </td>
+                <td>{p.source === "teraedge" ? "Website average" : <span className="muted">Entered</span>}</td>
                 {canEdit && (
                   <td className="num">
                     <button type="button" className="link-btn" onClick={() => remove(p)}>

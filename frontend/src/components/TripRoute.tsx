@@ -1,10 +1,12 @@
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { FuelEstimate, TravelReference, Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";
 import { formatMoney } from "../lib/format";
-import { MAPS_KEY, loadGoogleMaps, type Google } from "../lib/googleMaps";
+import { drivingRoute, placeName, searchPlaces, type GeoPlace } from "../lib/geo";
 import { FormError } from "./AuthLayout";
 
 interface Place {
@@ -14,7 +16,7 @@ interface Place {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  route: "road route from the map",
+  route: "road route (OpenStreetMap)",
   straight_line: "straight-line estimate",
   manual: "entered by hand",
 };
@@ -165,11 +167,7 @@ function RouteEditor({
   return (
     <div className="route-editor">
       <FormError message={error} />
-      {MAPS_KEY ? (
-        <MapPicker from={from} to={to} onFrom={setFrom} onTo={setTo} onRoute={handleRoute} />
-      ) : (
-        <CityPicker reference={reference} from={from} to={to} onFrom={setFrom} onTo={setTo} />
-      )}
+      <MapPicker reference={reference} from={from} to={to} onFrom={setFrom} onTo={setTo} onRoute={handleRoute} />
 
       <div className="route-editor__grid">
         <label className="filter">
@@ -200,12 +198,6 @@ function RouteEditor({
           Round trip
         </label>
       </div>
-      {!MAPS_KEY && (
-        <p className="muted route-editor__hint">
-          Without a map, the distance is the straight line between the two cities × {reference.road_factor}. Enter the
-          real distance above if you know it.
-        </p>
-      )}
       <div className="form__actions">
         <button type="button" className="btn btn--primary" onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save route"}
@@ -218,52 +210,20 @@ function RouteEditor({
   );
 }
 
-/** No map key: pick from the built-in city list, or type any place (then enter the distance by hand). */
-function CityPicker({
-  reference,
-  from,
-  to,
-  onFrom,
-  onTo,
-}: {
-  reference: TravelReference;
-  from: Place;
-  to: Place;
-  onFrom(p: Place): void;
-  onTo(p: Place): void;
-}) {
-  const options = reference.cities;
-  const pick = (name: string): Place => {
-    const c = options.find((x) => x.name.toLowerCase() === name.trim().toLowerCase());
-    return c ? { name: c.name, lat: c.lat, lng: c.lng } : { name, lat: null, lng: null };
-  };
-  return (
-    <div className="route-editor__grid">
-      <label className="filter">
-        <span className="filter__label">From</span>
-        <input list="bpa-cities" value={from.name} placeholder="City" onChange={(e) => onFrom(pick(e.target.value))} />
-      </label>
-      <label className="filter">
-        <span className="filter__label">To</span>
-        <input list="bpa-cities" value={to.name} placeholder="City" onChange={(e) => onTo(pick(e.target.value))} />
-      </label>
-      <datalist id="bpa-cities">
-        {options.map((c) => (
-          <option key={c.name} value={c.name} />
-        ))}
-      </datalist>
-    </div>
-  );
-}
-
-/** With VITE_GOOGLE_MAPS_API_KEY: search or click to set start and finish; Directions gives the road distance. */
+/**
+ * Leaflet + OpenStreetMap. Search (built-in cities first, then OpenStreetMap search on Enter) or click the map to
+ * set the start, then the finish. The road distance comes from OSRM; without a route, the server falls back to a
+ * straight-line estimate.
+ */
 function MapPicker({
+  reference,
   from,
   to,
   onFrom,
   onTo,
   onRoute,
 }: {
+  reference: TravelReference;
   from: Place;
   to: Place;
   onFrom(p: Place): void;
@@ -271,108 +231,219 @@ function MapPicker({
   onRoute(km: string | null): void;
 }) {
   const mapEl = useRef<HTMLDivElement>(null);
-  const fromInput = useRef<HTMLInputElement>(null);
-  const toInput = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState("Loading the map…");
+  const map = useRef<L.Map | null>(null);
+  const layers = useRef<L.LayerGroup | null>(null);
   const [active, setActive] = useState<"from" | "to">(from.lat === null ? "from" : "to");
   const activeRef = useRef(active);
   activeRef.current = active;
-  const state = useRef<{ g?: Google; map?: Google; renderer?: Google; markers: Google[] }>({ markers: [] });
+  const setters = useRef({ onFrom, onTo });
+  setters.current = { onFrom, onTo };
+  const [status, setStatus] = useState("");
 
+  const setPoint = useCallback((which: "from" | "to", p: Place) => {
+    (which === "from" ? setters.current.onFrom : setters.current.onTo)(p);
+  }, []);
+
+  // Create the map once.
   useEffect(() => {
+    if (!mapEl.current || map.current) return;
+    const m = L.map(mapEl.current, { scrollWheelZoom: false }).setView([31.8, -7.1], 5);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(m);
+    layers.current = L.layerGroup().addTo(m);
+    m.on("click", (ev: L.LeafletMouseEvent) => {
+      const which = activeRef.current;
+      const { lat, lng } = ev.latlng;
+      setPoint(which, { name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`, lat, lng });
+      setActive(which === "from" ? "to" : "from");
+      placeName(lat, lng)
+        .then((name) => name && setPoint(which, { name, lat, lng }))
+        .catch(() => undefined);
+    });
+    map.current = m;
+    return () => {
+      m.remove();
+      map.current = null;
+    };
+  }, [setPoint]);
+
+  // Markers, route line and road distance whenever the ends change.
+  useEffect(() => {
+    const m = map.current;
+    const group = layers.current;
+    if (!m || !group) return;
+    group.clearLayers();
+    const points: L.LatLngExpression[] = [];
+    for (const [p, colour, label] of [
+      [from, "#2f9e6b", "Start"],
+      [to, "#d9534f", "Finish"],
+    ] as const) {
+      if (p.lat === null || p.lng === null) continue;
+      points.push([p.lat, p.lng]);
+      L.circleMarker([p.lat, p.lng], { radius: 9, color: "#fff", weight: 3, fillColor: colour, fillOpacity: 1 })
+        .bindTooltip(`${label}: ${p.name}`)
+        .addTo(group);
+    }
+    if (points.length === 1) m.setView(points[0], 9);
+    if (points.length < 2 || from.lat === null || from.lng === null || to.lat === null || to.lng === null) {
+      onRoute(null);
+      return;
+    }
+    m.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
     let cancelled = false;
-    loadGoogleMaps()
-      .then((g) => {
-        if (cancelled || !mapEl.current) return;
-        const centre = from.lat !== null ? { lat: from.lat, lng: from.lng } : { lat: 31.8, lng: -7.1 };
-        const map = new g.maps.Map(mapEl.current, {
-          center: centre,
-          zoom: from.lat !== null ? 8 : 5,
-          mapTypeControl: false,
-        });
-        const renderer = new g.maps.DirectionsRenderer({ map, suppressMarkers: false });
-        state.current = { g, map, renderer, markers: [] };
-        const attach = (input: HTMLInputElement | null, set: (p: Place) => void) => {
-          if (!input) return;
-          const ac = new g.maps.places.Autocomplete(input, { fields: ["geometry", "formatted_address", "name"] });
-          ac.addListener("place_changed", () => {
-            const p = ac.getPlace();
-            const loc = p.geometry?.location;
-            if (loc) set({ name: p.formatted_address ?? p.name ?? input.value, lat: loc.lat(), lng: loc.lng() });
-          });
-        };
-        attach(fromInput.current, onFrom);
-        attach(toInput.current, onTo);
-        const geocoder = new g.maps.Geocoder();
-        map.addListener("click", (ev: Google) => {
-          const lat = ev.latLng.lat();
-          const lng = ev.latLng.lng();
-          const set = activeRef.current === "from" ? onFrom : onTo;
-          set({ name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`, lat, lng });
-          geocoder.geocode({ location: { lat, lng } }, (results: Google[] | null) => {
-            if (results?.[0]) set({ name: results[0].formatted_address, lat, lng });
-          });
-          setActive(activeRef.current === "from" ? "to" : "from");
-        });
-        setStatus("");
+    setStatus("Finding the road route…");
+    drivingRoute({ name: from.name, lat: from.lat, lng: from.lng }, { name: to.name, lat: to.lat, lng: to.lng })
+      .then((route) => {
+        if (cancelled) return;
+        if (route) {
+          L.polyline(route.path, { color: "#2b3ccf", weight: 5, opacity: 0.8 }).addTo(group);
+          onRoute(route.km.toFixed(1));
+          setStatus(`Road route: ${route.km.toFixed(1)} km one way.`);
+        } else {
+          onRoute(null);
+          setStatus("No road route found; the distance will be a straight-line estimate.");
+        }
       })
-      .catch(() => setStatus("The map couldn't load. Check the Google Maps key, or enter the distance by hand."));
+      .catch(() => {
+        if (cancelled) return;
+        onRoute(null);
+        setStatus("The routing service didn't answer; the distance will be a straight-line estimate.");
+      });
     return () => {
       cancelled = true;
     };
-    // Set up once: the inputs and setters stay the same for the editor's lifetime.
-  }, []);
-
-  // Recompute the road route whenever both ends are known.
-  useEffect(() => {
-    const { g, renderer } = state.current;
-    if (!g || !renderer || from.lat === null || to.lat === null) return;
-    new g.maps.DirectionsService().route(
-      {
-        origin: { lat: from.lat, lng: from.lng },
-        destination: { lat: to.lat, lng: to.lng },
-        travelMode: g.maps.TravelMode.DRIVING,
-      },
-      (result: Google, status: string) => {
-        if (status === "OK" && result?.routes?.[0]) {
-          renderer.setDirections(result);
-          const metres = result.routes[0].legs.reduce((sum: number, leg: Google) => sum + leg.distance.value, 0);
-          onRoute((metres / 1000).toFixed(1));
-        } else {
-          onRoute(null);
-          setStatus("No driving route found between these places; the distance will be a straight-line estimate.");
-        }
-      },
-    );
-  }, [from.lat, from.lng, to.lat, to.lng, onRoute]);
+  }, [from.lat, from.lng, to.lat, to.lng, from.name, to.name, onRoute]);
 
   return (
     <div className="map-picker">
       <div className="route-editor__grid">
-        <label className="filter">
-          <span className="filter__label">From</span>
-          <input
-            ref={fromInput}
-            defaultValue={from.name}
-            placeholder="Search a place"
-            onFocus={() => setActive("from")}
-          />
-        </label>
-        <label className="filter">
-          <span className="filter__label">To</span>
-          <input ref={toInput} defaultValue={to.name} placeholder="Search a place" onFocus={() => setActive("to")} />
-        </label>
+        <PlaceSearch
+          label="From"
+          value={from}
+          reference={reference}
+          onFocus={() => setActive("from")}
+          onPick={(p) => {
+            setPoint("from", p);
+            setActive("to");
+          }}
+        />
+        <PlaceSearch
+          label="To"
+          value={to}
+          reference={reference}
+          onFocus={() => setActive("to")}
+          onPick={(p) => setPoint("to", p)}
+        />
       </div>
       <p className="muted route-editor__hint">
-        Search above, or click the map to set the {active === "from" ? "start" : "finish"}.
+        Type a city or address and press Enter, or click the map to set the{" "}
+        <strong>{active === "from" ? "start" : "finish"}</strong>.{status ? ` ${status}` : ""}
       </p>
-      {status && <p className="muted">{status}</p>}
-      <div
-        ref={mapEl}
-        className="map-picker__map"
-        role="application"
-        aria-label="Map: click to set the start or finish"
+      <div ref={mapEl} className="map-picker__map" aria-label="Map: click to set the start or finish" />
+      <p className="muted map-picker__credit">
+        Map, search and routing by OpenStreetMap services; the places you look up are sent to them.
+      </p>
+    </div>
+  );
+}
+
+function PlaceSearch({
+  label,
+  value,
+  reference,
+  onPick,
+  onFocus,
+}: {
+  label: string;
+  value: Place;
+  reference: TravelReference;
+  onPick(p: Place): void;
+  onFocus(): void;
+}) {
+  const [text, setText] = useState(value.name);
+  const [results, setResults] = useState<GeoPlace[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => setText(value.name), [value.name]);
+
+  const search = async () => {
+    const q = text.trim();
+    if (!q) return;
+    const city = reference.cities.find((c) => c.name.toLowerCase() === q.toLowerCase());
+    if (city) {
+      onPick({ name: city.name, lat: city.lat, lng: city.lng });
+      setResults(null);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const found = await searchPlaces(q);
+      if (found.length === 1) {
+        onPick(found[0]);
+        setResults(null);
+      } else {
+        setResults(found);
+        if (!found.length) setError("No place found. Try another spelling, or click the map.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Search failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="filter place-search">
+      <label className="filter__label" htmlFor={`place-${label}`}>
+        {label}
+      </label>
+      <input
+        id={`place-${label}`}
+        list="bpa-cities"
+        value={text}
+        placeholder="City or address, then Enter"
+        onFocus={onFocus}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            search();
+          }
+        }}
+        onBlur={() => {
+          const city = reference.cities.find((c) => c.name.toLowerCase() === text.trim().toLowerCase());
+          if (city && city.name !== value.name) onPick({ name: city.name, lat: city.lat, lng: city.lng });
+        }}
       />
+      <datalist id="bpa-cities">
+        {reference.cities.map((c) => (
+          <option key={c.name} value={c.name} />
+        ))}
+      </datalist>
+      {busy && <span className="muted">Searching…</span>}
+      {error && <span className="field__message field__message--error">{error}</span>}
+      {results && results.length > 1 && (
+        <ul className="place-search__results">
+          {results.map((r) => (
+            <li key={`${r.lat},${r.lng}`}>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  onPick(r);
+                  setResults(null);
+                }}
+              >
+                {r.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

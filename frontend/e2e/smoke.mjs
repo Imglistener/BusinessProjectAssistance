@@ -37,6 +37,13 @@ async function step(name, fn) {
 
 console.log(`Smoke test against ${BASE}`);
 
+await step("public page explains the product and links to sign-up", async () => {
+  await page.goto(`${BASE}/`);
+  await page.waitForSelector("text=From a customer’s request to a planned, budgeted project.");
+  await page.waitForSelector("#features-title");
+  if (!(await page.locator("a[href='/signup']").count())) throw new Error("no sign-up link");
+});
+
 await step("log in as the demo owner", async () => {
   await page.goto(`${BASE}/login`);
   await page.fill("#email", "demo@example.com");

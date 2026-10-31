@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { ChatReply, Organization, Project, ToolTraceEntry } from "../api/models";
+import type { ChatReply, ProjectPlan, Organization, Project, ToolTraceEntry } from "../api/models";
 import { useOrg } from "../auth/OrgContext";
 import { AppShell } from "../components/AppShell";
+import { ProjectProposal } from "../components/ProjectProposal";
 import { FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
 
@@ -24,9 +25,11 @@ const TOOL_LABEL: Record<string, string> = {
   budget_what_if: "Budget what-if",
   estimate_trip_fuel_cost: "Trip fuel estimate",
   estimate_fuel_cost: "Fuel estimate",
+  propose_project: "Project draft",
 };
 
 const GENERAL_PROMPTS = [
+  "A customer wants a 3-day team retreat in Ifrane for 25 people next March, about 80000 MAD. Set it up as a project.",
   "Which projects need attention right now?",
   "Are any projects over budget?",
   "Which projects have overdue tasks?",
@@ -48,6 +51,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   trace?: ToolTraceEntry[];
+  proposals?: ProjectPlan[];
 }
 
 export default function Assistant() {
@@ -73,7 +77,7 @@ export default function Assistant() {
       <header className="main__header">
         <h1>Assistant</h1>
         <p className="main__org">
-          Ask about your projects, budgets, expenses and deadlines. It reads your data; it can't change anything.
+          Ask about your projects, budgets, expenses and deadlines. It reads your data and drafts plans, but never changes anything without you.
         </p>
       </header>
 
@@ -140,7 +144,10 @@ function Chat({
           history,
         },
       });
-      setMessages((m) => [...m, { role: "assistant", content: r.answer, trace: r.tool_trace }]);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: r.answer, trace: r.tool_trace, proposals: r.proposals ?? [] },
+      ]);
     } catch (e) {
       // Put the question back so it isn't lost.
       setMessages((m) => m.slice(0, -1));
@@ -216,7 +223,7 @@ function Chat({
               {m.content}
             </div>
           ) : (
-            <AssistantMessage key={i} message={m} />
+            <AssistantMessage key={i} message={m} org={org} />
           ),
         )}
 
@@ -257,7 +264,7 @@ function Chat({
   );
 }
 
-function AssistantMessage({ message }: { message: Message }) {
+function AssistantMessage({ message, org }: { message: Message; org: Organization }) {
   const [copied, setCopied] = useState(false);
   const sources = [...new Set((message.trace ?? []).filter((t) => t.ok).map((t) => TOOL_LABEL[t.tool] ?? t.tool))];
 
@@ -283,6 +290,9 @@ function AssistantMessage({ message }: { message: Message }) {
           {copied ? "Copied" : "Copy"}
         </button>
       </footer>
+      {message.proposals?.map((plan, i) => (
+        <ProjectProposal key={i} plan={plan} org={org} />
+      ))}
     </article>
   );
 }

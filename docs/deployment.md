@@ -30,7 +30,6 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `APP_BASE_URL` | The frontend address, used in emailed links. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
-| `VITE_GOOGLE_MAPS_API_KEY` | Optional, set at frontend build time. Enable Maps JavaScript, Places and Directions APIs and restrict the key to your site's address (HTTP referrer). It is visible in the browser by design. |
 | `GROQ_API_KEY`, `AI_*` | AI provider key and limits. The key stays on the server. |
 
 ## First deployment
@@ -80,6 +79,20 @@ snapshots; a database restore without it leaves receipts listed but unavailable.
 
 What a backup contains: everything, including password hashes, invite and reset token hashes, audit
 logs and AI usage rows (no prompt text). Treat backups as confidential.
+
+## Map, place search and routing
+
+The trip map uses OpenStreetMap services directly from the browser: map tiles (tile.openstreetmap.org),
+place search (Nominatim) and road distance (the public OSRM demo server). They are free but rate-limited
+and meant for light use: the app searches only on Enter and at most once a second. For real traffic,
+switch to a hosted provider or self-host Nominatim/OSRM by changing `frontend/src/lib/geo.ts` and the tile URL
+in `frontend/src/components/TripRoute.tsx`.
+
+## Fuel price sync
+
+`flask --app wsgi fuel-prices-sync` reads average pump prices from prix-gasoil-maroc.teraedge.ma for every
+MAD organization. Run it once a day (cron or the host's scheduler); it reads six pages, one second apart, and
+caches for six hours. If the site changes its layout the command fails without touching saved prices.
 
 ## Logs
 

@@ -84,9 +84,9 @@ Plan business travel under the project it's for.
 
 On a trip, select **Set route**:
 
-1. Choose where the trip **starts** and **ends**. With a map configured, search for a place or click the map
-   and the road distance comes from the route. Without a map, pick from the list of Moroccan cities (the
-   distance is the straight line × 1.3, marked as an estimate) or type the real distance.
+1. Choose where the trip **starts** and **ends**: type a city or address and press Enter, or click the map
+   (start first, then finish). The road distance comes from the route drawn on the map. If no road route is
+   found, the distance is the straight line × 1.3, marked as an estimate. You can also type the real distance.
 2. Choose the **vehicle** (each has a typical fuel consumption range), how many vehicles, and whether it's a
    round trip.
 
@@ -96,8 +96,9 @@ traffic (adjust it with the slider). **How this is calculated** lists every assu
 of the fuel price used. Warnings appear when the price is more than 30 days old or the distance is an
 estimate.
 
-Fuel prices come from **Settings → Fuel prices**: owners and project managers enter the pump price per
-litre for diesel and petrol, either for a specific city or as a default for any city. Keep them current.
+Fuel prices come from **Settings → Fuel prices**. Select **Update from website** to load today's average
+pump prices (national and main cities) from prix-gasoil-maroc.teraedge.ma, or enter a price yourself for a
+city or as the default for any city. Prices are community-reported averages; the pump price is what counts.
 
 ### Activity
 
@@ -108,6 +109,14 @@ At the bottom of each project, **Activity** lists every change: who did what, an
 Select **Report** on a project for a one-page summary: budget, spending by category and month, tasks,
 milestones and how each figure is calculated. Use **Print / Save as PDF** to share it, or download the
 expenses or tasks as **CSV** files for Excel.
+
+### Let the assistant draft a project
+
+Describe a customer's request to the assistant, for example: "Atlas Bank wants a 3-day team retreat in
+Ifrane for 25 people next March, about 80,000 MAD. Set it up as a project." It replies with a **draft
+project**: name, budget, dates, milestones and tasks, and says what it assumed. Adjust the name, budget or
+dates, untick anything you don't want, then select **Create project**. Nothing is created until you do,
+and only owners and project managers can create projects.
 
 ## Inventory
 
