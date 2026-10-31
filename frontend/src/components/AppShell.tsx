@@ -22,6 +22,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -47,6 +48,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { setReduceMotion, useReduceMotion } from "@/hooks/use-reduce-motion";
 
 /** Fired after notifications are read, so the sidebar count refreshes at once. */
 export const NOTIFICATIONS_CHANGED = "bpa:notifications-changed";
@@ -159,7 +161,7 @@ function OrgBadge() {
 
 function OrgText({ name }: { name: string }) {
   return (
-    <span className="grid flex-1 text-start leading-tight">
+    <span className="grid flex-1 text-start leading-tight transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
       <span className="truncate text-sm font-semibold">{name}</span>
       <span className="truncate text-xs text-muted-foreground">Business Project Assistance</span>
     </span>
@@ -171,6 +173,7 @@ function UserMenu() {
   const navigate = useNavigate();
   const { isMobile } = useSidebar();
   const name = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
+  const reduce = useReduceMotion();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -182,7 +185,7 @@ function UserMenu() {
                   {initials(user?.first_name, user?.last_name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="grid flex-1 text-start leading-tight">
+              <span className="grid flex-1 text-start leading-tight transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
                 <span className="truncate text-sm font-medium">{name}</span>
                 <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </span>
@@ -200,6 +203,14 @@ function UserMenu() {
                 <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={reduce}
+              onCheckedChange={(v) => setReduceMotion(v === true)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {t("Reduce motion")}
+            </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => navigate("/app/settings")}>
               <Settings className="size-4" />
@@ -260,7 +271,7 @@ export function AppShell({ children, legacy = true }: { children: ReactNode; leg
                     >
                       <Link to={item.to} aria-current={item.active ? "page" : undefined}>
                         <item.icon />
-                        <span>{item.label}</span>
+                        <span className="transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
                     {"badge" in item && typeof item.badge === "number" && item.badge > 0 && (

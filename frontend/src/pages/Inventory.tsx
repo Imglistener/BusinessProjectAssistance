@@ -17,6 +17,7 @@ import { FilterBar, FilterCheck, useDebounced } from "../components/Filters";
 import { formatWhen } from "../lib/activity";
 import { errorMessage } from "../lib/errors";
 import { formatMoney, formatNumber } from "../lib/format";
+import { AnimatedMoney } from "../components/AnimatedMoney";
 import { t } from "../i18n";
 import { tx } from "../i18n/rich";
 
@@ -116,7 +117,7 @@ function InventoryManager({ org }: { org: Organization }) {
           </div>
           <div>
             <span className="totals__label">{t("Stock value")}</span>
-            <span className="totals__value">{formatMoney(summary.stock_value, summary.currency)}</span>
+            <AnimatedMoney className="totals__value" amount={summary.stock_value} currency={summary.currency} />
           </div>
           <div>
             <span className="totals__label">{t("Low stock")}</span>

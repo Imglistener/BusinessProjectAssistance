@@ -1,11 +1,12 @@
-import { animate, useReducedMotion } from "motion/react";
+import { animate } from "motion/react";
+import { useReduceMotion } from "../hooks/use-reduce-motion";
 import { useEffect, useRef } from "react";
 import { formatMoney } from "../lib/format";
 
 /** A money figure that counts up from zero once, quickly. The final text is always the exact formatted amount. */
 export function AnimatedMoney({ amount, currency, className }: { amount: string; currency: string; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const final = formatMoney(amount, currency);
 
   useEffect(() => {

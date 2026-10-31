@@ -14,6 +14,7 @@ import { TaskSection } from "../components/TaskSection";
 import { TripSection } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
+import { AnimatedMoney } from "../components/AnimatedMoney";
 import { t } from "../i18n";
 
 export default function ProjectDetail() {
@@ -215,16 +216,16 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
       <section className="totals" aria-label={t("Budget")}>
         <div>
           <span className="totals__label">{t("Budget")}</span>
-          <span className="totals__value">{formatMoney(project.budget, project.currency)}</span>
+          <AnimatedMoney className="totals__value" amount={project.budget} currency={project.currency} />
         </div>
         <div>
           <span className="totals__label">{t("Spent")}</span>
-          <span className="totals__value">{formatMoney(project.actual, project.currency)}</span>
+          <AnimatedMoney className="totals__value" amount={project.actual} currency={project.currency} />
         </div>
         <div>
           <span className="totals__label">{t("Remaining")}</span>
           <span className={project.over_budget ? "totals__value totals__value--over" : "totals__value"}>
-            {formatMoney(project.remaining, project.currency)}
+            <AnimatedMoney amount={project.remaining} currency={project.currency} />
           </span>
         </div>
       </section>

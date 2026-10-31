@@ -8,6 +8,7 @@ import { TripRoute } from "../components/TripRoute";
 import { TripForm } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { TRIP_STATUS_LABEL, formatDate, formatDateRange, formatMoney } from "../lib/format";
+import { AnimatedMoney } from "../components/AnimatedMoney";
 import { t } from "../i18n";
 
 const KIND_LABEL: Record<TripItemKind, string> = {
@@ -133,17 +134,17 @@ export default function TripDetail() {
             <div>
               <span className="totals__label">{t("Budget")}</span>
               <span className="totals__value">
-                {trip.budget ? formatMoney(trip.budget, trip.currency) : t("None set")}
+                {trip.budget ? <AnimatedMoney amount={trip.budget} currency={trip.currency} /> : t("None set")}
               </span>
             </div>
             <div>
               <span className="totals__label">{t("Itinerary estimate")}</span>
-              <span className="totals__value">{formatMoney(trip.estimated_cost, trip.currency)}</span>
+              <AnimatedMoney className="totals__value" amount={trip.estimated_cost} currency={trip.currency} />
             </div>
             <div>
               <span className="totals__label">{t("Spent")}</span>
               <span className={trip.over_budget ? "totals__value totals__value--over" : "totals__value"}>
-                {formatMoney(trip.actual, trip.currency)}
+                <AnimatedMoney amount={trip.actual} currency={trip.currency} />
               </span>
             </div>
           </section>

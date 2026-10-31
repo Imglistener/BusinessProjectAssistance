@@ -3193,3 +3193,82 @@ body,
 }
 
 }
+
+/* Entrance motion for the older screens, matching the dashboard: sections rise in one after another,
+   list rows fade in, progress bars fill from empty. Once, on load; "Reduce motion" turns it off. */
+@layer legacy {
+  @keyframes l-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  @keyframes l-fade {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+
+  @keyframes l-fill {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  .legacy .main > *,
+  .report__page > * {
+    animation: l-rise 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .legacy .main > :nth-child(2) { animation-delay: 0.05s; }
+  .legacy .main > :nth-child(3) { animation-delay: 0.1s; }
+  .legacy .main > :nth-child(4) { animation-delay: 0.15s; }
+  .legacy .main > :nth-child(5) { animation-delay: 0.2s; }
+  .legacy .main > :nth-child(6) { animation-delay: 0.25s; }
+  .legacy .main > :nth-child(7) { animation-delay: 0.3s; }
+  .legacy .main > :nth-child(n + 8) { animation-delay: 0.35s; }
+
+  /* Rows in lists (tasks, expenses, stock items, notifications, members, activity, itinerary). */
+  .legacy :is(ul, ol) > li {
+    animation: l-fade 0.25s ease-out both;
+  }
+  .legacy :is(ul, ol) > li:nth-child(2) { animation-delay: 0.03s; }
+  .legacy :is(ul, ol) > li:nth-child(3) { animation-delay: 0.06s; }
+  .legacy :is(ul, ol) > li:nth-child(4) { animation-delay: 0.09s; }
+  .legacy :is(ul, ol) > li:nth-child(5) { animation-delay: 0.12s; }
+  .legacy :is(ul, ol) > li:nth-child(6) { animation-delay: 0.15s; }
+  .legacy :is(ul, ol) > li:nth-child(7) { animation-delay: 0.18s; }
+  .legacy :is(ul, ol) > li:nth-child(n + 8) { animation-delay: 0.21s; }
+
+  /* Progress bars fill from their start edge. */
+  .legacy .bar__fill,
+  .legacy .bar > div,
+  .legacy .fuel__range,
+  .legacy [role="progressbar"] > * {
+    transform-origin: left center;
+    animation: l-fill 0.7s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  [dir="rtl"] .legacy .bar__fill,
+  [dir="rtl"] .legacy .bar > div,
+  [dir="rtl"] .legacy .fuel__range,
+  [dir="rtl"] .legacy [role="progressbar"] > * {
+    transform-origin: right center;
+  }
+
+  /* Hover lift on cards and buttons, like the dashboard's. */
+  .legacy :is(.btn, .chip) {
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+  .legacy :is(.btn, .chip):active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  @media print {
+    .legacy *,
+    .report__page * {
+      animation: none !important;
+    }
+  }
+}

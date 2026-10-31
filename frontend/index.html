@@ -11,6 +11,7 @@
         var saved = localStorage.getItem("bpa.theme");
         var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
         if (dark) document.documentElement.classList.add("dark");
+        if (localStorage.getItem("bpa.motion") === "reduce") document.documentElement.classList.add("reduce-motion");
       } catch (e) {}
     </script>
   </head>

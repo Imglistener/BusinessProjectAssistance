@@ -10,7 +10,8 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useReduceMotion } from "../hooks/use-reduce-motion";
 import { useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -99,7 +100,7 @@ function Header({ signedIn }: { signedIn: boolean }) {
 
 function Hero({ primaryTo, primaryLabel, signedIn }: { primaryTo: string; primaryLabel: string; signedIn: boolean }) {
   const dark = useIsDark();
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   return (
     <section className="relative isolate overflow-hidden">
       <div aria-hidden="true" className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,#000_40%,transparent_100%)]">

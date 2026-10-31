@@ -1,5 +1,6 @@
 import { Check, Eye, EyeOff, Info, Loader2, Plane, TriangleAlert } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useReduceMotion } from "../hooks/use-reduce-motion";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import DotGrid from "./effects/DotGrid";
@@ -54,7 +55,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
 
 /** The dark panel: headline, a miniature of the dashboard, and the dot grid reacting to the pointer. */
 function Showcase() {
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   return (
     <aside className="relative isolate hidden overflow-hidden bg-zinc-950 p-3 text-white lg:block">
       <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40 p-10 xl:p-14">

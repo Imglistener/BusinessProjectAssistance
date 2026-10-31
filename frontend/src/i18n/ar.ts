@@ -722,6 +722,7 @@ const ar: Dictionary = {
   "Minibus (diesel)": "حافلة صغيرة (غازوال)",
   "diesel": "الغازوال",
   "petrol": "البنزين",
+  "Reduce motion": "تقليل الحركة",
   "Show password": "إظهار كلمة المرور",
   "Hide password": "إخفاء كلمة المرور",
   "Toggle the menu": "إظهار القائمة أو إخفاؤها",
