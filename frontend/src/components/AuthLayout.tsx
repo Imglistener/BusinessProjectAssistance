@@ -1,35 +1,9 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import { LanguagePicker } from "./LanguagePicker";
-import { Wordmark, ZellijField } from "./Zellij";
+import { useState, type FormEvent } from "react";
 import { t } from "../i18n";
 
-export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
-  return (
-    <div className="auth legacy">
-      <aside className="auth__brand">
-        <ZellijField className="auth__field" />
-        <Wordmark light />
-        <div className="auth__pitch">
-          <p className="auth__headline">{t("Know where every dirham goes.")}</p>
-          <p className="auth__lede">
-            {t("Budgets, expenses and tasks for each project, with an assistant that checks the numbers before it advises.")}
-          </p>
-        </div>
-      </aside>
-      <main className="auth__main">
-        <LanguagePicker className="auth__lang" />
-        <div className="auth__mobile-brand">
-          <Wordmark />
-        </div>
-        <div className="auth__panel">
-          <h1 className="auth__title">{title}</h1>
-          <p className="auth__subtitle">{subtitle}</p>
-          {children}
-        </div>
-      </main>
-    </div>
-  );
-}
+// The sign-in pages use components/auth.tsx. Field, SelectField and FormError below are the older form
+// helpers still used by screens that haven't been rebuilt with Tailwind yet.
+export { AuthLayout } from "./auth";
 
 interface FieldProps {
   label: string;

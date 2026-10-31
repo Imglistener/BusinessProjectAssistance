@@ -1,7 +1,10 @@
+import { MailCheck } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
+import { useSubmit } from "../components/AuthLayout";
+import { AuthLayout, AuthSwitch, SubmitButton } from "../components/auth";
+import { FormAlert, TextField } from "../components/form";
 import { errorMessage } from "../lib/errors";
 import { t } from "../i18n";
 
@@ -22,25 +25,36 @@ export default function ForgotPassword() {
   return (
     <AuthLayout title={t("Reset your password")} subtitle={t("We'll email you a link to choose a new one.")}>
       {sent ? (
-        <div className="form">
-          <p className="notice" role="status">
-            {sent}
+        <div className="grid gap-3 rounded-xl border bg-muted/40 p-5" role="status">
+          <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <MailCheck className="size-5" />
+          </span>
+          <p className="text-sm font-medium">{sent}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("The link expires in 30 minutes. Check your spam folder if it doesn't arrive.")}
           </p>
-          <p className="muted">{t("The link expires in 30 minutes. Check your spam folder if it doesn't arrive.")}</p>
         </div>
       ) : (
-        <form onSubmit={submit} className="form">
-          <FormError message={error} />
-          <Field label={t("Email")} name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
-          <button className="btn btn--primary" type="submit" disabled={busy}>
-            {busy ? t("Sending…") : t("Send reset link")}
-          </button>
+        <form onSubmit={submit} className="grid gap-5">
+          <FormAlert message={error} />
+          <TextField
+            id="email"
+            type="email"
+            label={t("Email")}
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+          <SubmitButton busy={busy} busyLabel={t("Sending…")}>
+            {t("Send reset link")}
+          </SubmitButton>
         </form>
       )}
-      <p className="auth__switch">
-        {t("Remembered it?")}{" "}<Link to="/login">{t("Log in")}
-      </Link>
-      </p>
+      <AuthSwitch>
+        {t("Remembered it?")} <Link to="/login">{t("Log in")}</Link>
+      </AuthSwitch>
     </AuthLayout>
   );
 }

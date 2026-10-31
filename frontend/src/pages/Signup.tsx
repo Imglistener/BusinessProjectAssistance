@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
+import { useSubmit } from "../components/AuthLayout";
+import { AuthLayout, AuthSwitch, PasswordField, PasswordRule, SubmitButton } from "../components/auth";
+import { FormAlert, TextField } from "../components/form";
 import { safeNext } from "../lib/format";
 import { t } from "../i18n";
 
@@ -45,54 +47,65 @@ export default function Signup() {
   if (user) return <Navigate to={next} replace />;
 
   return (
-    <AuthLayout title={t("Create your account")} subtitle={invited ? t("Then you can accept your invite.") : t("You'll set up your organization next.")}>
-      <form onSubmit={submit} className="form">
-        <FormError message={error} />
-        <div className="form__row">
-          <Field
+    <AuthLayout
+      title={t("Create your account")}
+      subtitle={invited ? t("Then you can accept your invite.") : t("You'll set up your organization next.")}
+    >
+      <form onSubmit={submit} className="grid gap-5">
+        <FormAlert message={error} />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField
+            id="first_name"
             label={t("First name")}
-            name="first_name"
             autoComplete="given-name"
             value={form.first_name}
-            onChange={set("first_name")}
+            onChange={(e) => set("first_name")(e.target.value)}
             error={fieldErrors.first_name}
+            required
+            maxLength={100}
+            autoFocus
           />
-          <Field
+          <TextField
+            id="last_name"
             label={t("Last name")}
-            name="last_name"
             autoComplete="family-name"
             value={form.last_name}
-            onChange={set("last_name")}
+            onChange={(e) => set("last_name")(e.target.value)}
             error={fieldErrors.last_name}
+            required
+            maxLength={100}
           />
         </div>
-        <Field
-          label={t("Email")}
-          name="email"
+        <TextField
+          id="email"
           type="email"
+          label={t("Email")}
           autoComplete="email"
           value={form.email}
-          onChange={set("email")}
+          onChange={(e) => set("email")(e.target.value)}
           error={fieldErrors.email}
+          required
+          readOnly={invited && !!params.get("email")}
         />
-        <Field
+        <PasswordField
+          id="password"
           label={t("Password")}
-          name="password"
-          type="password"
           autoComplete="new-password"
           value={form.password}
-          onChange={set("password")}
+          onChange={(e) => set("password")(e.target.value)}
           error={fieldErrors.password}
-          hint={t("At least {count} characters.", { count: MIN_PASSWORD })}
+          hint={<PasswordRule value={form.password} min={MIN_PASSWORD} />}
+          required
+          maxLength={128}
         />
-        <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? t("Creating account…") : t("Create account")}
-        </button>
+        <SubmitButton busy={busy} busyLabel={t("Creating account…")}>
+          {t("Create account")}
+        </SubmitButton>
       </form>
-      <p className="auth__switch">
-        {t("Already have an account?")}{" "}<Link to={params.get("next") ? `/login?next=${encodeURIComponent(next)}` : "/login"}>{t("Log in")}
-      </Link>
-      </p>
+      <AuthSwitch>
+        {t("Already have an account?")}{" "}
+        <Link to={params.get("next") ? `/login?next=${encodeURIComponent(next)}` : "/login"}>{t("Log in")}</Link>
+      </AuthSwitch>
     </AuthLayout>
   );
 }

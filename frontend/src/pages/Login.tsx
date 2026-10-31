@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
+import { useSubmit } from "../components/AuthLayout";
+import { AuthLayout, AuthSwitch, Notice, PasswordField, SubmitButton } from "../components/auth";
+import { FormAlert, TextField } from "../components/form";
 import { safeNext } from "../lib/format";
 import { t } from "../i18n";
 
@@ -28,33 +30,40 @@ export default function Login() {
 
   return (
     <AuthLayout title={t("Log in")} subtitle={t("Pick up where you left off.")}>
-      <form onSubmit={submit} className="form">
-        {expired && !error && (
-          <p className="notice" role="status">
-            {t("Your session expired. Log in again to continue.")}
-          </p>
-        )}
-        <FormError message={error} />
-        <Field label={t("Email")} name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
-        <Field
+      <form onSubmit={submit} className="grid gap-5">
+        {expired && !error && <Notice>{t("Your session expired. Log in again to continue.")}</Notice>}
+        <FormAlert message={error} />
+        <TextField
+          id="email"
+          type="email"
+          label={t("Email")}
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoFocus
+        />
+        <PasswordField
+          id="password"
           label={t("Password")}
-          name="password"
-          type="password"
           autoComplete="current-password"
           value={password}
-          onChange={setPassword}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          aside={
+            <Link to="/forgot-password" className="text-xs font-medium text-primary underline-offset-4 hover:underline">
+              {t("Forgot your password?")}
+            </Link>
+          }
         />
-        <Link to="/forgot-password" className="form__aside">
-          {t("Forgot your password?")}
-        </Link>
-        <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? t("Logging in…") : t("Log in")}
-        </button>
+        <SubmitButton busy={busy} busyLabel={t("Logging in…")}>
+          {t("Log in")}
+        </SubmitButton>
       </form>
-      <p className="auth__switch">
-        {t("New here?")}{" "}<Link to={params.get("next") ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>{t("Create an account")}
-      </Link>
-      </p>
+      <AuthSwitch>
+        {t("New here?")}{" "}
+        <Link to={params.get("next") ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>{t("Create an account")}</Link>
+      </AuthSwitch>
     </AuthLayout>
   );
 }

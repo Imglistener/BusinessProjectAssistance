@@ -1,9 +1,13 @@
+import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
+import { useSubmit } from "../components/AuthLayout";
+import { AuthLayout, AuthSwitch, PasswordField, PasswordRule, SubmitButton } from "../components/auth";
+import { FormAlert } from "../components/form";
 import { errorMessage } from "../lib/errors";
 import { t } from "../i18n";
+import { Button } from "@/components/ui/button";
 
 const MIN_PASSWORD = 8;
 
@@ -41,46 +45,51 @@ export default function ResetPassword() {
   if (done) {
     return (
       <AuthLayout title={t("Password changed")} subtitle={t("You can log in with your new password now.")}>
-        <Link className="btn btn--primary btn--link" to="/login">
-          {t("Log in")}
-        </Link>
+        <span className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <CircleCheck className="size-6" />
+        </span>
+        <Button asChild className="h-10 w-full">
+          <Link to="/login">{t("Log in")}</Link>
+        </Button>
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout title={t("Choose a new password")} subtitle={t("At least {count} characters.", { count: MIN_PASSWORD })}>
-      <form onSubmit={submit} className="form">
-        <FormError message={error} />
+      <form onSubmit={submit} className="grid gap-5">
+        <FormAlert message={error} />
         {!linkDead && (
           <>
-            <Field
+            <PasswordField
+              id="password"
               label={t("New password")}
-              name="password"
-              type="password"
               autoComplete="new-password"
               value={password}
-              onChange={setPassword}
+              onChange={(e) => setPassword(e.target.value)}
               error={fieldErrors.password}
+              hint={<PasswordRule value={password} min={MIN_PASSWORD} />}
+              required
+              autoFocus
             />
-            <Field
+            <PasswordField
+              id="confirm"
               label={t("Repeat new password")}
-              name="confirm"
-              type="password"
               autoComplete="new-password"
               value={confirm}
-              onChange={setConfirm}
+              onChange={(e) => setConfirm(e.target.value)}
               error={fieldErrors.confirm}
+              required
             />
-            <button className="btn btn--primary" type="submit" disabled={busy}>
-              {busy ? t("Saving…") : t("Save new password")}
-            </button>
+            <SubmitButton busy={busy} busyLabel={t("Saving…")}>
+              {t("Save new password")}
+            </SubmitButton>
           </>
         )}
       </form>
-      <p className="auth__switch">
+      <AuthSwitch>
         {linkDead ? <Link to="/forgot-password">{t("Get a new reset link")}</Link> : <Link to="/login">{t("Back to log in")}</Link>}
-      </p>
+      </AuthSwitch>
     </AuthLayout>
   );
 }

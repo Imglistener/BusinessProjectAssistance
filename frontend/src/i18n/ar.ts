@@ -722,6 +722,8 @@ const ar: Dictionary = {
   "Minibus (diesel)": "حافلة صغيرة (غازوال)",
   "diesel": "الغازوال",
   "petrol": "البنزين",
+  "Show password": "إظهار كلمة المرور",
+  "Hide password": "إخفاء كلمة المرور",
   "Toggle the menu": "إظهار القائمة أو إخفاؤها",
   "Changes are recorded in the project's activity.": "تُسجَّل التغييرات في نشاط المشروع.",
   "Add a budget and dates now or later.": "أضف الميزانية والتواريخ الآن أو لاحقًا.",

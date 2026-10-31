@@ -722,6 +722,8 @@ const fr: Dictionary = {
   "Minibus (diesel)": "Minibus (gasoil)",
   "diesel": "gasoil",
   "petrol": "essence",
+  "Show password": "Afficher le mot de passe",
+  "Hide password": "Masquer le mot de passe",
   "Toggle the menu": "Afficher ou masquer le menu",
   "Changes are recorded in the project's activity.": "Les modifications sont enregistrées dans l'activité du projet.",
   "Add a budget and dates now or later.": "Ajoutez un budget et des dates maintenant ou plus tard.",

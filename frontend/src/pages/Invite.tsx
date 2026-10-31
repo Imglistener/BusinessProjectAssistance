@@ -4,7 +4,10 @@ import { ApiError, api } from "../api/client";
 import type { InvitationPreview, Organization } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
-import { AuthLayout, FormError } from "../components/AuthLayout";
+import { Loader2, ShieldCheck } from "lucide-react";
+import { AuthLayout, AuthSwitch, Notice } from "../components/auth";
+import { FormAlert } from "../components/form";
+import { Button } from "@/components/ui/button";
 import { errorMessage } from "../lib/errors";
 import { ROLE_HINT, ROLE_LABEL } from "../lib/format";
 import { t } from "../i18n";
@@ -59,53 +62,70 @@ export default function Invite() {
 
   return (
     <AuthLayout title={title} subtitle={subtitle}>
-      <div className="form">
-        <FormError message={error} />
+      <div className="grid gap-5">
+        <FormAlert message={error} />
 
-        {invite && invite.state !== "pending" && <p>{CLOSED[invite.state]}</p>}
+        {!invite && !error && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+            <Loader2 className="size-4 animate-spin" />
+            {t("Loading…")}
+          </div>
+        )}
+
+        {invite && invite.state !== "pending" && <Notice>{CLOSED[invite.state]}</Notice>}
 
         {invite && invite.state === "pending" && !loading && (
           <>
-            <p className="muted">{ROLE_HINT[invite.role]}.</p>
+            <div className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <ShieldCheck className="size-4" />
+              </span>
+              <span className="grid gap-0.5">
+                <span className="text-sm font-medium">{ROLE_LABEL[invite.role]}</span>
+                <span className="text-sm text-muted-foreground">{ROLE_HINT[invite.role]}.</span>
+              </span>
+            </div>
 
             {!user && (
               <>
-                <Link className="btn btn--primary btn--link" to={`/signup?next=${encodeURIComponent(here)}&email=${encodeURIComponent(invite.email)}`}>
-                  {t("Create an account")}
-                </Link>
-                <p className="auth__switch">
-                  {t("Already have an account?")}{" "}<Link to={`/login?next=${encodeURIComponent(here)}`}>{t("Log in")}
-                </Link>
-                </p>
+                <Button asChild className="h-10 w-full">
+                  <Link to={`/signup?next=${encodeURIComponent(here)}&email=${encodeURIComponent(invite.email)}`}>
+                    {t("Create an account")}
+                  </Link>
+                </Button>
+                <AuthSwitch>
+                  {t("Already have an account?")} <Link to={`/login?next=${encodeURIComponent(here)}`}>{t("Log in")}</Link>
+                </AuthSwitch>
               </>
             )}
 
             {user && user.email.toLowerCase() === invite.email && (
-              <button type="button" className="btn btn--primary" onClick={accept} disabled={busy}>
+              <Button type="button" className="h-10 w-full" onClick={accept} disabled={busy}>
+                {busy && <Loader2 className="size-4 animate-spin" />}
                 {busy ? t("Joining…") : t("Join {organization}", { organization: invite.organization_name })}
-              </button>
+              </Button>
             )}
 
             {user && user.email.toLowerCase() !== invite.email && (
               <>
-                <p>
+                <Notice>
                   {t("You're logged in as {email}, but this invite is for {invited}.", {
                     email: user.email,
                     invited: invite.email,
                   })}
-                </p>
-                <button type="button" className="btn btn--primary" onClick={logout}>
+                </Notice>
+                <Button type="button" variant="outline" className="h-10 w-full" onClick={logout}>
                   {t("Log out and switch account")}
-                </button>
+                </Button>
               </>
             )}
           </>
         )}
 
         {(error || (invite && invite.state !== "pending")) && (
-          <p className="auth__switch">
+          <AuthSwitch>
             <Link to={user ? "/app" : "/login"}>{user ? t("Go to your dashboard") : t("Go to log in")}</Link>
-          </p>
+          </AuthSwitch>
         )}
       </div>
     </AuthLayout>
