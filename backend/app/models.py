@@ -52,6 +52,8 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     phone = db.Column(db.String(40))
+    # "en", "fr" or "ar": the language of emails and notifications (the app's own picker sets it).
+    locale = db.Column(db.String(5), nullable=False, default="en", server_default="en")
     status = db.Column(db.String(20), nullable=False, default="active")
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 

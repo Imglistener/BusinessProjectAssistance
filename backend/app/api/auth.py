@@ -6,6 +6,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
+from ..i18n import LANGS, normalize, request_lang, translate
 from ..models import OrganizationMember, PasswordResetToken, User, utcnow
 from ..services.audit import log_action
 from ..services.email import app_link, password_reset_email, send_email
@@ -35,6 +36,7 @@ def user_to_dict(user: User) -> dict:
         "first_name": user.first_name,
         "last_name": user.last_name,
         "email": user.email,
+        "locale": user.locale or "en",
     }
 
 
@@ -65,6 +67,7 @@ def register():
         last_name=last_name,
         email=email,
         password_hash=generate_password_hash(password),
+        locale=normalize(data.get("locale") if isinstance(data.get("locale"), str) else request_lang()),
     )
     db.session.add(user)
     db.session.commit()
@@ -116,6 +119,20 @@ def me():
     )
 
 
+@api_bp.patch("/auth/me")
+@jwt_required()
+def update_me():
+    """Only the language for now: emails and notifications follow it."""
+    user = current_user()
+    data = get_json_body()
+    if "locale" in data:
+        if data["locale"] not in LANGS:
+            raise ApiError("validation_error", "Language must be en, fr or ar.", 400, {"field": "locale"})
+        user.locale = data["locale"]
+        db.session.commit()
+    return jsonify(user=user_to_dict(user))
+
+
 @api_bp.post("/auth/password-reset")
 def request_password_reset():
     """Always the same answer, so the form can't be used to find out who has an account."""
@@ -140,10 +157,16 @@ def request_password_reset():
             db.session.add(row)
             db.session.commit()
             send_email(
-                password_reset_email(user.email, user.first_name, app_link(f"/reset-password/{token}"), RESET_TTL_MINUTES),
+                password_reset_email(
+                    user.email,
+                    user.first_name,
+                    app_link(f"/reset-password/{token}"),
+                    RESET_TTL_MINUTES,
+                    lang=normalize(user.locale),
+                ),
                 idempotency_key=f"password-reset/{row.id}",
             )
-    return jsonify(ok=True, message=RESET_REQUESTED)
+    return jsonify(ok=True, message=translate(RESET_REQUESTED, request_lang()))
 
 
 @api_bp.post("/auth/password-reset/confirm")

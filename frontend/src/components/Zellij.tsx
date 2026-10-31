@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { t } from "../i18n";
 
 /** Repeating eight-point star tile (zellij-style) used as the product's one decorative motif. */
 export function ZellijField({ className }: { className?: string }) {
@@ -53,9 +54,8 @@ export function Wordmark({ light = false }: { light?: boolean }) {
     <span className={light ? "wordmark wordmark--light" : "wordmark"}>
       <StarMark size={30} />
       <span className="wordmark__text">
-        Business Project
-        <br />
-        Assistance
+        {t("Business Project")}<br />
+        {t("Assistance")}
       </span>
     </span>
   );

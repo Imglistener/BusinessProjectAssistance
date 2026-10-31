@@ -5,6 +5,7 @@ import { canContribute, type Project, type Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";
 import { TRIP_STATUS_LABEL, formatDateRange, formatMoney } from "../lib/format";
 import { Field, FormError, useSubmit } from "./AuthLayout";
+import { t } from "../i18n";
 
 /** Trips on the project page. Each links to its own page with the itinerary. */
 export function TripSection({ project, onTripsChange }: { project: Project; onTripsChange?(trips: Trip[]): void }) {
@@ -19,7 +20,7 @@ export function TripSection({ project, onTripsChange }: { project: Project; onTr
         setTrips(r.trips);
         onTripsChange?.(r.trips);
       })
-      .catch((e) => setError(errorMessage(e, "Couldn't load trips.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load trips."))));
     // Reload per project only; onTripsChange is just a notification.
   }, [project.id]);
 
@@ -28,10 +29,10 @@ export function TripSection({ project, onTripsChange }: { project: Project; onTr
   return (
     <section className="projects-section" aria-labelledby="trips-heading">
       <div className="section-head">
-        <h2 id="trips-heading">Trips</h2>
+        <h2 id="trips-heading">{t("Trips")}</h2>
         {editable && !adding && (
           <button type="button" className="btn btn--primary" onClick={() => setAdding(true)}>
-            Plan a trip
+            {t("Plan a trip")}
           </button>
         )}
       </div>
@@ -40,40 +41,40 @@ export function TripSection({ project, onTripsChange }: { project: Project; onTr
         <TripForm
           project={project}
           onCancel={() => setAdding(false)}
-          onSaved={(t) => {
+          onSaved={(x) => {
             setAdding(false);
-            const next = [...(trips ?? []), t].sort((a, b) => a.start_date.localeCompare(b.start_date));
+            const next = [...(trips ?? []), x].sort((a, b) => a.start_date.localeCompare(b.start_date));
             setTrips(next);
             onTripsChange?.(next);
           }}
         />
       )}
-      {trips === null && !error && <p className="muted">Loading…</p>}
+      {trips === null && !error && <p className="muted">{t("Loading…")}</p>}
       {trips && trips.length === 0 && !adding && (
-        <p className="muted">No trips yet. Plan travel for this project: itinerary, travelers and budget.</p>
+        <p className="muted">{t("No trips yet. Plan travel for this project: itinerary, travelers and budget.")}</p>
       )}
       {trips && trips.length > 0 && (
         <ul className="rows">
-          {trips.map((t) => (
-            <li key={t.id} className={t.status === "cancelled" ? "row row--voided" : "row"}>
+          {trips.map((x) => (
+            <li key={x.id} className={x.status === "cancelled" ? "row row--voided" : "row"}>
               <div className="row__main">
                 <p className="row__title">
-                  <Link to={`/app/projects/${project.id}/trips/${t.id}`} className="trip__link">
-                    {t.title}
+                  <Link to={`/app/projects/${project.id}/trips/${x.id}`} className="trip__link">
+                    {x.title}
                   </Link>
-                  <span className="tag">{TRIP_STATUS_LABEL[t.status]}</span>
-                  {t.over_budget && <span className="tag tag--warn">Over budget</span>}
+                  <span className="tag">{TRIP_STATUS_LABEL[x.status]}</span>
+                  {x.over_budget && <span className="tag tag--warn">{t("Over budget")}</span>}
                 </p>
                 <p className="row__meta">
-                  {t.destination} — {formatDateRange(t.start_date, t.end_date)}
-                  {t.travelers.length > 0 && ` — ${t.travelers.map((x) => x.name.split(" ")[0]).join(", ")}`}
+                  {x.destination} — {formatDateRange(x.start_date, x.end_date)}
+                  {x.travelers.length > 0 && ` — ${x.travelers.map((x) => x.name.split(" ")[0]).join(", ")}`}
                 </p>
               </div>
               <div className="row__side">
                 <span className="row__amount">
-                  {formatMoney(t.actual, t.currency)}
+                  {formatMoney(x.actual, x.currency)}
                   <small className="inventory__value">
-                    {t.budget ? `of ${formatMoney(t.budget, t.currency)}` : "no budget"}
+                    {x.budget ? t("of {amount}", { amount: formatMoney(x.budget, x.currency) }) : t("no budget")}
                   </small>
                 </span>
               </div>
@@ -133,13 +134,13 @@ export function TripForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={trip ? "Edit trip" : "Plan a trip"}>
-      <h3 className="panel__title">{trip ? "Edit trip" : "Plan a trip"}</h3>
+    <form onSubmit={submit} className="panel form" aria-label={trip ? t("Edit trip") : t("Plan a trip")}>
+      <h3 className="panel__title">{trip ? t("Edit trip") : t("Plan a trip")}</h3>
       <FormError message={error} />
       <div className="form__row">
-        <Field label="Title" name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
+        <Field label={t("Title")} name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
         <Field
-          label="Destination"
+          label={t("Destination")}
           name={`${id}destination`}
           value={form.destination}
           onChange={set("destination")}
@@ -148,7 +149,7 @@ export function TripForm({
       </div>
       <div className="form__row">
         <Field
-          label="From"
+          label={t("From")}
           name={`${id}start`}
           type="date"
           value={form.start_date}
@@ -156,19 +157,19 @@ export function TripForm({
           error={fieldErrors.start_date}
         />
         <Field
-          label="To"
+          label={t("To")}
           name={`${id}end`}
           type="date"
           value={form.end_date}
           onChange={set("end_date")}
           error={fieldErrors.end_date}
           required={false}
-          hint="Leave empty for a day trip."
+          hint={t("Leave empty for a day trip.")}
         />
       </div>
       <div className="form__row">
         <Field
-          label={`Budget (${project.currency})`}
+          label={t("Budget ({currency})", { currency: project.currency })}
           name={`${id}budget`}
           value={form.budget}
           onChange={set("budget")}
@@ -177,7 +178,7 @@ export function TripForm({
           inputMode="decimal"
         />
         <Field
-          label="Purpose"
+          label={t("Purpose")}
           name={`${id}purpose`}
           value={form.purpose}
           onChange={set("purpose")}
@@ -187,10 +188,10 @@ export function TripForm({
       </div>
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : trip ? "Save changes" : "Create trip"}
+          {busy ? t("Saving…") : trip ? t("Save changes") : t("Create trip")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

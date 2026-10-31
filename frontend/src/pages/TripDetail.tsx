@@ -8,14 +8,15 @@ import { TripRoute } from "../components/TripRoute";
 import { TripForm } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { TRIP_STATUS_LABEL, formatDate, formatDateRange, formatMoney } from "../lib/format";
+import { t } from "../i18n";
 
 const KIND_LABEL: Record<TripItemKind, string> = {
-  flight: "Flight",
-  train: "Train",
-  car: "Car",
-  hotel: "Hotel",
-  meeting: "Meeting",
-  other: "Other",
+  flight: t("Flight"),
+  train: t("Train"),
+  car: t("Car"),
+  hotel: t("Hotel"),
+  meeting: t("Meeting"),
+  other: t("Other"),
 };
 const KIND_OPTIONS = Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }));
 const STATUS_OPTIONS = Object.entries(TRIP_STATUS_LABEL).map(([value, label]) => ({ value, label }));
@@ -32,7 +33,7 @@ export default function TripDetail() {
     api<{ trip: Trip }>(`/trips/${tripId}`)
       .then((r) => setTrip(r.trip))
       .catch((e) =>
-        setError(e instanceof ApiError && e.status === 404 ? "We couldn't find that trip." : errorMessage(e)),
+        setError(e instanceof ApiError && e.status === 404 ? t("We couldn't find that trip.") : errorMessage(e)),
       );
   }, [tripId]);
 
@@ -60,10 +61,10 @@ export default function TripDetail() {
   return (
     <AppShell>
       <Link to={`/app/projects/${projectId}`} className="back no-print">
-        {trip?.project_name ?? "Project"}
+        {trip?.project_name ?? t("Project")}
       </Link>
       <FormError message={error} />
-      {!trip && !error && <p className="muted">Loading…</p>}
+      {!trip && !error && <p className="muted">{t("Loading…")}</p>}
       {trip && (
         <>
           <header className="main__header">
@@ -71,13 +72,13 @@ export default function TripDetail() {
               <h1>{trip.title}</h1>
               <span className="header-links no-print">
                 <button type="button" className="link-btn" onClick={() => window.print()}>
-                  Print itinerary
+                  {t("Print itinerary")}
                 </button>
               </span>
             </div>
             <p className="main__org">
               {trip.destination}. {formatDateRange(trip.start_date, trip.end_date)}
-              {trip.nights > 0 ? ` (${trip.nights} ${trip.nights === 1 ? "night" : "nights"})` : " (day trip)"}.
+              {` (${trip.nights > 0 ? t("{count} nights", { count: trip.nights }) : t("day trip")})`}.
             </p>
             {trip.purpose && <p className="project__description">{trip.purpose}</p>}
           </header>
@@ -85,7 +86,7 @@ export default function TripDetail() {
           {trip.can_edit && !editing && (
             <div className="project-actions no-print">
               <label className="filter">
-                <span className="filter__label">Status</span>
+                <span className="filter__label">{t("Status")}</span>
                 <select value={trip.status} onChange={(e) => patch({ status: e.target.value as TripStatus })}>
                   {STATUS_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -95,59 +96,59 @@ export default function TripDetail() {
                 </select>
               </label>
               <button type="button" className="btn btn--secondary" onClick={() => setEditing(true)}>
-                Edit trip
+                {t("Edit trip")}
               </button>
               {confirmDelete ? (
                 <span className="row__confirm">
-                  <span>Delete it? Linked expenses stay in the project.</span>
+                  <span>{t("Delete it? Linked expenses stay in the project.")}</span>
                   <button type="button" className="link-btn link-btn--danger" onClick={remove}>
-                    Delete trip
+                    {t("Delete trip")}
                   </button>
                   <button type="button" className="link-btn" onClick={() => setConfirmDelete(false)}>
-                    Keep
+                    {t("Keep")}
                   </button>
                 </span>
               ) : (
                 <button type="button" className="link-btn" onClick={() => setConfirmDelete(true)}>
-                  Delete
+                  {t("Delete")}
                 </button>
               )}
             </div>
           )}
-          {!trip.can_edit && <p className="main__org">Status: {TRIP_STATUS_LABEL[trip.status]}.</p>}
+          {!trip.can_edit && <p className="main__org">{t("Status: {status}.", { status: TRIP_STATUS_LABEL[trip.status] })}</p>}
 
           {editing && (
             <TripForm
               project={{ id: trip.project_id, currency: trip.currency }}
               trip={trip}
               onCancel={() => setEditing(false)}
-              onSaved={(t) => {
+              onSaved={(x) => {
                 setEditing(false);
-                setTrip((prev) => (prev ? { ...prev, ...t } : t));
+                setTrip((prev) => (prev ? { ...prev, ...x } : x));
               }}
             />
           )}
 
-          <section className="totals" aria-label="Trip budget">
+          <section className="totals" aria-label={t("Trip budget")}>
             <div>
-              <span className="totals__label">Budget</span>
+              <span className="totals__label">{t("Budget")}</span>
               <span className="totals__value">
-                {trip.budget ? formatMoney(trip.budget, trip.currency) : "None set"}
+                {trip.budget ? formatMoney(trip.budget, trip.currency) : t("None set")}
               </span>
             </div>
             <div>
-              <span className="totals__label">Itinerary estimate</span>
+              <span className="totals__label">{t("Itinerary estimate")}</span>
               <span className="totals__value">{formatMoney(trip.estimated_cost, trip.currency)}</span>
             </div>
             <div>
-              <span className="totals__label">Spent</span>
+              <span className="totals__label">{t("Spent")}</span>
               <span className={trip.over_budget ? "totals__value totals__value--over" : "totals__value"}>
                 {formatMoney(trip.actual, trip.currency)}
               </span>
             </div>
           </section>
 
-          <TripRoute trip={trip} onSaved={(t) => setTrip((prev) => (prev ? { ...prev, ...t } : t))} />
+          <TripRoute trip={trip} onSaved={(x) => setTrip((prev) => (prev ? { ...prev, ...x } : x))} />
           <Travelers trip={trip} onSave={(ids) => patch({ traveler_ids: ids })} />
           <Itinerary trip={trip} onChanged={load} />
           <TripExpenses trip={trip} />
@@ -173,31 +174,31 @@ function Travelers({ trip, onSave }: { trip: Trip; onSave(ids: number[]): Promis
       })
       .then((r) => setMembers(r.members))
       .catch(() => setMembers([]));
-    setChosen(new Set(trip.travelers.map((t) => t.user_id)));
+    setChosen(new Set(trip.travelers.map((x) => x.user_id)));
   }, [editing, trip.project_id, trip.travelers]);
 
   return (
     <section className="projects-section" aria-labelledby="travelers-heading">
       <div className="section-head">
-        <h2 id="travelers-heading">Travelers</h2>
+        <h2 id="travelers-heading">{t("Travelers")}</h2>
         {trip.can_edit && !editing && (
           <button type="button" className="link-btn no-print" onClick={() => setEditing(true)}>
-            Change
+            {t("Change")}
           </button>
         )}
       </div>
       {!editing && (
         <p>
           {trip.travelers.length ? (
-            trip.travelers.map((t) => t.name).join(", ")
+            trip.travelers.map((x) => x.name).join(", ")
           ) : (
-            <span className="muted">Nobody yet.</span>
+            <span className="muted">{t("Nobody yet.")}</span>
           )}
         </p>
       )}
       {editing && (
         <div className="panel">
-          {orgId === null && <p className="muted">Loading…</p>}
+          {orgId === null && <p className="muted">{t("Loading…")}</p>}
           <div className="travelers">
             {members.map((m) => (
               <label key={m.user_id} className="check">
@@ -226,10 +227,10 @@ function Travelers({ trip, onSave }: { trip: Trip; onSave(ids: number[]): Promis
                 setEditing(false);
               }}
             >
-              Save travelers
+              {t("Save travelers")}
             </button>
             <button type="button" className="btn btn--quiet" onClick={() => setEditing(false)}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </div>
@@ -257,10 +258,10 @@ function Itinerary({ trip, onChanged }: { trip: Trip; onChanged(): void }) {
   return (
     <section className="projects-section" aria-labelledby="itinerary-heading">
       <div className="section-head">
-        <h2 id="itinerary-heading">Itinerary</h2>
+        <h2 id="itinerary-heading">{t("Itinerary")}</h2>
         {trip.can_edit && !adding && (
           <button type="button" className="btn btn--primary no-print" onClick={() => setAdding(true)}>
-            Add to itinerary
+            {t("Add to itinerary")}
           </button>
         )}
       </div>
@@ -276,7 +277,7 @@ function Itinerary({ trip, onChanged }: { trip: Trip; onChanged(): void }) {
         />
       )}
       {items.length === 0 && !adding && (
-        <p className="muted">Nothing planned yet. Add travel, hotels and meetings day by day.</p>
+        <p className="muted">{t("Nothing planned yet. Add travel, hotels and meetings day by day.")}</p>
       )}
       {days.map((d) => (
         <div key={d} className="itinerary__day">
@@ -309,7 +310,7 @@ function Itinerary({ trip, onChanged }: { trip: Trip; onChanged(): void }) {
                           <span className="tag itinerary__kind">{KIND_LABEL[i.kind]}</span> {i.title}
                         </span>
                         <span className="row__meta">
-                          {[i.location, i.confirmation && `Ref. ${i.confirmation}`, i.notes]
+                          {[i.location, i.confirmation && t("Ref. {ref}", { ref: i.confirmation }), i.notes]
                             .filter(Boolean)
                             .join(" — ")}
                         </span>
@@ -322,10 +323,10 @@ function Itinerary({ trip, onChanged }: { trip: Trip; onChanged(): void }) {
                       {trip.can_edit && (
                         <span className="row__confirm no-print">
                           <button type="button" className="link-btn" onClick={() => setEditingId(i.id)}>
-                            Edit
+                            {t("Edit")}
                           </button>
                           <button type="button" className="link-btn" onClick={() => remove(i)}>
-                            Remove
+                            {t("Remove")}
                           </button>
                         </span>
                       )}
@@ -391,16 +392,16 @@ function ItemForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={item ? "Edit itinerary item" : "Add to itinerary"}>
-      <h3 className="panel__title">{item ? "Edit itinerary item" : "Add to itinerary"}</h3>
+    <form onSubmit={submit} className="panel form" aria-label={item ? t("Edit itinerary item") : t("Add to itinerary")}>
+      <h3 className="panel__title">{item ? t("Edit itinerary item") : t("Add to itinerary")}</h3>
       <FormError message={error} />
       <div className="form__row">
-        <SelectField label="Kind" name={`${id}kind`} value={form.kind} onChange={set("kind")} options={KIND_OPTIONS} />
-        <Field label="Title" name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
+        <SelectField label={t("Kind")} name={`${id}kind`} value={form.kind} onChange={set("kind")} options={KIND_OPTIONS} />
+        <Field label={t("Title")} name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
       </div>
       <div className="form__row form__row--three">
         <Field
-          label="Date"
+          label={t("Date")}
           name={`${id}date`}
           type="date"
           value={form.date}
@@ -408,7 +409,7 @@ function ItemForm({
           error={fieldErrors.date}
         />
         <Field
-          label="Starts"
+          label={t("Starts")}
           name={`${id}start`}
           type="time"
           value={form.start_time}
@@ -417,7 +418,7 @@ function ItemForm({
           required={false}
         />
         <Field
-          label="Ends"
+          label={t("Ends")}
           name={`${id}end`}
           type="time"
           value={form.end_time}
@@ -428,21 +429,21 @@ function ItemForm({
       </div>
       <div className="form__row form__row--three">
         <Field
-          label="Location"
+          label={t("Location")}
           name={`${id}location`}
           value={form.location}
           onChange={set("location")}
           required={false}
         />
         <Field
-          label="Booking ref."
+          label={t("Booking ref.")}
           name={`${id}ref`}
           value={form.confirmation}
           onChange={set("confirmation")}
           required={false}
         />
         <Field
-          label={`Estimated cost (${trip.currency})`}
+          label={t("Estimated cost ({currency})", { currency: trip.currency })}
           name={`${id}cost`}
           value={form.estimated_cost}
           onChange={set("estimated_cost")}
@@ -453,10 +454,10 @@ function ItemForm({
       </div>
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : item ? "Save changes" : "Add"}
+          {busy ? t("Saving…") : item ? t("Save changes") : t("Add")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>
@@ -468,14 +469,14 @@ function TripExpenses({ trip }: { trip: Trip }) {
   return (
     <section className="projects-section" aria-labelledby="trip-expenses-heading">
       <div className="section-head">
-        <h2 id="trip-expenses-heading">Expenses</h2>
+        <h2 id="trip-expenses-heading">{t("Expenses")}</h2>
         <Link to={`/app/projects/${trip.project_id}`} className="no-print">
-          Record on the project page
+          {t("Record on the project page")}
         </Link>
       </div>
       {expenses.length === 0 ? (
         <p className="muted">
-          No expenses linked yet. When you record an expense on the project, choose this trip to count it here.
+          {t("No expenses linked yet. When you record an expense on the project, choose this trip to count it here.")}
         </p>
       ) : (
         <ul className="rows">
@@ -484,7 +485,7 @@ function TripExpenses({ trip }: { trip: Trip }) {
               <div className="row__main">
                 <p className="row__title">
                   {e.category}
-                  {e.status !== "valid" && <span className="tag">{e.status === "voided" ? "Voided" : "Refunded"}</span>}
+                  {e.status !== "valid" && <span className="tag">{e.status === "voided" ? t("Voided") : t("Refunded")}</span>}
                 </p>
                 <p className="row__meta">
                   {formatDate(e.expense_date)}

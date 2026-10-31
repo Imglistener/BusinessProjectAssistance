@@ -4,6 +4,7 @@ import { canManageProjects, type Milestone, type Project } from "../api/models";
 import { errorMessage } from "../lib/errors";
 import { formatDate, formatPct } from "../lib/format";
 import { Field, FormError, useSubmit } from "./AuthLayout";
+import { t } from "../i18n";
 
 interface Props {
   project: Project;
@@ -23,10 +24,10 @@ export function MilestoneSection({ project, milestones, onChanged }: Props) {
   return (
     <section className="projects-section" aria-labelledby="milestones-heading">
       <div className="section-head">
-        <h2 id="milestones-heading">Milestones</h2>
+        <h2 id="milestones-heading">{t("Milestones")}</h2>
         {canManage && !adding && (
           <button type="button" className="btn btn--primary" onClick={() => setAdding(true)}>
-            Add milestone
+            {t("Add milestone")}
           </button>
         )}
       </div>
@@ -44,9 +45,9 @@ export function MilestoneSection({ project, milestones, onChanged }: Props) {
         />
       )}
 
-      {milestones === null && !error && <p className="muted">Loading…</p>}
+      {milestones === null && !error && <p className="muted">{t("Loading…")}</p>}
       {milestones && milestones.length === 0 && !adding && (
-        <p className="muted">No milestones yet. Add key dates, then link tasks to them to track progress.</p>
+        <p className="muted">{t("No milestones yet. Add key dates, then link tasks to them to track progress.")}</p>
       )}
 
       {milestones && milestones.length > 0 && (
@@ -123,27 +124,32 @@ function MilestoneRow({
       <div className="row__main milestone">
         <p className="row__title">
           {m.title}
-          {done && <span className="tag">Done</span>}
+          {done && <span className="tag">{t("Done")}</span>}
         </p>
         <p className="row__meta">
           {m.due_date ? (
             <span className={m.is_overdue ? "overdue" : undefined}>
-              {m.is_overdue ? "Overdue, was due " : "Due "}
-              {formatDate(m.due_date)}
+              {m.is_overdue
+                ? t("Overdue, was due {date}", { date: formatDate(m.due_date) })
+                : t("Due {date}", { date: formatDate(m.due_date) })}
             </span>
           ) : (
-            "No date"
+            t("No date")
           )}
           {" — "}
           {m.task_count === 0
-            ? "no tasks linked"
-            : `${m.done_task_count} of ${m.task_count} tasks done (${formatPct(m.task_completion_pct)})`}
+            ? t("no tasks linked")
+            : t("{done} of {count} tasks done ({pct})", {
+                done: m.done_task_count,
+                count: m.task_count,
+                pct: formatPct(m.task_completion_pct),
+              })}
         </p>
         {m.task_count > 0 && (
           <div
             className="bar milestone__bar"
             role="progressbar"
-            aria-label={`Tasks done for ${m.title}`}
+            aria-label={t("Tasks done for {title}", { title: m.title })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(pct)}
@@ -162,10 +168,10 @@ function MilestoneRow({
                 disabled={busy}
                 onClick={() => run(`/milestones/${m.id}`, { method: "DELETE" })}
               >
-                {busy ? "Deleting…" : "Delete milestone"}
+                {busy ? t("Deleting…") : t("Delete milestone")}
               </button>
               <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
-                Keep
+                {t("Keep")}
               </button>
             </span>
           ) : (
@@ -178,18 +184,18 @@ function MilestoneRow({
                   run(`/milestones/${m.id}`, { method: "PATCH", body: { status: done ? "open" : "done" } })
                 }
               >
-                {done ? "Reopen" : "Mark done"}
+                {done ? t("Reopen") : t("Mark done")}
               </button>
               <button type="button" className="link-btn" onClick={() => setEditing(true)}>
-                Edit
+                {t("Edit")}
               </button>
               <button
                 type="button"
                 className="link-btn"
                 onClick={() => setConfirming(true)}
-                title="Its tasks stay in the project, without a milestone."
+                title={t("Its tasks stay in the project, without a milestone.")}
               >
-                Delete
+                {t("Delete")}
               </button>
             </span>
           )}
@@ -232,13 +238,13 @@ function MilestoneForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={milestone ? "Edit milestone" : "Add milestone"}>
-      <h3 className="panel__title">{milestone ? "Edit milestone" : "Add milestone"}</h3>
+    <form onSubmit={submit} className="panel form" aria-label={milestone ? t("Edit milestone") : t("Add milestone")}>
+      <h3 className="panel__title">{milestone ? t("Edit milestone") : t("Add milestone")}</h3>
       <FormError message={error} />
       <div className="form__row">
-        <Field label="Title" name={`${id}title`} value={title} onChange={setTitle} error={fieldErrors.title} />
+        <Field label={t("Title")} name={`${id}title`} value={title} onChange={setTitle} error={fieldErrors.title} />
         <Field
-          label="Due date"
+          label={t("Due date")}
           name={`${id}due`}
           type="date"
           value={due}
@@ -249,10 +255,10 @@ function MilestoneForm({
       </div>
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : milestone ? "Save changes" : "Save milestone"}
+          {busy ? t("Saving…") : milestone ? t("Save changes") : t("Save milestone")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

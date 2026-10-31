@@ -173,6 +173,13 @@ Owners manage people under **Members**:
 - Change a member's role from the list, or **Remove** them. Every organization keeps at least one owner.
 - Anyone can **Leave** an organization.
 
+## Language
+
+The app is available in English and French. Pick a language with the globe menu at the bottom of the sidebar
+(or at the top of the login and sign-up pages). Your choice is remembered on this device and on your account,
+so password-reset emails and notifications arrive in the same language. The assistant answers in the language
+you write in.
+
 ## Good to know
 
 - Your login lasts 12 hours. After that, you're asked to log in again and taken back to where you were.

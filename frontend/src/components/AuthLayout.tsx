@@ -1,5 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { LanguagePicker } from "./LanguagePicker";
 import { Wordmark, ZellijField } from "./Zellij";
+import { t } from "../i18n";
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -8,13 +10,14 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
         <ZellijField className="auth__field" />
         <Wordmark light />
         <div className="auth__pitch">
-          <p className="auth__headline">Know where every dirham goes.</p>
+          <p className="auth__headline">{t("Know where every dirham goes.")}</p>
           <p className="auth__lede">
-            Budgets, expenses and tasks for each project, with an assistant that checks the numbers before it advises.
+            {t("Budgets, expenses and tasks for each project, with an assistant that checks the numbers before it advises.")}
           </p>
         </div>
       </aside>
       <main className="auth__main">
+        <LanguagePicker className="auth__lang" />
         <div className="auth__mobile-brand">
           <Wordmark />
         </div>
@@ -77,7 +80,7 @@ export function Field({
         />
         {isPassword && (
           <button type="button" className="field__toggle" onClick={() => setShown((s) => !s)} aria-pressed={shown}>
-            {shown ? "Hide" : "Show"}
+            {shown ? t("Hide") : t("Show")}
           </button>
         )}
       </div>

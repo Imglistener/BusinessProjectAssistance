@@ -154,6 +154,14 @@
   real test email on 2026-10-31. A generic SMTP option exists for other providers.
 - Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
 
+## Languages (implemented, my defaults)
+- English and French, with Arabic next. The picker (sidebar, landing page, login pages) saves the choice in the
+  browser and on the account; emails (password reset, invites) use the account's language, invites the
+  inviter's. Notifications, error messages and fuel-estimate notes are shown in the reader's language.
+- Translations are mine: worth a review by a native speaker before launch, especially the landing page.
+- Names you enter (projects, tasks, categories, items) are shown as typed; they aren't translated.
+- Numbers: 1 850,50 MAD in French (fr-FR grouping), 1,850.50 MAD in English.
+
 ## Still open
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.

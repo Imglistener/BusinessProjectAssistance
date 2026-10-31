@@ -5,6 +5,8 @@ import { canManageProjects, type Organization, type Project, type ProjectPlan } 
 import { errorMessage } from "../lib/errors";
 import { PRIORITY_LABEL, formatDate, formatMoney } from "../lib/format";
 import { FormError } from "./AuthLayout";
+import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
 /**
  * A project drafted by the assistant. Nothing exists until the user clicks "Create project";
@@ -29,11 +31,14 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
     return (
       <div className="proposal proposal--done" role="status">
         <p>
-          <strong>{created.name}</strong> was created with {keepMilestone.filter(Boolean).length} milestones and{" "}
-          {keepTask.filter(Boolean).length} tasks.
+          {tx("{name} was created with {milestones} milestones and {tasks} tasks.", {
+            name: <strong>{created.name}</strong>,
+            milestones: keepMilestone.filter(Boolean).length,
+            tasks: keepTask.filter(Boolean).length,
+          })}
         </p>
         <Link className="btn btn--primary btn--link" to={`/app/projects/${created.id}`}>
-          Open the project
+          {t("Open the project")}
         </Link>
       </div>
     );
@@ -56,7 +61,7 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
           // A task tied to a milestone the user removed stays, just without the milestone.
           tasks: plan.tasks
             .filter((_, i) => keepTask[i])
-            .map((t) => ({ ...t, milestone: t.milestone && kept.has(t.milestone.toLowerCase()) ? t.milestone : null })),
+            .map((x) => ({ ...x, milestone: x.milestone && kept.has(x.milestone.toLowerCase()) ? x.milestone : null })),
         },
       });
       setCreated(r.project);
@@ -70,28 +75,28 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
   const toggle = (setter: typeof setKeepTask, i: number) => setter((prev) => prev.map((v, j) => (j === i ? !v : v)));
 
   return (
-    <section className="proposal" aria-label={`Draft project: ${plan.name}`}>
+    <section className="proposal" aria-label={t("Draft project: {name}", { name: plan.name })}>
       <header className="proposal__head">
-        <span className="tag">Draft project — not created yet</span>
-        <p className="muted">Review and adjust, then create it. Untick anything you don't want.</p>
+        <span className="tag">{t("Draft project — not created yet")}</span>
+        <p className="muted">{t("Review and adjust, then create it. Untick anything you don't want.")}</p>
       </header>
       <FormError message={error} />
 
       <div className="proposal__fields">
         <label className="filter proposal__name">
-          <span className="filter__label">Name</span>
+          <span className="filter__label">{t("Name")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} />
         </label>
         <label className="filter">
-          <span className="filter__label">Budget ({plan.currency})</span>
-          <input value={budget} inputMode="decimal" onChange={(e) => setBudget(e.target.value)} placeholder="None" />
+          <span className="filter__label">{t("Budget ({currency})", { currency: plan.currency })}</span>
+          <input value={budget} inputMode="decimal" onChange={(e) => setBudget(e.target.value)} placeholder={t("None")} />
         </label>
         <label className="filter">
-          <span className="filter__label">Start</span>
+          <span className="filter__label">{t("Start")}</span>
           <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
         </label>
         <label className="filter">
-          <span className="filter__label">End</span>
+          <span className="filter__label">{t("End")}</span>
           <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
         </label>
       </div>
@@ -100,7 +105,7 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
       <div className="proposal__lists">
         {plan.milestones.length > 0 && (
           <div>
-            <h4>Milestones</h4>
+            <h4>{t("Milestones")}</h4>
             <ul>
               {plan.milestones.map((m, i) => (
                 <li key={`${m.title}-${i}`}>
@@ -118,19 +123,19 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
         )}
         {plan.tasks.length > 0 && (
           <div>
-            <h4>Tasks</h4>
+            <h4>{t("Tasks")}</h4>
             <ul>
-              {plan.tasks.map((t, i) => (
-                <li key={`${t.title}-${i}`}>
+              {plan.tasks.map((x, i) => (
+                <li key={`${x.title}-${i}`}>
                   <label className="check">
                     <input type="checkbox" checked={keepTask[i]} onChange={() => toggle(setKeepTask, i)} />
                     <span>
-                      {t.title}
+                      {x.title}
                       <span className="muted">
                         {" — "}
-                        {PRIORITY_LABEL[t.priority]}
-                        {t.due_date ? `, due ${formatDate(t.due_date)}` : ""}
-                        {t.milestone ? `, ${t.milestone}` : ""}
+                        {PRIORITY_LABEL[x.priority]}
+                        {x.due_date ? `, ${t("due {date}", { date: formatDate(x.due_date) })}` : ""}
+                        {x.milestone ? `, ${x.milestone}` : ""}
                       </span>
                     </span>
                   </label>
@@ -144,20 +149,22 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
       <div className="form__actions">
         {canCreate ? (
           <button type="button" className="btn btn--primary" onClick={create} disabled={busy || !name.trim()}>
-            {busy ? "Creating…" : "Create project"}
+            {busy ? t("Creating…") : t("Create project")}
           </button>
         ) : (
           <p className="muted">
-            Only owners and project managers can create projects. Share this draft with one of them.
+            {t("Only owners and project managers can create projects. Share this draft with one of them.")}
           </p>
         )}
         <button type="button" className="btn btn--quiet" onClick={() => setDismissed(true)}>
-          Dismiss
+          {t("Dismiss")}
         </button>
       </div>
       {plan.budget && (
         <p className="muted proposal__note">
-          Budget drafted from the description: {formatMoney(plan.budget, plan.currency)}. Check it before creating.
+          {t("Budget drafted from the description: {amount}. Check it before creating.", {
+            amount: formatMoney(plan.budget, plan.currency),
+          })}
         </p>
       )}
     </section>

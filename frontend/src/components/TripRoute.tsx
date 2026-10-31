@@ -5,9 +5,11 @@ import { Link } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { FuelEstimate, TravelReference, Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";
-import { formatMoney } from "../lib/format";
+import { formatMoney, formatNumber } from "../lib/format";
 import { drivingRoute, placeName, searchPlaces, type GeoPlace } from "../lib/geo";
 import { FormError } from "./AuthLayout";
+import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
 interface Place {
   name: string;
@@ -16,9 +18,9 @@ interface Place {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  route: "road route (OpenStreetMap)",
-  straight_line: "straight-line estimate",
-  manual: "entered by hand",
+  route: t("road route (OpenStreetMap)"),
+  straight_line: t("straight-line estimate"),
+  manual: t("entered by hand"),
 };
 
 let referenceCache: Promise<TravelReference> | null = null;
@@ -42,10 +44,10 @@ export function TripRoute({ trip, onSaved }: { trip: Trip; onSaved(trip: Trip): 
   return (
     <section className="card" aria-labelledby="route-heading">
       <div className="section-head">
-        <h2 id="route-heading">Route &amp; fuel</h2>
+        <h2 id="route-heading">{t("Route & fuel")}</h2>
         {trip.can_edit && !editing && (
           <button type="button" className="btn btn--secondary no-print" onClick={() => setEditing(true)}>
-            {hasRoute ? "Change route" : "Set route"}
+            {hasRoute ? t("Change route") : t("Set route")}
           </button>
         )}
       </div>
@@ -55,9 +57,9 @@ export function TripRoute({ trip, onSaved }: { trip: Trip; onSaved(trip: Trip): 
           trip={trip}
           reference={ref}
           onCancel={() => setEditing(false)}
-          onSaved={(t) => {
+          onSaved={(x) => {
             setEditing(false);
-            onSaved(t);
+            onSaved(x);
           }}
         />
       )}
@@ -67,33 +69,33 @@ export function TripRoute({ trip, onSaved }: { trip: Trip; onSaved(trip: Trip): 
           {hasRoute ? (
             <dl className="route-facts">
               <div>
-                <dt>From</dt>
+                <dt>{t("From")}</dt>
                 <dd>{r.origin ?? "—"}</dd>
               </div>
               <div>
-                <dt>To</dt>
+                <dt>{t("To")}</dt>
                 <dd>{trip.destination}</dd>
               </div>
               <div>
-                <dt>Distance</dt>
+                <dt>{t("Distance")}</dt>
                 <dd>
-                  {Number(r.distance_km).toLocaleString("en-US")} km one way
+                  {t("{km} km one way", { km: formatNumber(r.distance_km ?? 0) })}
                   <small>{SOURCE_LABEL[r.distance_source ?? "manual"]}</small>
                 </dd>
               </div>
               <div>
-                <dt>Vehicle</dt>
+                <dt>{t("Vehicle")}</dt>
                 <dd>
                   {r.vehicle_count > 1 ? `${r.vehicle_count} × ` : ""}
-                  {vehicle?.label ?? "—"}
-                  <small>{r.round_trip ? "Round trip" : "One way"}</small>
+                  {vehicle ? t(vehicle.label) : "—"}
+                  <small>{r.round_trip ? t("Round trip") : t("One way")}</small>
                 </dd>
               </div>
             </dl>
           ) : (
             <p className="muted">
-              Set where the trip starts and ends to estimate the fuel cost.
-              {!trip.can_edit && " Ask the trip's organizer to add it."}
+              {t("Set where the trip starts and ends to estimate the fuel cost.")}
+              {!trip.can_edit && ` ${t("Ask the trip's organizer to add it.")}`}
             </p>
           )}
           {hasRoute && <FuelEstimateCard trip={trip} />}
@@ -171,39 +173,38 @@ function RouteEditor({
 
       <div className="route-editor__grid">
         <label className="filter">
-          <span className="filter__label">Distance one way (km)</span>
+          <span className="filter__label">{t("Distance one way (km)")}</span>
           <input
             inputMode="decimal"
-            placeholder={routeKm ? `${routeKm} from the map` : "Optional: overrides the estimate"}
+            placeholder={routeKm ? t("{routeKm} from the map", { routeKm: routeKm }) : t("Optional: overrides the estimate")}
             value={manualKm}
             onChange={(e) => setManualKm(e.target.value)}
           />
         </label>
         <label className="filter">
-          <span className="filter__label">Vehicle</span>
+          <span className="filter__label">{t("Vehicle")}</span>
           <select value={vehicleType} onChange={(e) => setVehicleType(e.target.value)}>
             {reference.vehicles.map((v) => (
               <option key={v.type} value={v.type}>
-                {v.label} — {v.l_per_100km_low}–{v.l_per_100km_high} L/100 km
-              </option>
+                {t(v.label)} — {v.l_per_100km_low}–{v.l_per_100km_high} L/100 km</option>
             ))}
           </select>
         </label>
         <label className="filter">
-          <span className="filter__label">Vehicles</span>
+          <span className="filter__label">{t("Vehicles")}</span>
           <input inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value)} />
         </label>
         <label className="check filter__check">
           <input type="checkbox" checked={roundTrip} onChange={(e) => setRoundTrip(e.target.checked)} />
-          Round trip
+          {t("Round trip")}
         </label>
       </div>
       <div className="form__actions">
         <button type="button" className="btn btn--primary" onClick={save} disabled={busy}>
-          {busy ? "Saving…" : "Save route"}
+          {busy ? t("Saving…") : t("Save route")}
         </button>
         <button type="button" className="btn btn--quiet" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </div>
@@ -277,8 +278,8 @@ function MapPicker({
     group.clearLayers();
     const points: L.LatLngExpression[] = [];
     for (const [p, colour, label] of [
-      [from, "#2f9e6b", "Start"],
-      [to, "#d9534f", "Finish"],
+      [from, "#2f9e6b", t("Start")],
+      [to, "#d9534f", t("Finish")],
     ] as const) {
       if (p.lat === null || p.lng === null) continue;
       points.push([p.lat, p.lng]);
@@ -293,23 +294,23 @@ function MapPicker({
     }
     m.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
     let cancelled = false;
-    setStatus("Finding the road route…");
+    setStatus(t("Finding the road route…"));
     drivingRoute({ name: from.name, lat: from.lat, lng: from.lng }, { name: to.name, lat: to.lat, lng: to.lng })
       .then((route) => {
         if (cancelled) return;
         if (route) {
           L.polyline(route.path, { color: "#2b3ccf", weight: 5, opacity: 0.8 }).addTo(group);
           onRoute(route.km.toFixed(1));
-          setStatus(`Road route: ${route.km.toFixed(1)} km one way.`);
+          setStatus(t("Road route: {km} km one way.", { km: formatNumber(route.km.toFixed(1)) }));
         } else {
           onRoute(null);
-          setStatus("No road route found; the distance will be a straight-line estimate.");
+          setStatus(t("No road route found; the distance will be a straight-line estimate."));
         }
       })
       .catch(() => {
         if (cancelled) return;
         onRoute(null);
-        setStatus("The routing service didn't answer; the distance will be a straight-line estimate.");
+        setStatus(t("The routing service didn't answer; the distance will be a straight-line estimate."));
       });
     return () => {
       cancelled = true;
@@ -320,7 +321,7 @@ function MapPicker({
     <div className="map-picker">
       <div className="route-editor__grid">
         <PlaceSearch
-          label="From"
+          label={t("From")}
           value={from}
           reference={reference}
           onFocus={() => setActive("from")}
@@ -330,7 +331,7 @@ function MapPicker({
           }}
         />
         <PlaceSearch
-          label="To"
+          label={t("To")}
           value={to}
           reference={reference}
           onFocus={() => setActive("to")}
@@ -338,12 +339,18 @@ function MapPicker({
         />
       </div>
       <p className="muted route-editor__hint">
-        Type a city or address and press Enter, or click the map to set the{" "}
-        <strong>{active === "from" ? "start" : "finish"}</strong>.{status ? ` ${status}` : ""}
+        {active === "from"
+          ? tx("Type a city or address and press Enter, or click the map to set the {point}.", {
+              point: <strong>{t("start")}</strong>,
+            })
+          : tx("Type a city or address and press Enter, or click the map to set the {point}.", {
+              point: <strong>{t("finish")}</strong>,
+            })}
+        {status ? ` ${status}` : ""}
       </p>
-      <div ref={mapEl} className="map-picker__map" aria-label="Map: click to set the start or finish" />
+      <div ref={mapEl} className="map-picker__map" aria-label={t("Map: click to set the start or finish")} />
       <p className="muted map-picker__credit">
-        Map, search and routing by OpenStreetMap services; the places you look up are sent to them.
+        {t("Map, search and routing by OpenStreetMap services; the places you look up are sent to them.")}
       </p>
     </div>
   );
@@ -387,10 +394,10 @@ function PlaceSearch({
         setResults(null);
       } else {
         setResults(found);
-        if (!found.length) setError("No place found. Try another spelling, or click the map.");
+        if (!found.length) setError(t("No place found. Try another spelling, or click the map."));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Search failed.");
+      setError(e instanceof Error ? e.message : t("Search failed."));
     } finally {
       setBusy(false);
     }
@@ -405,7 +412,7 @@ function PlaceSearch({
         id={`place-${label}`}
         list="bpa-cities"
         value={text}
-        placeholder="City or address, then Enter"
+        placeholder={t("City or address, then Enter")}
         onFocus={onFocus}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -424,7 +431,7 @@ function PlaceSearch({
           <option key={c.name} value={c.name} />
         ))}
       </datalist>
-      {busy && <span className="muted">Searching…</span>}
+      {busy && <span className="muted">{t("Searching…")}</span>}
       {error && <span className="field__message field__message--error">{error}</span>}
       {results && results.length > 1 && (
         <ul className="place-search__results">
@@ -467,47 +474,54 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
     return (
       <div className="fuel fuel--empty">
         <p>{error}</p>
-        {error.includes("Fuel prices") && (
+        {error.includes(t("Fuel prices")) && (
           <Link to="/app/settings" className="no-print">
-            Set fuel prices
+            {t("Set fuel prices")}
           </Link>
         )}
       </div>
     );
   }
-  if (!estimate) return <p className="muted">Estimating…</p>;
+  if (!estimate) return <p className="muted">{t("Estimating…")}</p>;
 
   const c = estimate.currency;
   const low = Number(estimate.cost.low);
   const high = Number(estimate.cost.high);
   const mid = Number(estimate.cost.expected);
   const pos = high > low ? ((mid - low) / (high - low)) * 100 : 50;
-  const question = `Explain the fuel cost estimate for the trip "${trip.title}" and how we could reduce it.`;
+  const question = t("Explain the fuel cost estimate for the trip “{title}” and how we could reduce it.", { title: trip.title });
 
   return (
     <div className="fuel">
       <div className="fuel__head">
         <div>
-          <span className="fuel__label">Estimated fuel cost</span>
+          <span className="fuel__label">{t("Estimated fuel cost")}</span>
           <span className="fuel__value">{formatMoney(estimate.cost.expected, c)}</span>
           <span className="muted">
-            likely between {formatMoney(estimate.cost.low, c)} and {formatMoney(estimate.cost.high, c)}
+            {t("likely between {low} and {high}", {
+              low: formatMoney(estimate.cost.low, c),
+              high: formatMoney(estimate.cost.high, c),
+            })}
           </span>
         </div>
         <div className="fuel__side">
-          <span className="fuel__label">Fuel</span>
+          <span className="fuel__label">{t("Fuel")}</span>
           <span>
-            {estimate.litres.expected} L {estimate.vehicle.fuel}
+            {t("{litres} L {fuel}", { litres: formatNumber(estimate.litres.expected), fuel: t(estimate.vehicle.fuel) })}
           </span>
           <span className="muted">
-            {estimate.total_km} km at {estimate.fuel_price.price_per_litre} {c}/L
+            {t("{km} km at {price} {currency}/L", {
+              km: formatNumber(estimate.total_km),
+              price: formatNumber(estimate.fuel_price.price_per_litre),
+              currency: c,
+            })}
           </span>
         </div>
       </div>
       <div
         className="fuel__range"
         role="img"
-        aria-label={`Range from ${estimate.cost.low} to ${estimate.cost.high} ${c}`}
+        aria-label={t("Range from {low} to {high}", { low: formatMoney(estimate.cost.low, c), high: formatMoney(estimate.cost.high, c) })}
       >
         <span className="fuel__marker" style={{ left: `${pos}%` }} />
       </div>
@@ -517,7 +531,7 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
       </div>
 
       <label className="fuel__variance no-print">
-        <span className="filter__label">Allow for detours and traffic: {variance}%</span>
+        <span className="filter__label">{t("Allow for detours and traffic: {pct}%", { pct: variance })}</span>
         <input
           type="range"
           min={0}
@@ -536,7 +550,7 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
         </ul>
       )}
       <details className="fuel__assumptions">
-        <summary>How this is calculated</summary>
+        <summary>{t("How this is calculated")}</summary>
         <ul>
           {estimate.assumptions.map((a) => (
             <li key={a}>{a}</li>
@@ -547,7 +561,7 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
         className="btn btn--secondary btn--link no-print fuel__ask"
         to={`/app/assistant?project=${trip.project_id}&q=${encodeURIComponent(question)}`}
       >
-        Ask the assistant about this
+        {t("Ask the assistant about this")}
       </Link>
     </div>
   );

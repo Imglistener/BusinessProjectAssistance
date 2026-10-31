@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 
+from ..i18n import request_lang, translate
 from .errors import ApiError
 
 api_bp = Blueprint("api", __name__)
@@ -7,7 +8,7 @@ api_bp = Blueprint("api", __name__)
 
 @api_bp.errorhandler(ApiError)
 def handle_api_error(e: ApiError):
-    body = {"code": e.code, "message": e.message}
+    body = {"code": e.code, "message": translate(e.message, request_lang())}
     if e.details:
         body["details"] = e.details
     response = jsonify(error=body)

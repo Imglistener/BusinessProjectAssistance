@@ -13,6 +13,7 @@ import { errorMessage } from "../lib/errors";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, formatDate } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
 import { FilterBar, FilterCheck, FilterSelect } from "./Filters";
+import { t } from "../i18n";
 
 interface Member {
   user_id: number;
@@ -27,7 +28,7 @@ interface Props {
 }
 
 const STATUS_OPTIONS = Object.entries(TASK_STATUS_LABEL).map(([value, label]) => ({ value, label }));
-const STATUS_FILTERS = [{ value: "", label: "All" }, { value: "open", label: "Open" }, ...STATUS_OPTIONS];
+const STATUS_FILTERS = [{ value: "", label: t("All") }, { value: "open", label: t("Open") }, ...STATUS_OPTIONS];
 const OPEN = (s: TaskStatus) => s !== "done" && s !== "cancelled";
 
 export function TaskSection({ project, userId, milestones, onProjectChange }: Props) {
@@ -46,38 +47,38 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
   const milestoneTitle = new Map(milestones.map((m) => [m.id, m.title]));
 
   const shown = (tasks ?? []).filter(
-    (t) =>
-      (statusFilter === "" || (statusFilter === "open" ? OPEN(t.status) : t.status === statusFilter)) &&
+    (x) =>
+      (statusFilter === "" || (statusFilter === "open" ? OPEN(x.status) : x.status === statusFilter)) &&
       (assigneeFilter === "" ||
-        (assigneeFilter === "none" ? t.assignee_id === null : t.assignee_id === Number(assigneeFilter))) &&
-      (!overdueOnly || t.is_overdue) &&
+        (assigneeFilter === "none" ? x.assignee_id === null : x.assignee_id === Number(assigneeFilter))) &&
+      (!overdueOnly || x.is_overdue) &&
       (milestoneFilter === "" ||
-        (milestoneFilter === "none" ? t.milestone_id === null : t.milestone_id === Number(milestoneFilter))),
+        (milestoneFilter === "none" ? x.milestone_id === null : x.milestone_id === Number(milestoneFilter))),
   );
   const assigneeOptions = [
-    { value: "", label: "Anyone" },
-    { value: String(userId), label: "Assigned to me" },
-    { value: "none", label: "Unassigned" },
+    { value: "", label: t("Anyone") },
+    { value: String(userId), label: t("Assigned to me") },
+    { value: "none", label: t("Unassigned") },
     ...members.filter((m) => m.user_id !== userId).map((m) => ({ value: String(m.user_id), label: m.name })),
   ];
 
   useEffect(() => {
     api<{ tasks: Task[] }>(`/projects/${project.id}/tasks`)
       .then((r) => setTasks(r.tasks))
-      .catch((e) => setError(errorMessage(e, "Couldn't load tasks.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load tasks."))));
     api<{ members: Member[] }>(`/organizations/${project.organization_id}/members`)
       .then((r) => setMembers(r.members))
       .catch(() => setMembers([]));
   }, [project.id, project.organization_id]);
 
-  const canChangeStatus = (t: Task) =>
-    editable && (canManageProjects(role) || (role === "contributor" && t.assignee_id === userId));
+  const canChangeStatus = (x: Task) =>
+    editable && (canManageProjects(role) || (role === "contributor" && x.assignee_id === userId));
 
   const changeStatus = async (task: Task, status: TaskStatus) => {
     setError(null);
     try {
       const r = await api<{ task: Task; project: Project }>(`/tasks/${task.id}`, { method: "PATCH", body: { status } });
-      setTasks((prev) => prev?.map((t) => (t.id === task.id ? r.task : t)) ?? prev);
+      setTasks((prev) => prev?.map((x) => (x.id === task.id ? r.task : x)) ?? prev);
       onProjectChange(r.project);
     } catch (e) {
       setError(errorMessage(e));
@@ -87,10 +88,10 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
   return (
     <section className="projects-section" aria-labelledby="tasks-heading">
       <div className="section-head">
-        <h2 id="tasks-heading">Tasks</h2>
+        <h2 id="tasks-heading">{t("Tasks")}</h2>
         {canContribute(role) && editable && !adding && (
           <button type="button" className="btn btn--primary" onClick={() => setAdding(true)}>
-            Add task
+            {t("Add task")}
           </button>
         )}
       </div>
@@ -112,35 +113,35 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
       )}
 
       {tasks && tasks.length > 0 && (
-        <FilterBar label="Filter tasks">
-          <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
+        <FilterBar label={t("Filter tasks")}>
+          <FilterSelect label={t("Status")} value={statusFilter} onChange={setStatusFilter} options={STATUS_FILTERS} />
           <FilterSelect
-            label="Assignee"
+            label={t("Assignee")}
             value={assigneeFilter}
             onChange={setAssigneeFilter}
             options={assigneeOptions}
           />
           {milestones.length > 0 && (
             <FilterSelect
-              label="Milestone"
+              label={t("Milestone")}
               value={milestoneFilter}
               onChange={setMilestoneFilter}
               options={[
-                { value: "", label: "Any" },
-                { value: "none", label: "No milestone" },
+                { value: "", label: t("Any") },
+                { value: "none", label: t("No milestone") },
                 ...milestones.map((m) => ({ value: String(m.id), label: m.title })),
               ]}
             />
           )}
-          <FilterCheck label="Only overdue" checked={overdueOnly} onChange={setOverdueOnly} />
+          <FilterCheck label={t("Only overdue")} checked={overdueOnly} onChange={setOverdueOnly} />
         </FilterBar>
       )}
 
-      {tasks === null && !error && <p className="muted">Loading…</p>}
-      {tasks && tasks.length === 0 && <p className="muted">No tasks yet. Add the first step of this project.</p>}
+      {tasks === null && !error && <p className="muted">{t("Loading…")}</p>}
+      {tasks && tasks.length === 0 && <p className="muted">{t("No tasks yet. Add the first step of this project.")}</p>}
       {tasks && tasks.length > 0 && shown.length === 0 && filtering && (
         <p className="muted">
-          No tasks match these filters.{" "}
+          {t("No tasks match these filters.")}{" "}
           <button
             type="button"
             className="link-btn"
@@ -151,21 +152,21 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
               setMilestoneFilter("");
             }}
           >
-            Clear filters
+            {t("Clear filters")}
           </button>
         </p>
       )}
 
       {shown.length > 0 && (
         <ul className="rows">
-          {shown.map((t) =>
-            editingId === t.id ? (
-              <li key={t.id} className="row row--editing">
+          {shown.map((x) =>
+            editingId === x.id ? (
+              <li key={x.id} className="row row--editing">
                 <TaskForm
                   project={project}
                   members={members}
                   milestones={milestones}
-                  task={t}
+                  task={x}
                   onCancel={() => setEditingId(null)}
                   onSaved={(task, p) => {
                     setEditingId(null);
@@ -175,21 +176,21 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
                 />
               </li>
             ) : (
-              <li key={t.id} className={t.status === "done" || t.status === "cancelled" ? "row row--voided" : "row"}>
+              <li key={x.id} className={x.status === "done" || x.status === "cancelled" ? "row row--voided" : "row"}>
                 <div className="row__main">
-                  <p className="row__title">{t.title}</p>
+                  <p className="row__title">{x.title}</p>
                   <p className="row__meta">
-                    {PRIORITY_LABEL[t.priority]} priority
-                    {t.assignee_name ? ` — ${t.assignee_name}` : " — Unassigned"}
-                    {t.milestone_id !== null &&
-                      milestoneTitle.has(t.milestone_id) &&
-                      ` — ${milestoneTitle.get(t.milestone_id)}`}
-                    {t.due_date && (
+                    {t("{priority} priority", { priority: PRIORITY_LABEL[x.priority] })} — {x.assignee_name ?? t("Unassigned")}
+                    {x.milestone_id !== null &&
+                      milestoneTitle.has(x.milestone_id) &&
+                      ` — ${milestoneTitle.get(x.milestone_id)}`}
+                    {x.due_date && (
                       <>
                         {" — "}
-                        <span className={t.is_overdue ? "overdue" : undefined}>
-                          {t.is_overdue ? "Overdue, was due " : "Due "}
-                          {formatDate(t.due_date)}
+                        <span className={x.is_overdue ? "overdue" : undefined}>
+                          {x.is_overdue
+                            ? t("Overdue, was due {date}", { date: formatDate(x.due_date) })
+                            : t("Due {date}", { date: formatDate(x.due_date) })}
                         </span>
                       </>
                     )}
@@ -198,10 +199,10 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
                 <div className="row__side">
                   <select
                     className="status-select"
-                    aria-label={`Status of ${t.title}`}
-                    value={t.status}
-                    disabled={!canChangeStatus(t)}
-                    onChange={(e) => changeStatus(t, e.target.value as TaskStatus)}
+                    aria-label={t("Status of {title}", { title: x.title })}
+                    value={x.status}
+                    disabled={!canChangeStatus(x)}
+                    onChange={(e) => changeStatus(x, e.target.value as TaskStatus)}
                   >
                     {STATUS_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -210,8 +211,8 @@ export function TaskSection({ project, userId, milestones, onProjectChange }: Pr
                     ))}
                   </select>
                   {editable && canManageProjects(role) && (
-                    <button type="button" className="link-btn" onClick={() => setEditingId(t.id)}>
-                      Edit
+                    <button type="button" className="link-btn" onClick={() => setEditingId(x.id)}>
+                      {t("Edit")}
                     </button>
                   )}
                 </div>
@@ -258,10 +259,10 @@ function TaskForm({
   const id = task ? `task_${task.id}_` : "task_";
   // Keep a current assignee who has since left the organization selectable.
   const assigneeOptions = [
-    { value: "", label: "Unassigned" },
+    { value: "", label: t("Unassigned") },
     ...members.map((m) => ({ value: String(m.user_id), label: m.name })),
     ...(task?.assignee_id && !members.some((m) => m.user_id === task.assignee_id)
-      ? [{ value: String(task.assignee_id), label: task.assignee_name ?? "Former member" }]
+      ? [{ value: String(task.assignee_id), label: task.assignee_name ?? t("Former member") }]
       : []),
   ];
   const [error, setError] = useState<string | null>(null);
@@ -295,20 +296,20 @@ function TaskForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={task ? "Edit task" : "Add task"}>
-      <h3 className="panel__title">{task ? "Edit task" : "Add task"}</h3>
+    <form onSubmit={submit} className="panel form" aria-label={task ? t("Edit task") : t("Add task")}>
+      <h3 className="panel__title">{task ? t("Edit task") : t("Add task")}</h3>
       <FormError message={error} />
-      <Field label="Title" name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
+      <Field label={t("Title")} name={`${id}title`} value={form.title} onChange={set("title")} error={fieldErrors.title} />
       <div className="form__row">
         <SelectField
-          label="Priority"
+          label={t("Priority")}
           name={`${id}priority`}
           value={form.priority}
           onChange={set("priority")}
           options={Object.entries(PRIORITY_LABEL).map(([value, label]) => ({ value, label }))}
         />
         <Field
-          label="Due date"
+          label={t("Due date")}
           name={`${id}due`}
           type="date"
           value={form.due_date}
@@ -318,7 +319,7 @@ function TaskForm({
         />
       </div>
       <SelectField
-        label="Assigned to"
+        label={t("Assigned to")}
         name={`${id}assignee`}
         value={form.assignee_id}
         onChange={set("assignee_id")}
@@ -327,20 +328,20 @@ function TaskForm({
       {fieldErrors.assignee_id && <p className="field__message field__message--error">{fieldErrors.assignee_id}</p>}
       {milestones.length > 0 && (
         <SelectField
-          label="Milestone"
+          label={t("Milestone")}
           name={`${id}milestone`}
           value={form.milestone_id}
           onChange={set("milestone_id")}
-          options={[{ value: "", label: "None" }, ...milestones.map((m) => ({ value: String(m.id), label: m.title }))]}
+          options={[{ value: "", label: t("None") }, ...milestones.map((m) => ({ value: String(m.id), label: m.title }))]}
         />
       )}
       {fieldErrors.milestone_id && <p className="field__message field__message--error">{fieldErrors.milestone_id}</p>}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : task ? "Save changes" : "Save task"}
+          {busy ? t("Saving…") : task ? t("Save changes") : t("Save task")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

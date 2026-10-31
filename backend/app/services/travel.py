@@ -129,7 +129,9 @@ def estimate_fuel(
     lookup = fuel_price(organization_id, city, profile.fuel, today)
     if lookup.price is None:
         raise EstimateUnavailable(
-            f"No {profile.fuel.value} price is set for {city or 'this organization'}. Add one under Settings, Fuel prices."
+            f"No {profile.fuel.value} price is set for {city}. Add one under Settings, Fuel prices."
+            if city
+            else f"No {profile.fuel.value} price is set for this organization. Add one under Settings, Fuel prices."
         )
     low, high = (l_per_100km, l_per_100km) if l_per_100km else (profile.l_per_100km_low, profile.l_per_100km_high)
     est = metrics.fuel_estimate(
@@ -142,14 +144,23 @@ def estimate_fuel(
         "manual": "distance entered by hand",
     }.get(distance_source, distance_source)
     price_city = lookup.matched_city or "organization default (no price for this city)"
+    km = f"{Decimal(one_way_km):.1f}"
+    price = f"{_m(lookup.price.price_per_litre)} {lookup.price.currency}"
+    as_of = lookup.price.as_of.isoformat()
+    fuel = profile.fuel.value
+    # Whole sentences (no fragments glued together) so each one can be translated (see app/i18n.py).
     assumptions = [
-        f"Distance: {Decimal(one_way_km):.1f} km one way ({source_label}){', driven both ways' if round_trip else ''}.",
-        f"Vehicle: {profile.label}, {low}-{high} L/100 km" + (" (your figure)" if l_per_100km else " (typical range)") + ".",
-        f"{vehicle_count} vehicle{'s' if vehicle_count != 1 else ''}.",
-        f"Fuel: {profile.fuel.value} at {_m(lookup.price.price_per_litre)} {lookup.price.currency}/L "
-        f"({price_city}, as of {lookup.price.as_of.isoformat()}"
-        + (", average from prix-gasoil-maroc.teraedge.ma" if lookup.price.source == "teraedge" else ", entered by your team")
-        + "), +/-3% for station differences.",
+        f"Distance: {km} km one way ({source_label}), driven both ways."
+        if round_trip
+        else f"Distance: {km} km one way ({source_label}).",
+        f"Vehicle: {profile.label}, {low}-{high} L/100 km (your figure)."
+        if l_per_100km
+        else f"Vehicle: {profile.label}, {low}-{high} L/100 km (typical range).",
+        "1 vehicle." if vehicle_count == 1 else f"{vehicle_count} vehicles.",
+        f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, average from prix-gasoil-maroc.teraedge.ma), "
+        "+/-3% for station differences."
+        if lookup.price.source == "teraedge"
+        else f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, entered by your team), +/-3% for station differences.",
         f"Up to {distance_variance_pct}% extra distance for detours and traffic in the high estimate.",
     ]
     warnings = []

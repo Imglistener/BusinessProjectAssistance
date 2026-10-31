@@ -1,3 +1,5 @@
+import { getLang, t } from "../i18n";
+
 const BASE: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const TOKEN_KEY = "bpa.token";
 /** Fired when the server rejects the stored token (expired or invalid); AuthContext logs the user out. */
@@ -41,7 +43,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { "Accept-Language": getLang() };
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
@@ -54,7 +56,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
   } catch {
-    throw new ApiError("network", "Can't reach the server. Check that the backend is running.", 0);
+    throw new ApiError("network", t("Can't reach the server. Check that the backend is running."), 0);
   }
 
   const data = await res.json().catch(() => null);
@@ -66,7 +68,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     }
     throw new ApiError(
       err?.code ?? "unknown",
-      err?.message ?? "Something went wrong. Try again.",
+      err?.message ?? t("Something went wrong. Try again."),
       res.status,
       err?.details?.field,
     );
@@ -79,13 +81,15 @@ export async function download(path: string, fallbackName: string): Promise<void
   const token = tokenStore.get();
   let res: Response;
   try {
-    res = await fetch(`${BASE}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const headers: Record<string, string> = { "Accept-Language": getLang() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    res = await fetch(`${BASE}${path}`, { headers });
   } catch {
-    throw new ApiError("network", "Can't reach the server. Check that the backend is running.", 0);
+    throw new ApiError("network", t("Can't reach the server. Check that the backend is running."), 0);
   }
   if (!res.ok) {
     const err = (await res.json().catch(() => null))?.error;
-    throw new ApiError(err?.code ?? "unknown", err?.message ?? "The download failed. Try again.", res.status);
+    throw new ApiError(err?.code ?? "unknown", err?.message ?? t("The download failed. Try again."), res.status);
   }
   const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
   const url = URL.createObjectURL(await res.blob());
@@ -102,17 +106,18 @@ async function authedFetch(path: string, init: RequestInit = {}): Promise<Respon
   const token = tokenStore.get();
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Accept-Language", getLang());
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, { ...init, headers });
   } catch {
-    throw new ApiError("network", "Can't reach the server. Check that the backend is running.", 0);
+    throw new ApiError("network", t("Can't reach the server. Check that the backend is running."), 0);
   }
   if (!res.ok) {
     const err = (await res.json().catch(() => null))?.error;
     throw new ApiError(
       err?.code ?? "unknown",
-      err?.message ?? "Something went wrong. Try again.",
+      err?.message ?? t("Something went wrong. Try again."),
       res.status,
       err?.details?.field,
     );

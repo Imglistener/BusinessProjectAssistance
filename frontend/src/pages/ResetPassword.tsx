@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
+import { t } from "../i18n";
 
 const MIN_PASSWORD = 8;
 
@@ -20,11 +21,11 @@ export default function ResetPassword() {
       setError(null);
       setFieldErrors({});
       if (password.length < MIN_PASSWORD) {
-        setFieldErrors({ password: `Use at least ${MIN_PASSWORD} characters.` });
+        setFieldErrors({ password: t("Use at least {count} characters.", { count: MIN_PASSWORD }) });
         return;
       }
       if (password !== confirm) {
-        setFieldErrors({ confirm: "The passwords don't match." });
+        setFieldErrors({ confirm: t("The passwords don't match.") });
         return;
       }
       await api("/auth/password-reset/confirm", { body: { token, password } });
@@ -39,22 +40,22 @@ export default function ResetPassword() {
 
   if (done) {
     return (
-      <AuthLayout title="Password changed" subtitle="You can log in with your new password now.">
+      <AuthLayout title={t("Password changed")} subtitle={t("You can log in with your new password now.")}>
         <Link className="btn btn--primary btn--link" to="/login">
-          Log in
+          {t("Log in")}
         </Link>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout title="Choose a new password" subtitle={`At least ${MIN_PASSWORD} characters.`}>
+    <AuthLayout title={t("Choose a new password")} subtitle={t("At least {count} characters.", { count: MIN_PASSWORD })}>
       <form onSubmit={submit} className="form">
         <FormError message={error} />
         {!linkDead && (
           <>
             <Field
-              label="New password"
+              label={t("New password")}
               name="password"
               type="password"
               autoComplete="new-password"
@@ -63,7 +64,7 @@ export default function ResetPassword() {
               error={fieldErrors.password}
             />
             <Field
-              label="Repeat new password"
+              label={t("Repeat new password")}
               name="confirm"
               type="password"
               autoComplete="new-password"
@@ -72,13 +73,13 @@ export default function ResetPassword() {
               error={fieldErrors.confirm}
             />
             <button className="btn btn--primary" type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save new password"}
+              {busy ? t("Saving…") : t("Save new password")}
             </button>
           </>
         )}
       </form>
       <p className="auth__switch">
-        {linkDead ? <Link to="/forgot-password">Get a new reset link</Link> : <Link to="/login">Back to log in</Link>}
+        {linkDead ? <Link to="/forgot-password">{t("Get a new reset link")}</Link> : <Link to="/login">{t("Back to log in")}</Link>}
       </p>
     </AuthLayout>
   );

@@ -1,23 +1,27 @@
 import { Link } from "react-router-dom";
 import type { Project } from "../api/models";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
+import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
 function Budget({ project }: { project: Project }) {
   const hasBudget = Number(project.budget) > 0;
   if (!hasBudget && Number(project.actual) === 0) {
-    return <p className="project__budget project__budget--none">No budget set</p>;
+    return <p className="project__budget project__budget--none">{t("No budget set")}</p>;
   }
   const used = project.consumed_pct === null ? 0 : Math.min(Number(project.consumed_pct), 100);
   return (
     <div className="project__budget">
       <p>
-        <strong>{formatMoney(project.actual, project.currency)}</strong> spent of{" "}
-        {formatMoney(project.budget, project.currency)}
+        {tx("{spent} spent of {budget}", {
+          spent: <strong>{formatMoney(project.actual, project.currency)}</strong>,
+          budget: formatMoney(project.budget, project.currency),
+        })}
       </p>
       <div
         className={project.over_budget ? "bar bar--over" : "bar"}
         role="progressbar"
-        aria-label="Budget used"
+        aria-label={t("Budget used")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(used)}
@@ -26,9 +30,12 @@ function Budget({ project }: { project: Project }) {
       </div>
       <p className={project.over_budget ? "project__note project__note--over" : "project__note"}>
         {project.over_budget
-          ? `Over budget by ${formatMoney(project.variance, project.currency)}`
+          ? t("Over budget by {amount}", { amount: formatMoney(project.variance, project.currency) })
           : hasBudget
-            ? `${formatPct(project.consumed_pct)} used, ${formatMoney(project.remaining, project.currency)} left`
+            ? t("{pct} used, {amount} left", {
+                pct: formatPct(project.consumed_pct),
+                amount: formatMoney(project.remaining, project.currency),
+              })
             : null}
       </p>
     </div>
@@ -58,7 +65,7 @@ export function ProjectList({ projects }: { projects: Project[] }) {
                 {dates && <span>{dates}</span>}
                 {p.overdue_task_count > 0 && (
                   <span className="project__overdue">
-                    {p.overdue_task_count} overdue {p.overdue_task_count === 1 ? "task" : "tasks"}
+                    {t("{count} overdue tasks", { count: p.overdue_task_count })}
                   </span>
                 )}
               </p>

@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
 import { safeNext } from "../lib/format";
+import { t } from "../i18n";
 
 export default function Login() {
   const { user, login, expired } = useAuth();
@@ -20,23 +21,23 @@ export default function Login() {
       await login(email.trim(), password);
       navigate(next, { replace: true });
     },
-    (e) => setError(e instanceof ApiError ? e.message : "Something went wrong. Try again."),
+    (e) => setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again.")),
   );
 
   if (user) return <Navigate to={next} replace />;
 
   return (
-    <AuthLayout title="Log in" subtitle="Pick up where you left off.">
+    <AuthLayout title={t("Log in")} subtitle={t("Pick up where you left off.")}>
       <form onSubmit={submit} className="form">
         {expired && !error && (
           <p className="notice" role="status">
-            Your session expired. Log in again to continue.
+            {t("Your session expired. Log in again to continue.")}
           </p>
         )}
         <FormError message={error} />
-        <Field label="Email" name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
+        <Field label={t("Email")} name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
         <Field
-          label="Password"
+          label={t("Password")}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -44,14 +45,15 @@ export default function Login() {
           onChange={setPassword}
         />
         <Link to="/forgot-password" className="form__aside">
-          Forgot your password?
+          {t("Forgot your password?")}
         </Link>
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Logging in…" : "Log in"}
+          {busy ? t("Logging in…") : t("Log in")}
         </button>
       </form>
       <p className="auth__switch">
-        New here? <Link to={params.get("next") ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>Create an account</Link>
+        {t("New here?")}{" "}<Link to={params.get("next") ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}>{t("Create an account")}
+      </Link>
       </p>
     </AuthLayout>
   );

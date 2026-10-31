@@ -7,44 +7,46 @@ import { AppShell } from "../components/AppShell";
 import { ProjectProposal } from "../components/ProjectProposal";
 import { FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
+import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
 const HISTORY_TURNS = 12;
 
 /** What each tool's result means to a person reading the answer. */
 const TOOL_LABEL: Record<string, string> = {
-  list_projects: "Project list",
-  get_project_summary: "Project summary",
-  calculate_budget_metrics: "Budget figures",
-  get_expense_breakdown: "Expense breakdown",
-  list_overdue_tasks: "Overdue tasks",
-  estimate_spend_rate: "Spend-rate estimate",
-  draft_project_update: "Project facts for the draft",
-  get_inventory_status: "Inventory",
-  calculate: "Calculator",
-  vat: "VAT calculation",
-  budget_what_if: "Budget what-if",
-  estimate_trip_fuel_cost: "Trip fuel estimate",
-  estimate_fuel_cost: "Fuel estimate",
-  propose_project: "Project draft",
+  list_projects: t("Project list"),
+  get_project_summary: t("Project summary"),
+  calculate_budget_metrics: t("Budget figures"),
+  get_expense_breakdown: t("Expense breakdown"),
+  list_overdue_tasks: t("Overdue tasks"),
+  estimate_spend_rate: t("Spend-rate estimate"),
+  draft_project_update: t("Project facts for the draft"),
+  get_inventory_status: t("Inventory"),
+  calculate: t("Calculator"),
+  vat: t("VAT calculation"),
+  budget_what_if: t("Budget what-if"),
+  estimate_trip_fuel_cost: t("Trip fuel estimate"),
+  estimate_fuel_cost: t("Fuel estimate"),
+  propose_project: t("Project draft"),
 };
 
 const GENERAL_PROMPTS = [
-  "A customer wants a 3-day team retreat in Ifrane for 25 people next March, about 80000 MAD. Set it up as a project.",
-  "Which projects need attention right now?",
-  "Are any projects over budget?",
-  "Which projects have overdue tasks?",
-  "What would it cost in fuel to drive a van from Casablanca to Marrakech and back?",
-  "What's the VAT on 12,500 MAD, and the total including VAT?",
-  "What's running low in stock?",
+  t("A customer wants a 3-day team retreat in Ifrane for 25 people next March, about 80000 MAD. Set it up as a project."),
+  t("Which projects need attention right now?"),
+  t("Are any projects over budget?"),
+  t("Which projects have overdue tasks?"),
+  t("What would it cost in fuel to drive a van from Casablanca to Marrakech and back?"),
+  t("What's the VAT on 12,500 MAD, and the total including VAT?"),
+  t("What's running low in stock?"),
 ];
 
 const PROJECT_PROMPTS = [
-  "How is the budget looking?",
-  "What are we spending the most on?",
-  "At the current spend rate, how long will the budget last?",
-  "Draft a short status update I can share.",
-  "If we spend 5,000 more, how much budget is left?",
-  "How much fuel will our planned trips cost?",
+  t("How is the budget looking?"),
+  t("What are we spending the most on?"),
+  t("At the current spend rate, how long will the budget last?"),
+  t("Draft a short status update I can share."),
+  t("If we spend 5,000 more, how much budget is left?"),
+  t("How much fuel will our planned trips cost?"),
 ];
 
 interface Message {
@@ -66,7 +68,7 @@ export default function Assistant() {
     if (!org) return;
     api<{ projects: Project[] }>(`/organizations/${org.id}/projects`)
       .then((r) => setProjects(r.projects))
-      .catch((e) => setProjectError(errorMessage(e, "Couldn't load your projects.")));
+      .catch((e) => setProjectError(errorMessage(e, t("Couldn't load your projects."))));
   }, [org]);
 
   const projectId = params.get("project") ?? "";
@@ -75,17 +77,17 @@ export default function Assistant() {
   return (
     <AppShell>
       <header className="main__header">
-        <h1>Assistant</h1>
+        <h1>{t("Assistant")}</h1>
         <p className="main__org">
-          Ask about your projects, budgets, expenses and deadlines. It reads your data and drafts plans, but never changes anything without you.
+          {t("Ask about your projects, budgets, expenses and deadlines. It reads your data and drafts plans, but never changes anything without you.")}
         </p>
       </header>
 
       <FormError message={loadError} />
-      {orgs === null && !loadError && <p className="muted">Loading…</p>}
+      {orgs === null && !loadError && <p className="muted">{t("Loading…")}</p>}
       {orgs !== null && !org && (
         <p className="muted">
-          Create your organization on the <Link to="/app">dashboard</Link> first.
+          {tx("Create your organization on the {dashboard} first.", { dashboard: <Link to="/app">{t("dashboard")}</Link> })}
         </p>
       )}
       {org && (
@@ -155,7 +157,7 @@ function Chat({
       setError(
         e instanceof ApiError && e.code === "network"
           ? e.message
-          : errorMessage(e, "The assistant couldn't answer. Try again."),
+          : errorMessage(e, t("The assistant couldn't answer. Try again.")),
       );
     } finally {
       setBusy(false);
@@ -178,13 +180,13 @@ function Chat({
   const prompts = projectId ? PROJECT_PROMPTS : GENERAL_PROMPTS;
 
   return (
-    <section className="chat" aria-label="Conversation">
+    <section className="chat" aria-label={t("Conversation")}>
       <div className="chat__bar">
         <div className="field chat__project">
-          <label htmlFor="chat-project">About</label>
+          <label htmlFor="chat-project">{t("About")}</label>
           <div className="field__control">
             <select id="chat-project" value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-              <option value="">All projects</option>
+              <option value="">{t("All projects")}</option>
               {projects.map((p) => (
                 <option key={p.id} value={String(p.id)}>
                   {p.name}
@@ -195,7 +197,7 @@ function Chat({
         </div>
         {messages.length > 0 && (
           <button type="button" className="link-btn" onClick={() => setMessages([])} disabled={busy}>
-            New conversation
+            {t("New conversation")}
           </button>
         )}
       </div>
@@ -203,7 +205,7 @@ function Chat({
       <div className="chat__log" aria-live="polite">
         {messages.length === 0 && (
           <div className="chat__empty">
-            <p className="muted">Try one of these:</p>
+            <p className="muted">{t("Try one of these:")}</p>
             <ul className="chips">
               {prompts.map((p) => (
                 <li key={p}>
@@ -219,7 +221,7 @@ function Chat({
         {messages.map((m, i) =>
           m.role === "user" ? (
             <div key={i} className="bubble bubble--user">
-              <span className="visually-hidden">You: </span>
+              <span className="visually-hidden">{t("You:")}{" "}</span>
               {m.content}
             </div>
           ) : (
@@ -229,7 +231,7 @@ function Chat({
 
         {busy && (
           <p className="chat__thinking" role="status">
-            Looking at your data…
+            {t("Looking at your data…")}
           </p>
         )}
         <div ref={endRef} />
@@ -239,26 +241,25 @@ function Chat({
 
       <form className="composer" onSubmit={onSubmit}>
         <label htmlFor="chat-input" className="visually-hidden">
-          Your question
+          {t("Your question")}
         </label>
         <textarea
           id="chat-input"
           ref={inputRef}
           rows={2}
           maxLength={2000}
-          placeholder={projectId ? "Ask about this project…" : "Ask about your projects…"}
+          placeholder={projectId ? t("Ask about this project…") : t("Ask about your projects…")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onKeyDown}
         />
         <button type="submit" className="btn btn--primary" disabled={busy || !draft.trim()}>
-          Ask
+          {t("Ask")}
         </button>
       </form>
 
       <p className="chat__disclosure">
-        Your question and the project figures needed to answer it are sent to an external AI provider. Answers are
-        AI-generated and can be wrong: check important figures on the project page.
+        {t("Your question and the project figures needed to answer it are sent to an external AI provider. Answers are AI-generated and can be wrong: check important figures on the project page.")}
       </p>
     </section>
   );
@@ -266,7 +267,7 @@ function Chat({
 
 function AssistantMessage({ message, org }: { message: Message; org: Organization }) {
   const [copied, setCopied] = useState(false);
-  const sources = [...new Set((message.trace ?? []).filter((t) => t.ok).map((t) => TOOL_LABEL[t.tool] ?? t.tool))];
+  const sources = [...new Set((message.trace ?? []).filter((x) => x.ok).map((x) => TOOL_LABEL[x.tool] ?? x.tool))];
 
   const copy = async () => {
     try {
@@ -281,13 +282,13 @@ function AssistantMessage({ message, org }: { message: Message; org: Organizatio
   return (
     <article className="bubble bubble--ai">
       <p className="bubble__label">
-        <span className="tag">AI-generated</span>
+        <span className="tag">{t("AI-generated")}</span>
       </p>
       <RichText text={message.content} />
       <footer className="bubble__foot">
-        <span>{sources.length > 0 ? `Based on: ${sources.join(", ")}` : "Not based on project data"}</span>
+        <span>{sources.length > 0 ? t("Based on: {sources}", { sources: sources.join(t(", ")) }) : t("Not based on project data")}</span>
         <button type="button" className="link-btn" onClick={copy}>
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("Copied") : t("Copy")}
         </button>
       </footer>
       {message.proposals?.map((plan, i) => (

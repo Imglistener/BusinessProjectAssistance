@@ -4,6 +4,7 @@ from flask import Response, jsonify
 from flask_jwt_extended import jwt_required
 
 from ..extensions import db
+from ..i18n import request_lang, translate
 from ..models import Organization
 from ..services import projects as svc
 from ..services import reports
@@ -34,7 +35,10 @@ def _csv_response(body: str, filename: str) -> Response:
 @jwt_required()
 def project_report(project_id: int):
     project, org = _project(project_id)
-    return jsonify(report=reports.build_report(project, org))
+    report = reports.build_report(project, org)
+    lang = request_lang()
+    report["definitions"] = {k: translate(v, lang) for k, v in report["definitions"].items()}
+    return jsonify(report=report)
 
 
 @api_bp.get("/projects/<int:project_id>/expenses.csv")

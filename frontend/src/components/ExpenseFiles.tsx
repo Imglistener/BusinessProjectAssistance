@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, download, openFile, uploadFile } from "../api/client";
 import type { Attachment } from "../api/models";
 import { errorMessage } from "../lib/errors";
+import { t } from "../i18n";
 
 const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
 
@@ -26,7 +27,7 @@ export function ExpenseFiles({
   useEffect(() => {
     api<{ attachments: Attachment[] }>(`/expenses/${expenseId}/attachments`)
       .then((r) => setFiles(r.attachments))
-      .catch((e) => setError(errorMessage(e, "Couldn't load files.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load files."))));
   }, [expenseId]);
 
   const update = (next: Attachment[]) => {
@@ -42,7 +43,7 @@ export function ExpenseFiles({
       const r = await uploadFile<{ attachment: Attachment }>(`/expenses/${expenseId}/attachments`, file);
       update([...(files ?? []), r.attachment]);
     } catch (e) {
-      setError(errorMessage(e, "The upload failed. Try again."));
+      setError(errorMessage(e, t("The upload failed. Try again.")));
     } finally {
       setBusy(false);
       if (input.current) input.current.value = "";
@@ -68,8 +69,8 @@ export function ExpenseFiles({
           {error}
         </p>
       )}
-      {files === null && !error && <p className="muted">Loading…</p>}
-      {files && files.length === 0 && <p className="muted">No receipts attached.</p>}
+      {files === null && !error && <p className="muted">{t("Loading…")}</p>}
+      {files && files.length === 0 && <p className="muted">{t("No receipts attached.")}</p>}
       {files && files.length > 0 && (
         <ul className="files__list">
           {files.map((a) => (
@@ -82,18 +83,18 @@ export function ExpenseFiles({
                   className="link-btn"
                   onClick={() => run(() => openFile(`/attachments/${a.id}/file`))}
                 >
-                  View
+                  {t("View")}
                 </button>
                 <button
                   type="button"
                   className="link-btn"
                   onClick={() => run(() => download(`/attachments/${a.id}/file`, a.filename))}
                 >
-                  Download
+                  {t("Download")}
                 </button>
                 {canChange && (
                   <button type="button" className="link-btn" onClick={() => remove(a)}>
-                    Remove
+                    {t("Remove")}
                   </button>
                 )}
               </span>
@@ -109,9 +110,9 @@ export function ExpenseFiles({
             accept={ACCEPT}
             disabled={busy}
             onChange={(e) => onPick(e.target.files?.[0])}
-            aria-label="Attach a receipt"
+            aria-label={t("Attach a receipt")}
           />
-          <span className="muted">{busy ? "Uploading…" : "PDF, JPEG, PNG or WebP, up to 10 MB."}</span>
+          <span className="muted">{busy ? t("Uploading…") : t("PDF, JPEG, PNG or WebP, up to 10 MB.")}</span>
         </label>
       )}
     </div>

@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
+from ..i18n import request_lang, translate
 from ..models import Notification, Organization, OrganizationMember, utcnow
 from ..services.tokens import aware
 from . import api_bp
@@ -32,6 +33,7 @@ def list_notifications():
     except ValueError:
         raise ApiError("validation_error", "limit must be a whole number.", 400)
     rows = query.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit).all()
+    lang = request_lang()
     orgs = {o.id: o.name for o in Organization.query.filter(Organization.id.in_({n.organization_id for n in rows}))} if rows else {}
     return jsonify(
         unread_count=unread,
@@ -39,8 +41,8 @@ def list_notifications():
             {
                 "id": n.id,
                 "kind": n.kind,
-                "title": n.title,
-                "body": n.body,
+                "title": translate(n.title, lang),
+                "body": translate(n.body, lang),
                 "link": n.link,
                 "organization_id": n.organization_id,
                 "organization_name": orgs.get(n.organization_id),

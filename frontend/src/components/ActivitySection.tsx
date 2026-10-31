@@ -4,6 +4,7 @@ import type { Project } from "../api/models";
 import { type ActivityEntry, describe, formatWhen } from "../lib/activity";
 import { errorMessage } from "../lib/errors";
 import { FormError } from "./AuthLayout";
+import { t } from "../i18n";
 
 const PAGE = 10;
 
@@ -29,7 +30,7 @@ export function ActivitySection({ project, refreshKey }: { project: Project; ref
           setPeople((prev) => ({ ...prev, ...r.people }));
           setTotal(r.total);
         })
-        .catch((e) => setError(errorMessage(e, "Couldn't load the activity."))),
+        .catch((e) => setError(errorMessage(e, t("Couldn't load the activity.")))),
     [project.id],
   );
 
@@ -40,18 +41,18 @@ export function ActivitySection({ project, refreshKey }: { project: Project; ref
   return (
     <section className="projects-section" aria-labelledby="activity-heading">
       <div className="section-head">
-        <h2 id="activity-heading">Activity</h2>
+        <h2 id="activity-heading">{t("Activity")}</h2>
       </div>
       <FormError message={error} />
-      {entries === null && !error && <p className="muted">Loading…</p>}
-      {entries && entries.length === 0 && <p className="muted">No changes recorded yet.</p>}
+      {entries === null && !error && <p className="muted">{t("Loading…")}</p>}
+      {entries && entries.length === 0 && <p className="muted">{t("No changes recorded yet.")}</p>}
       {entries && entries.length > 0 && (
         <ol className="activity">
           {entries.map((e) => (
             <li key={e.id}>
               <time dateTime={e.at}>{formatWhen(e.at)}</time>
               <p>
-                <strong>{e.actor ?? "Someone"}</strong> {describe(e, people, project.currency)}.
+                <strong>{e.actor ?? t("Someone")}</strong> {describe(e, people, project.currency)}.
               </p>
             </li>
           ))}
@@ -59,7 +60,7 @@ export function ActivitySection({ project, refreshKey }: { project: Project; ref
       )}
       {entries && entries.length < total && (
         <button type="button" className="btn btn--quiet" onClick={() => load(entries.length)}>
-          Show older
+          {t("Show older")}
         </button>
       )}
     </section>

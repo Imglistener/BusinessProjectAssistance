@@ -98,14 +98,13 @@ def _audit_value(v):
 
 
 def _notify_assignee(task: Task, project: Project, actor_id: int) -> None:
-    due = f" Due {human_date(task.due_date)}." if task.due_date else ""
     notify(
         organization_id=project.organization_id,
         user_ids=[task.assignee_id],
         actor_id=actor_id,
         kind="task_assigned",
         title=f"New task for you: {task.title}",
-        body=f"In {project.name}.{due}",
+        body=f"In {project.name}. Due {human_date(task.due_date)}." if task.due_date else f"In {project.name}.",
         link=f"/app/projects/{project.id}",
     )
 

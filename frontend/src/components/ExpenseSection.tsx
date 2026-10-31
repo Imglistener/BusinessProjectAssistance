@@ -6,6 +6,7 @@ import { formatDate, formatMoney, todayIso } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
 import { ExpenseFiles } from "./ExpenseFiles";
 import { FilterBar, FilterCheck, FilterDate, FilterSelect } from "./Filters";
+import { t } from "../i18n";
 
 const CATEGORIES = ["Design", "Software", "Marketing", "Equipment", "Travel", "Services", "Other"];
 const PAGE = 50;
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export function ExpenseSection({ project, userId, trips, onProjectChange }: Props) {
-  const tripTitle = new Map(trips.map((t) => [t.id, t.title]));
+  const tripTitle = new Map(trips.map((x) => [x.id, x.title]));
   const role = project.my_role ?? "viewer";
   const editable = project.status !== "archived";
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
@@ -54,7 +55,7 @@ export function ExpenseSection({ project, userId, trips, onProjectChange }: Prop
           setMatching(r.matching_amount);
           setCategories(r.categories);
         })
-        .catch((e) => setError(errorMessage(e, "Couldn't load expenses."))),
+        .catch((e) => setError(errorMessage(e, t("Couldn't load expenses.")))),
     [project.id, query],
   );
 
@@ -70,10 +71,10 @@ export function ExpenseSection({ project, userId, trips, onProjectChange }: Prop
   return (
     <section className="projects-section" aria-labelledby="expenses-heading">
       <div className="section-head">
-        <h2 id="expenses-heading">Expenses</h2>
+        <h2 id="expenses-heading">{t("Expenses")}</h2>
         {canContribute(role) && editable && !adding && (
           <button type="button" className="btn btn--primary" onClick={() => setAdding(true)}>
-            Add expense
+            {t("Add expense")}
           </button>
         )}
       </div>
@@ -93,21 +94,21 @@ export function ExpenseSection({ project, userId, trips, onProjectChange }: Prop
         />
       )}
 
-      <FilterBar label="Filter expenses">
+      <FilterBar label={t("Filter expenses")}>
         <FilterSelect
-          label="Category"
+          label={t("Category")}
           value={category}
           onChange={setCategory}
-          options={[{ value: "", label: "All categories" }, ...categories.map((c) => ({ value: c, label: c }))]}
+          options={[{ value: "", label: t("All categories") }, ...categories.map((c) => ({ value: c, label: c }))]}
         />
-        <FilterDate label="From" value={from} onChange={setFrom} />
-        <FilterDate label="To" value={to} onChange={setTo} />
-        <FilterCheck label="Show voided" checked={showVoided} onChange={setShowVoided} />
+        <FilterDate label={t("From")} value={from} onChange={setFrom} />
+        <FilterDate label={t("To")} value={to} onChange={setTo} />
+        <FilterCheck label={t("Show voided")} checked={showVoided} onChange={setShowVoided} />
       </FilterBar>
 
       {filtering && expenses && matching !== null && (
         <p className="filters__summary" role="status">
-          {total} {total === 1 ? "expense" : "expenses"} match. Valid total: {formatMoney(matching, project.currency)}.{" "}
+          {t("{count} expenses match. Valid total: {amount}.", { count: total, amount: formatMoney(matching, project.currency) })}{" "}
           <button
             type="button"
             className="link-btn"
@@ -117,20 +118,20 @@ export function ExpenseSection({ project, userId, trips, onProjectChange }: Prop
               setTo("");
             }}
           >
-            Clear filters
+            {t("Clear filters")}
           </button>
         </p>
       )}
 
-      {expenses === null && !error && <p className="muted">Loading…</p>}
+      {expenses === null && !error && <p className="muted">{t("Loading…")}</p>}
 
       {expenses && expenses.length === 0 && (
         <p className="muted">
           {filtering
-            ? "No expenses match these filters."
+            ? t("No expenses match these filters.")
             : showVoided
-              ? "No expenses yet."
-              : "No expenses yet. Spending you record counts against the budget."}
+              ? t("No expenses yet.")
+              : t("No expenses yet. Spending you record counts against the budget.")}
         </p>
       )}
 
@@ -173,7 +174,7 @@ export function ExpenseSection({ project, userId, trips, onProjectChange }: Prop
 
       {expenses && expenses.length < total && (
         <button type="button" className="btn btn--quiet" onClick={() => load(expenses.length)}>
-          Show more
+          {t("Show more")}
         </button>
       )}
     </section>
@@ -222,12 +223,12 @@ function ExpenseRow({
         <div className="row__main">
           <p className="row__title">
             {expense.category}
-            {voided && <span className="tag">{expense.status === "voided" ? "Voided" : "Refunded"}</span>}
+            {voided && <span className="tag">{expense.status === "voided" ? t("Voided") : t("Refunded")}</span>}
           </p>
           <p className="row__meta">
             {formatDate(expense.expense_date)}
             {expense.description ? ` — ${expense.description}` : ""}
-            {tripTitle ? ` — Trip: ${tripTitle}` : ""}
+            {tripTitle ? ` — ${t("Trip: {title}", { title: tripTitle })}` : ""}
           </p>
         </div>
         <div className="row__side">
@@ -239,26 +240,26 @@ function ExpenseRow({
               aria-expanded={showFiles}
               onClick={() => setShowFiles((s) => !s)}
             >
-              {fileCount > 0 ? `Receipts (${fileCount})` : "Add receipt"}
+              {fileCount > 0 ? t("Receipts ({count})", { count: fileCount }) : t("Add receipt")}
             </button>
           )}
           {canChange &&
             (confirming ? (
               <span className="row__confirm">
                 <button type="button" className="link-btn link-btn--danger" onClick={doVoid} disabled={busy}>
-                  {busy ? "Voiding…" : "Void expense"}
+                  {busy ? t("Voiding…") : t("Void expense")}
                 </button>
                 <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
-                  Keep
+                  {t("Keep")}
                 </button>
               </span>
             ) : (
               <span className="row__confirm">
                 <button type="button" className="link-btn" onClick={onEdit}>
-                  Edit
+                  {t("Edit")}
                 </button>
                 <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
-                  Void
+                  {t("Void")}
                 </button>
               </span>
             ))}
@@ -320,19 +321,19 @@ function ExpenseForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={expense ? "Edit expense" : "Add expense"}>
-      <h3 className="panel__title">{expense ? "Edit expense" : "Add expense"}</h3>
+    <form onSubmit={submit} className="panel form" aria-label={expense ? t("Edit expense") : t("Add expense")}>
+      <h3 className="panel__title">{expense ? t("Edit expense") : t("Add expense")}</h3>
       <FormError message={error} />
       <div className="form__row">
         <SelectField
-          label="Category"
+          label={t("Category")}
           name={`${id}category`}
           value={form.category}
           onChange={set("category")}
           options={categoryOptions}
         />
         <Field
-          label={`Amount (${project.currency})`}
+          label={t("Amount ({currency})", { currency: project.currency })}
           name={`${id}amount`}
           value={form.amount}
           onChange={set("amount")}
@@ -342,7 +343,7 @@ function ExpenseForm({
       </div>
       <div className="form__row">
         <Field
-          label="Date"
+          label={t("Date")}
           name={`${id}date`}
           type="date"
           value={form.expense_date}
@@ -350,7 +351,7 @@ function ExpenseForm({
           error={fieldErrors.expense_date}
         />
         <Field
-          label="Note"
+          label={t("Note")}
           name={`${id}note`}
           value={form.description}
           onChange={set("description")}
@@ -360,23 +361,23 @@ function ExpenseForm({
       </div>
       {trips.length > 0 && (
         <SelectField
-          label="Trip"
+          label={t("Trip")}
           name={`${id}trip`}
           value={form.trip_id}
           onChange={set("trip_id")}
           options={[
-            { value: "", label: "Not for a trip" },
-            ...trips.map((t) => ({ value: String(t.id), label: t.title })),
+            { value: "", label: t("Not for a trip") },
+            ...trips.map((x) => ({ value: String(x.id), label: x.title })),
           ]}
         />
       )}
       {fieldErrors.trip_id && <p className="field__message field__message--error">{fieldErrors.trip_id}</p>}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : expense ? "Save changes" : "Save expense"}
+          {busy ? t("Saving…") : expense ? t("Save changes") : t("Save expense")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
 import { safeNext } from "../lib/format";
+import { t } from "../i18n";
 
 const MIN_PASSWORD = 8;
 
@@ -24,7 +25,7 @@ export default function Signup() {
       setError(null);
       setFieldErrors({});
       if (form.password.length < MIN_PASSWORD) {
-        setFieldErrors({ password: `Use at least ${MIN_PASSWORD} characters.` });
+        setFieldErrors({ password: t("Use at least {count} characters.", { count: MIN_PASSWORD }) });
         return;
       }
       await register({ ...form, email: form.email.trim() });
@@ -32,11 +33,11 @@ export default function Signup() {
     },
     (e) => {
       if (e instanceof ApiError && e.code === "email_taken") {
-        setFieldErrors({ email: "An account with this email already exists. Log in instead." });
+        setFieldErrors({ email: t("An account with this email already exists. Log in instead.") });
       } else if (e instanceof ApiError && e.field) {
         setFieldErrors({ [e.field]: e.message });
       } else {
-        setError(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
+        setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again."));
       }
     },
   );
@@ -44,12 +45,12 @@ export default function Signup() {
   if (user) return <Navigate to={next} replace />;
 
   return (
-    <AuthLayout title="Create your account" subtitle={invited ? "Then you can accept your invite." : "You'll set up your organization next."}>
+    <AuthLayout title={t("Create your account")} subtitle={invited ? t("Then you can accept your invite.") : t("You'll set up your organization next.")}>
       <form onSubmit={submit} className="form">
         <FormError message={error} />
         <div className="form__row">
           <Field
-            label="First name"
+            label={t("First name")}
             name="first_name"
             autoComplete="given-name"
             value={form.first_name}
@@ -57,7 +58,7 @@ export default function Signup() {
             error={fieldErrors.first_name}
           />
           <Field
-            label="Last name"
+            label={t("Last name")}
             name="last_name"
             autoComplete="family-name"
             value={form.last_name}
@@ -66,7 +67,7 @@ export default function Signup() {
           />
         </div>
         <Field
-          label="Email"
+          label={t("Email")}
           name="email"
           type="email"
           autoComplete="email"
@@ -75,21 +76,22 @@ export default function Signup() {
           error={fieldErrors.email}
         />
         <Field
-          label="Password"
+          label={t("Password")}
           name="password"
           type="password"
           autoComplete="new-password"
           value={form.password}
           onChange={set("password")}
           error={fieldErrors.password}
-          hint={`At least ${MIN_PASSWORD} characters.`}
+          hint={t("At least {count} characters.", { count: MIN_PASSWORD })}
         />
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Creating account…" : "Create account"}
+          {busy ? t("Creating account…") : t("Create account")}
         </button>
       </form>
       <p className="auth__switch">
-        Already have an account? <Link to={params.get("next") ? `/login?next=${encodeURIComponent(next)}` : "/login"}>Log in</Link>
+        {t("Already have an account?")}{" "}<Link to={params.get("next") ? `/login?next=${encodeURIComponent(next)}` : "/login"}>{t("Log in")}
+      </Link>
       </p>
     </AuthLayout>
   );

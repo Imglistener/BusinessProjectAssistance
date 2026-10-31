@@ -4,7 +4,9 @@ import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
 import { Icon } from "./Icons";
+import { LanguagePicker } from "./LanguagePicker";
 import { Wordmark } from "./Zellij";
+import { t } from "../i18n";
 
 /** Fired after notifications are read, so the sidebar count refreshes at once. */
 export const NOTIFICATIONS_CHANGED = "bpa:notifications-changed";
@@ -53,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Wordmark light />
           {orgs && orgs.length > 1 && org && (
             <div className="rail__org">
-              <label htmlFor="org-switch">Organization</label>
+              <label htmlFor="org-switch">{t("Organization")}</label>
               <select
                 id="org-switch"
                 value={org.id}
@@ -70,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </select>
             </div>
           )}
-          <nav aria-label="Main">
+          <nav aria-label={t("Main")}>
             <ul className="rail__nav">
               <li>
                 <Link
@@ -79,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={pathname === "/app" ? "page" : undefined}
                 >
                   <Icon name="dashboard" />
-                  <span className="rail__text">Dashboard</span>
+                  <span className="rail__text">{t("Dashboard")}</span>
                 </Link>
               </li>
               <li>
@@ -89,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={onAssistant ? "page" : undefined}
                 >
                   <Icon name="assistant" />
-                  <span className="rail__text">Assistant</span>
+                  <span className="rail__text">{t("Assistant")}</span>
                 </Link>
               </li>
               <li>
@@ -99,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={onInventory ? "page" : undefined}
                 >
                   <Icon name="inventory" />
-                  <span className="rail__text">Inventory</span>
+                  <span className="rail__text">{t("Inventory")}</span>
                 </Link>
               </li>
               <li>
@@ -109,9 +111,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={onNotifications ? "page" : undefined}
                 >
                   <Icon name="notifications" />
-                  <span className="rail__text">Notifications</span>
+                  <span className="rail__text">{t("Notifications")}</span>
                   {unread > 0 && (
-                    <span className="rail__badge" aria-label={`${unread} unread`}>
+                    <span className="rail__badge" aria-label={t("{unread} unread", { unread: unread })}>
                       {unread > 99 ? "99+" : unread}
                     </span>
                   )}
@@ -120,7 +122,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <li>
                 <Link to="/app/members" className={linkClass(onMembers)} aria-current={onMembers ? "page" : undefined}>
                   <Icon name="members" />
-                  <span className="rail__text">Members</span>
+                  <span className="rail__text">{t("Members")}</span>
                 </Link>
               </li>
               <li>
@@ -130,11 +132,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   aria-current={onSettings ? "page" : undefined}
                 >
                   <Icon name="settings" />
-                  <span className="rail__text">Settings</span>
+                  <span className="rail__text">{t("Settings")}</span>
                 </Link>
               </li>
             </ul>
           </nav>
+          <LanguagePicker className="lang-picker--rail" />
           <div className="rail__user">
             <span className="rail__name">
               {user?.first_name} {user?.last_name}
@@ -147,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 navigate("/login", { replace: true });
               }}
             >
-              Log out
+              {t("Log out")}
             </button>
           </div>
         </div>

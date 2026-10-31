@@ -3057,3 +3057,64 @@ a {
     animation: none;
   }
 }
+
+/* Language picker: a quiet select with a globe, in the sidebar, the landing nav and the auth pages. */
+.lang-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lang-picker select {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lang-picker select:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 2px;
+}
+
+.lang-picker--rail,
+.lang-picker--light {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lang-picker--rail select,
+.lang-picker--light select {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lang-picker--rail option,
+.lang-picker--light option {
+  color: var(--ink);
+}
+
+.lang-picker--rail {
+  margin-top: auto;
+  justify-self: start;
+}
+
+.lang-picker--rail + .rail__user {
+  margin-top: -1.25rem;
+}
+
+.auth__main {
+  position: relative;
+}
+
+.auth__lang {
+  position: absolute;
+  top: 1.25rem;
+  inset-inline-end: 1.5rem;
+}

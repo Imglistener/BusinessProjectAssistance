@@ -7,6 +7,7 @@ import { AppShell, NOTIFICATIONS_CHANGED } from "../components/AppShell";
 import { FormError } from "../components/AuthLayout";
 import { formatWhen } from "../lib/activity";
 import { errorMessage } from "../lib/errors";
+import { t } from "../i18n";
 
 export default function Notifications() {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function Notifications() {
         setItems(r.notifications);
         setUnread(r.unread_count);
       })
-      .catch((e) => setError(errorMessage(e, "Couldn't load notifications.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load notifications."))));
   }, []);
 
   useEffect(load, [load]);
@@ -55,25 +56,25 @@ export default function Notifications() {
     <AppShell>
       <header className="main__header">
         <div className="header-actions">
-          <h1>Notifications</h1>
+          <h1>{t("Notifications")}</h1>
           {unread > 0 && (
             <button type="button" className="link-btn" onClick={readAll}>
-              Mark all as read
+              {t("Mark all as read")}
             </button>
           )}
         </div>
-        <p className="main__org">Assignments, trips, budget and stock alerts meant for you.</p>
+        <p className="main__org">{t("Assignments, trips, budget and stock alerts meant for you.")}</p>
       </header>
       <FormError message={error} />
-      {items === null && !error && <p className="muted">Loading…</p>}
-      {items && items.length === 0 && <p className="muted">Nothing yet. You'll see things here when they need you.</p>}
+      {items === null && !error && <p className="muted">{t("Loading…")}</p>}
+      {items && items.length === 0 && <p className="muted">{t("Nothing yet. You'll see things here when they need you.")}</p>}
       {items && items.length > 0 && (
         <ul className="notes">
           {items.map((n) => (
             <li key={n.id}>
               <button type="button" className={n.read ? "note" : "note note--unread"} onClick={() => open(n)}>
                 <span className="note__title">
-                  {!n.read && <span className="note__dot" aria-label="Unread" />}
+                  {!n.read && <span className="note__dot" aria-label={t("Unread")} />}
                   {n.title}
                 </span>
                 {n.body && <span className="note__body">{n.body}</span>}

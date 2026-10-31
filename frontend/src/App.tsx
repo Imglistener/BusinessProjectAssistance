@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import TripDetail from "./pages/TripDetail";
 import ResetPassword from "./pages/ResetPassword";
 import Signup from "./pages/Signup";
+import { t } from "./i18n";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -23,7 +24,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   if (loading)
     return (
       <div className="boot" role="status">
-        Loading…
+        {t("Loading…")}
       </div>
     );
   // Come back to the same page after logging in again.

@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { Organization } from "../api/models";
 import { errorMessage } from "../lib/errors";
 import { useAuth } from "./AuthContext";
+import { t } from "../i18n";
 
 const ORG_KEY = "bpa.org";
 
@@ -49,7 +50,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     api<{ organizations: Organization[] }>("/organizations")
       .then((r) => setOrgs(r.organizations))
-      .catch((e) => setError(errorMessage(e, "Couldn't load your organizations.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load your organizations."))));
   }, [user]);
 
   const select = useCallback((id: number) => {

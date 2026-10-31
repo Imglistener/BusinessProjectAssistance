@@ -23,6 +23,8 @@ from typing import Optional, Protocol
 import requests
 from flask import current_app
 
+from ..i18n import _, translate
+
 RESEND_URL = "https://api.resend.com/emails"
 RETRY_DELAY_SECONDS = 1.0
 
@@ -166,46 +168,62 @@ def app_link(path: str) -> str:
     return current_app.config["APP_BASE_URL"].rstrip("/") + path
 
 
-def _layout(heading: str, paragraphs: list[str], button_label: str, url: str, footer: str) -> str:
+def _layout(heading: str, paragraphs: list[str], button_label: str, url: str, footer: str, lang: str = "en") -> str:
     """Minimal, inline-styled HTML that renders in common mail clients. All text is escaped."""
     body = "".join(f'<p style="margin:0 0 16px">{escape(p)}</p>' for p in paragraphs)
+    direction = "rtl" if lang == "ar" else "ltr"
+    paste = escape(_("Or paste this link into your browser:", lang))
     return (
-        '<div style="font-family:Arial,sans-serif;color:#14183a;max-width:520px;margin:0 auto;padding:24px">'
+        f'<div dir="{direction}" lang="{lang}" '
+        'style="font-family:Arial,sans-serif;color:#14183a;max-width:520px;margin:0 auto;padding:24px">'
         f'<h1 style="font-size:20px;margin:0 0 16px">{escape(heading)}</h1>{body}'
         f'<p style="margin:24px 0"><a href="{escape(url)}" style="background:#2b3ccf;color:#fff;padding:12px 20px;'
         f'border-radius:8px;text-decoration:none;font-weight:bold">{escape(button_label)}</a></p>'
-        f'<p style="margin:0 0 16px;font-size:13px;color:#565c80">Or paste this link into your browser:<br>{escape(url)}</p>'
+        f'<p style="margin:0 0 16px;font-size:13px;color:#565c80">{paste}<br><span dir="ltr">{escape(url)}</span></p>'
         f'<p style="margin:0;font-size:13px;color:#565c80">{escape(footer)}</p></div>'
     )
 
 
-def password_reset_email(to: str, first_name: str, url: str, minutes: int) -> Email:
+def password_reset_email(to: str, first_name: str, url: str, minutes: int, lang: str = "en") -> Email:
+    hi = _("Hi {name},", lang, name=first_name)
+    asked = _("Someone asked to reset the password for your BusinessProjectAssistance account.", lang)
     text = (
-        f"Hi {first_name},\n\nSomeone asked to reset the password for your BusinessProjectAssistance account.\n"
-        f"Use this link within {minutes} minutes:\n\n{url}\n\n"
-        "If you didn't ask for this, ignore this email; your password stays the same."
+        f"{hi}\n\n{asked}\n"
+        + _("Use this link within {minutes} minutes:", lang, minutes=minutes)
+        + f"\n\n{url}\n\n"
+        + _("If you didn't ask for this, ignore this email; your password stays the same.", lang)
     )
     html = _layout(
-        "Reset your password",
-        [f"Hi {first_name},", "Someone asked to reset the password for your BusinessProjectAssistance account."],
-        "Choose a new password",
+        _("Reset your password", lang),
+        [hi, asked],
+        _("Choose a new password", lang),
         url,
-        f"The link works once and expires in {minutes} minutes. If you didn't ask for this, ignore this email.",
+        _("The link works once and expires in {minutes} minutes. If you didn't ask for this, ignore this email.", lang, minutes=minutes),
+        lang,
     )
-    return Email(to=to, subject="Reset your password", text=text, html=html)
+    return Email(to=to, subject=_("Reset your password", lang), text=text, html=html)
 
 
-def invitation_email(to: str, inviter: Optional[str], org_name: str, role_label: str, url: str) -> Email:
-    who = inviter or "Someone"
-    text = (
-        f"{who} invited you to join {org_name} on BusinessProjectAssistance as {role_label}.\n\n"
-        f"Accept the invite:\n\n{url}\n\nThe link works for {to} only and expires in 7 days."
+def invitation_email(
+    to: str, inviter: Optional[str], org_name: str, role_label: str, url: str, lang: str = "en"
+) -> Email:
+    who = inviter or _("Someone", lang)
+    invited = _(
+        "{who} invited you to join {organization} on BusinessProjectAssistance as {role}.",
+        lang,
+        who=who,
+        organization=org_name,
+        role=translate(role_label, lang),
     )
+    only = _("The link works for {email} only and expires in 7 days.", lang, email=to)
+    text = f"{invited}\n\n" + _("Accept the invite:", lang) + f"\n\n{url}\n\n{only}"
     html = _layout(
-        f"Join {org_name}",
-        [f"{who} invited you to join {org_name} on BusinessProjectAssistance as {role_label}."],
-        "Accept the invite",
+        _("Join {organization}", lang, organization=org_name),
+        [invited],
+        _("Accept the invite", lang),
         url,
-        f"The link works for {to} only and expires in 7 days.",
+        only,
+        lang,
     )
-    return Email(to=to, subject=f"{who} invited you to {org_name}", text=text, html=html)
+    subject = _("{who} invited you to {organization}", lang, who=who, organization=org_name)
+    return Email(to=to, subject=subject, text=text, html=html)

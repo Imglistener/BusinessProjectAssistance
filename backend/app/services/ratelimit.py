@@ -59,8 +59,13 @@ def client_ip() -> str:
 
 def too_many(retry_after: int) -> ApiError:
     minutes = math.ceil(retry_after / 60)
-    wait = f"{minutes} minute{'s' if minutes != 1 else ''}" if retry_after >= 60 else "a moment"
-    return ApiError("rate_limited", f"Too many attempts. Try again in {wait}.", 429, {"retry_after": retry_after})
+    if retry_after < 60:
+        message = "Too many attempts. Try again in a moment."
+    elif minutes == 1:
+        message = "Too many attempts. Try again in 1 minute."
+    else:
+        message = f"Too many attempts. Try again in {minutes} minutes."
+    return ApiError("rate_limited", message, 429, {"retry_after": retry_after})
 
 
 def enforce(key: str, limit: int, window: float) -> None:

@@ -7,11 +7,12 @@ import { useOrg } from "../auth/OrgContext";
 import { AuthLayout, FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
 import { ROLE_HINT, ROLE_LABEL } from "../lib/format";
+import { t } from "../i18n";
 
 const CLOSED: Record<string, string> = {
-  expired: "This invite has expired. Ask the person who invited you for a new link.",
-  revoked: "This invite was cancelled. Ask the person who invited you for a new link.",
-  accepted: "This invite has already been used.",
+  expired: t("This invite has expired. Ask the person who invited you for a new link."),
+  revoked: t("This invite was cancelled. Ask the person who invited you for a new link."),
+  accepted: t("This invite has already been used."),
 };
 
 export default function Invite() {
@@ -27,7 +28,7 @@ export default function Invite() {
     api<{ invitation: InvitationPreview }>(`/invitations/${encodeURIComponent(token)}`)
       .then((r) => setInvite(r.invitation))
       .catch((e) =>
-        setError(e instanceof ApiError && e.status === 404 ? "This invite link isn't valid." : errorMessage(e)),
+        setError(e instanceof ApiError && e.status === 404 ? t("This invite link isn't valid.") : errorMessage(e)),
       );
   }, [token]);
 
@@ -47,10 +48,14 @@ export default function Invite() {
   };
 
   const here = `/invite/${token}`;
-  const title = invite ? `Join ${invite.organization_name}` : "Invitation";
+  const title = invite ? t("Join {organization}", { organization: invite.organization_name }) : t("Invitation");
   const subtitle = invite
-    ? `${invite.invited_by ?? "Someone"} invited ${invite.email} as ${ROLE_LABEL[invite.role].toLowerCase()}.`
-    : "Checking your invite link…";
+    ? t("{person} invited {email} as {role}.", {
+        person: invite.invited_by ?? t("Someone"),
+        email: invite.email,
+        role: ROLE_LABEL[invite.role].toLowerCase(),
+      })
+    : t("Checking your invite link…");
 
   return (
     <AuthLayout title={title} subtitle={subtitle}>
@@ -66,27 +71,31 @@ export default function Invite() {
             {!user && (
               <>
                 <Link className="btn btn--primary btn--link" to={`/signup?next=${encodeURIComponent(here)}&email=${encodeURIComponent(invite.email)}`}>
-                  Create an account
+                  {t("Create an account")}
                 </Link>
                 <p className="auth__switch">
-                  Already have an account? <Link to={`/login?next=${encodeURIComponent(here)}`}>Log in</Link>
+                  {t("Already have an account?")}{" "}<Link to={`/login?next=${encodeURIComponent(here)}`}>{t("Log in")}
+                </Link>
                 </p>
               </>
             )}
 
             {user && user.email.toLowerCase() === invite.email && (
               <button type="button" className="btn btn--primary" onClick={accept} disabled={busy}>
-                {busy ? "Joining…" : `Join ${invite.organization_name}`}
+                {busy ? t("Joining…") : t("Join {organization}", { organization: invite.organization_name })}
               </button>
             )}
 
             {user && user.email.toLowerCase() !== invite.email && (
               <>
                 <p>
-                  You're logged in as {user.email}, but this invite is for {invite.email}.
+                  {t("You're logged in as {email}, but this invite is for {invited}.", {
+                    email: user.email,
+                    invited: invite.email,
+                  })}
                 </p>
                 <button type="button" className="btn btn--primary" onClick={logout}>
-                  Log out and switch account
+                  {t("Log out and switch account")}
                 </button>
               </>
             )}
@@ -95,7 +104,7 @@ export default function Invite() {
 
         {(error || (invite && invite.state !== "pending")) && (
           <p className="auth__switch">
-            <Link to={user ? "/app" : "/login"}>{user ? "Go to your dashboard" : "Go to log in"}</Link>
+            <Link to={user ? "/app" : "/login"}>{user ? t("Go to your dashboard") : t("Go to log in")}</Link>
           </p>
         )}
       </div>

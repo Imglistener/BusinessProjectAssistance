@@ -1,11 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiError, SESSION_EXPIRED_EVENT, api, tokenStore } from "../api/client";
+import { getLang } from "../i18n";
 
 export interface User {
   id: number;
   first_name: string;
   last_name: string;
   email: string;
+  /** Language for emails and notifications; follows the language picked in the app. */
+  locale: string;
+}
+
+/** The language picked on this device wins; keep the account in step so emails match. */
+function syncLocale(user: User) {
+  if (user.locale !== getLang()) api("/auth/me", { method: "PATCH", body: { locale: getLang() } }).catch(() => undefined);
 }
 
 interface AuthResponse {
@@ -43,7 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!tokenStore.get()) return;
     api<{ user: User }>("/auth/me")
-      .then((r) => setUser(r.user))
+      .then((r) => {
+        setUser(r.user);
+        syncLocale(r.user);
+      })
       .catch((e) => {
         // Only drop the token when the server rejected it, not on a network blip.
         if (e instanceof ApiError && e.status === 401) tokenStore.clear();
@@ -55,11 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const r = await api<AuthResponse>("/auth/login", { body: { email, password } });
     tokenStore.set(r.access_token);
     setUser(r.user);
+    syncLocale(r.user);
     setExpired(false);
   }, []);
 
   const register = useCallback<AuthState["register"]>(async (input) => {
-    const r = await api<AuthResponse>("/auth/register", { body: input });
+    const r = await api<AuthResponse>("/auth/register", { body: { ...input, locale: getLang() } });
     tokenStore.set(r.access_token);
     setUser(r.user);
   }, []);

@@ -3,6 +3,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Config
 from .extensions import cors, db, jwt, migrate
+from .i18n import request_lang, translate
 
 
 def create_app(config_object=Config):
@@ -33,7 +34,7 @@ def create_app(config_object=Config):
 
     # Consistent JSON errors for JWT problems.
     def _jwt_error(code, message):
-        return jsonify(error={"code": code, "message": message}), 401
+        return jsonify(error={"code": code, "message": translate(message, request_lang())}), 401
 
     jwt.unauthorized_loader(lambda reason: _jwt_error("unauthorized", "Authentication required."))
     jwt.invalid_token_loader(lambda reason: _jwt_error("invalid_token", "Invalid token."))
@@ -41,17 +42,18 @@ def create_app(config_object=Config):
 
     @app.errorhandler(404)
     def not_found(_e):
-        return jsonify(error={"code": "not_found", "message": "Resource not found."}), 404
+        return jsonify(error={"code": "not_found", "message": translate("Resource not found.", request_lang())}), 404
 
     @app.errorhandler(413)
     def too_large(_e):
         mb = app.config["MAX_UPLOAD_MB"]
-        return jsonify(error={"code": "file_too_large", "message": f"Files can be at most {mb} MB."}), 413
+        message = translate(f"Files can be at most {mb} MB.", request_lang())
+        return jsonify(error={"code": "file_too_large", "message": message}), 413
 
     @app.errorhandler(500)
     def server_error(_e):
         # Never expose stack traces or internals (FR-18).
-        return jsonify(error={"code": "server_error", "message": "Unexpected error."}), 500
+        return jsonify(error={"code": "server_error", "message": translate("Unexpected error.", request_lang())}), 500
 
     return app
 

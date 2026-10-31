@@ -16,14 +16,16 @@ import { Field, FormError, SelectField, useSubmit } from "../components/AuthLayo
 import { FilterBar, FilterCheck, useDebounced } from "../components/Filters";
 import { formatWhen } from "../lib/activity";
 import { errorMessage } from "../lib/errors";
-import { formatMoney } from "../lib/format";
+import { formatMoney, formatNumber } from "../lib/format";
+import { t } from "../i18n";
+import { tx } from "../i18n/rich";
 
-const qty = (q: string, unit: string) => `${Number(q).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit}`;
+const qty = (q: string, unit: string) => `${formatNumber(q)} ${unit}`;
 const KIND_LABEL: Record<string, string> = {
-  receive: "Received",
-  issue: "Issued",
-  adjust: "Adjusted",
-  count: "Counted",
+  receive: t("Received"),
+  issue: t("Issued"),
+  adjust: t("Adjusted"),
+  count: t("Counted"),
 };
 
 export default function Inventory() {
@@ -31,18 +33,18 @@ export default function Inventory() {
   return (
     <AppShell>
       <header className="main__header">
-        <h1>Inventory</h1>
+        <h1>{t("Inventory")}</h1>
         {org && (
           <p className="main__org">
-            Stock kept by {org.name}. Values in {org.default_currency}.
+            {t("Stock kept by {organization}. Values in {currency}.", { organization: org.name, currency: org.default_currency })}
           </p>
         )}
       </header>
       <FormError message={error} />
-      {orgs === null && !error && <p className="muted">Loading…</p>}
+      {orgs === null && !error && <p className="muted">{t("Loading…")}</p>}
       {orgs !== null && !org && (
         <p className="muted">
-          Create your organization on the <Link to="/app">dashboard</Link> first.
+          {tx("Create your organization on the {dashboard} first.", { dashboard: <Link to="/app">{t("dashboard")}</Link> })}
         </p>
       )}
       {org && <InventoryManager key={org.id} org={org} />}
@@ -76,7 +78,7 @@ function InventoryManager({ org }: { org: Organization }) {
         setItems(r.items);
         setSummary(r.summary);
       })
-      .catch((e) => setError(errorMessage(e, "Couldn't load the inventory.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load the inventory."))));
   }, [org.id, query]);
 
   useEffect(load, [load]);
@@ -107,17 +109,17 @@ function InventoryManager({ org }: { org: Organization }) {
   return (
     <>
       {summary && (
-        <section className="totals" aria-label="Inventory totals">
+        <section className="totals" aria-label={t("Inventory totals")}>
           <div>
-            <span className="totals__label">Items in stock</span>
+            <span className="totals__label">{t("Items in stock")}</span>
             <span className="totals__value">{summary.item_count}</span>
           </div>
           <div>
-            <span className="totals__label">Stock value</span>
+            <span className="totals__label">{t("Stock value")}</span>
             <span className="totals__value">{formatMoney(summary.stock_value, summary.currency)}</span>
           </div>
           <div>
-            <span className="totals__label">Low stock</span>
+            <span className="totals__label">{t("Low stock")}</span>
             <span className={summary.low_stock_count > 0 ? "totals__value totals__value--over" : "totals__value"}>
               {summary.low_stock_count}
             </span>
@@ -126,8 +128,7 @@ function InventoryManager({ org }: { org: Organization }) {
       )}
       {summary && summary.unpriced_item_count > 0 && (
         <p className="muted inventory__note">
-          {summary.unpriced_item_count} {summary.unpriced_item_count === 1 ? "item has" : "items have"} no unit cost, so
-          {summary.unpriced_item_count === 1 ? " it isn't" : " they aren't"} in the stock value.
+          {t("{count} items have no unit cost, so they aren't in the stock value.", { count: summary.unpriced_item_count })}
         </p>
       )}
 
@@ -135,16 +136,16 @@ function InventoryManager({ org }: { org: Organization }) {
 
       <section className="projects-section" aria-labelledby="items-heading">
         <div className="section-head">
-          <h2 id="items-heading">Items</h2>
+          <h2 id="items-heading">{t("Items")}</h2>
           <div className="form__actions">
             {canMove && items && items.length > 0 && mode === "list" && (
               <button type="button" className="btn btn--secondary" onClick={() => setMode("count")}>
-                Stock count
+                {t("Stock count")}
               </button>
             )}
             {canManage && mode === "list" && (
               <button type="button" className="btn btn--primary" onClick={() => setMode("add")}>
-                Add item
+                {t("Add item")}
               </button>
             )}
           </div>
@@ -161,29 +162,29 @@ function InventoryManager({ org }: { org: Organization }) {
           />
         )}
 
-        <FilterBar label="Filter items">
+        <FilterBar label={t("Filter items")}>
           <label className="filter filter--grow">
-            <span className="filter__label">Search</span>
+            <span className="filter__label">{t("Search")}</span>
             <input
               type="search"
-              placeholder="Name, SKU or location"
+              placeholder={t("Name, SKU or location")}
               value={search}
               maxLength={100}
               onChange={(e) => setSearch(e.target.value)}
             />
           </label>
-          <FilterCheck label="Only low stock" checked={lowOnly} onChange={setLowOnly} />
-          <FilterCheck label="Show archived" checked={showArchived} onChange={setShowArchived} />
+          <FilterCheck label={t("Only low stock")} checked={lowOnly} onChange={setLowOnly} />
+          <FilterCheck label={t("Show archived")} checked={showArchived} onChange={setShowArchived} />
         </FilterBar>
 
-        {items === null && !error && <p className="muted">Loading…</p>}
+        {items === null && !error && <p className="muted">{t("Loading…")}</p>}
         {items && items.length === 0 && (
           <p className="muted">
             {q || lowOnly
-              ? "No items match these filters."
+              ? t("No items match these filters.")
               : canManage
-                ? "No items yet. Add what you keep in stock, with a reorder level to get low-stock warnings."
-                : "No items yet."}
+                ? t("No items yet. Add what you keep in stock, with a reorder level to get low-stock warnings.")
+                : t("No items yet.")}
           </p>
         )}
         {items && items.length > 0 && (
@@ -245,13 +246,13 @@ function ItemRow({
         <div className="row__main">
           <p className="row__title">
             {item.name}
-            {item.low_stock && <span className="tag tag--warn">Low stock</span>}
-            {item.archived && <span className="tag">Archived</span>}
+            {item.low_stock && <span className="tag tag--warn">{t("Low stock")}</span>}
+            {item.archived && <span className="tag">{t("Archived")}</span>}
           </p>
           <p className="row__meta">
             {meta ? `${meta} — ` : ""}
-            {item.unit_cost ? `${formatMoney(item.unit_cost, item.currency)} per ${item.unit}` : "No unit cost"}
-            {item.reorder_level ? ` — reorder at ${qty(item.reorder_level, item.unit)}` : ""}
+            {item.unit_cost ? t("{price} per {unit}", { price: formatMoney(item.unit_cost, item.currency), unit: item.unit }) : t("No unit cost")}
+            {item.reorder_level ? ` — ${t("reorder at {quantity}", { quantity: qty(item.reorder_level, item.unit) })}` : ""}
           </p>
         </div>
         <div className="row__side">
@@ -267,29 +268,29 @@ function ItemRow({
         {!item.archived && canMove && (
           <>
             <button type="button" className="link-btn" onClick={() => setPanel(panel === "receive" ? null : "receive")}>
-              Receive
+              {t("Receive")}
             </button>
             <button type="button" className="link-btn" onClick={() => setPanel(panel === "issue" ? null : "issue")}>
-              Issue
+              {t("Issue")}
             </button>
           </>
         )}
         {!item.archived && canManage && (
           <>
             <button type="button" className="link-btn" onClick={() => setPanel(panel === "adjust" ? null : "adjust")}>
-              Adjust
+              {t("Adjust")}
             </button>
             <button type="button" className="link-btn" onClick={() => setPanel(panel === "edit" ? null : "edit")}>
-              Edit
+              {t("Edit")}
             </button>
           </>
         )}
         <button type="button" className="link-btn" onClick={() => setPanel(panel === "history" ? null : "history")}>
-          History
+          {t("History")}
         </button>
         {canManage && (
           <button type="button" className="link-btn" onClick={toggleArchive}>
-            {item.archived ? "Restore" : "Archive"}
+            {item.archived ? t("Restore") : t("Archive")}
           </button>
         )}
       </div>
@@ -341,7 +342,7 @@ function MovementForm({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const id = `move_${item.id}_`;
-  const title = { receive: "Receive stock", issue: "Issue stock", adjust: "Adjust stock" }[kind];
+  const title = { receive: t("Receive stock"), issue: t("Issue stock"), adjust: t("Adjust stock") }[kind];
 
   const { busy, submit } = useSubmit(
     async () => {
@@ -369,7 +370,7 @@ function MovementForm({
       <FormError message={error} />
       <div className="form__row">
         <Field
-          label={kind === "adjust" ? `Change (${item.unit}, use - to remove)` : `Quantity (${item.unit})`}
+          label={kind === "adjust" ? t("Change ({unit}, use - to remove)", { unit: item.unit }) : t("Quantity ({unit})", { unit: item.unit })}
           name={`${id}qty`}
           value={quantity}
           onChange={setQuantity}
@@ -378,18 +379,18 @@ function MovementForm({
         />
         {kind === "issue" ? (
           <SelectField
-            label="For project"
+            label={t("For project")}
             name={`${id}project`}
             value={projectId}
             onChange={setProjectId}
             options={[
-              { value: "", label: "No project" },
+              { value: "", label: t("No project") },
               ...projects.map((p) => ({ value: String(p.id), label: p.name })),
             ]}
           />
         ) : (
           <Field
-            label={kind === "adjust" ? "Reason" : "Note"}
+            label={kind === "adjust" ? t("Reason") : t("Note")}
             name={`${id}note`}
             value={note}
             onChange={setNote}
@@ -400,7 +401,7 @@ function MovementForm({
       </div>
       {kind === "issue" && (
         <Field
-          label="Note"
+          label={t("Note")}
           name={`${id}note`}
           value={note}
           onChange={setNote}
@@ -409,13 +410,13 @@ function MovementForm({
         />
       )}
       {fieldErrors.project_id && <p className="field__message field__message--error">{fieldErrors.project_id}</p>}
-      <p className="muted">On hand now: {qty(item.quantity_on_hand, item.unit)}.</p>
+      <p className="muted">{t("On hand now: {quantity}.", { quantity: qty(item.quantity_on_hand, item.unit) })}</p>
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : title}
+          {busy ? t("Saving…") : title}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>
@@ -474,13 +475,13 @@ function ItemForm({
   );
 
   return (
-    <form onSubmit={submit} className="panel form inventory__form" aria-label={item ? "Edit item" : "Add item"}>
-      <h3 className="panel__title">{item ? "Edit item" : "Add item"}</h3>
+    <form onSubmit={submit} className="panel form inventory__form" aria-label={item ? t("Edit item") : t("Add item")}>
+      <h3 className="panel__title">{item ? t("Edit item") : t("Add item")}</h3>
       <FormError message={error} />
       <div className="form__row">
-        <Field label="Name" name={`${id}name`} value={form.name} onChange={set("name")} error={fieldErrors.name} />
+        <Field label={t("Name")} name={`${id}name`} value={form.name} onChange={set("name")} error={fieldErrors.name} />
         <Field
-          label="SKU"
+          label={t("SKU")}
           name={`${id}sku`}
           value={form.sku}
           onChange={set("sku")}
@@ -490,16 +491,16 @@ function ItemForm({
       </div>
       <div className="form__row">
         <Field
-          label="Unit"
+          label={t("Unit")}
           name={`${id}unit`}
           value={form.unit}
           onChange={set("unit")}
           error={fieldErrors.unit}
-          hint="pcs, box, kg, litre…"
+          hint={t("pcs, box, kg, litre…")}
           maxLength={20}
         />
         <Field
-          label={`Unit cost (${org.default_currency})`}
+          label={t("Unit cost ({default_currency})", { default_currency: org.default_currency })}
           name={`${id}cost`}
           value={form.unit_cost}
           onChange={set("unit_cost")}
@@ -510,17 +511,17 @@ function ItemForm({
       </div>
       <div className="form__row">
         <Field
-          label="Reorder level"
+          label={t("Reorder level")}
           name={`${id}reorder`}
           value={form.reorder_level}
           onChange={set("reorder_level")}
           error={fieldErrors.reorder_level}
-          hint="Warn when stock gets this low."
+          hint={t("Warn when stock gets this low.")}
           required={false}
           inputMode="decimal"
         />
         <Field
-          label="Location"
+          label={t("Location")}
           name={`${id}location`}
           value={form.location}
           onChange={set("location")}
@@ -530,22 +531,22 @@ function ItemForm({
       </div>
       {!item && (
         <Field
-          label="Opening stock"
+          label={t("Opening stock")}
           name={`${id}qty`}
           value={form.quantity}
           onChange={set("quantity")}
           error={fieldErrors.quantity}
-          hint="How many you have now. Leave empty for zero."
+          hint={t("How many you have now. Leave empty for zero.")}
           required={false}
           inputMode="decimal"
         />
       )}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : item ? "Save changes" : "Add item"}
+          {busy ? t("Saving…") : item ? t("Save changes") : t("Add item")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>
@@ -559,20 +560,23 @@ function History({ item }: { item: InventoryItem }) {
   useEffect(() => {
     api<{ movements: Movement[] }>(`/inventory/${item.id}/movements?limit=20`)
       .then((r) => setRows(r.movements))
-      .catch((e) => setError(errorMessage(e, "Couldn't load the history.")));
+      .catch((e) => setError(errorMessage(e, t("Couldn't load the history."))));
   }, [item.id, item.quantity_on_hand]);
 
   if (error) return <FormError message={error} />;
-  if (!rows) return <p className="muted">Loading…</p>;
+  if (!rows) return <p className="muted">{t("Loading…")}</p>;
   return (
     <ol className="activity inventory__history">
       {rows.map((m) => (
         <li key={m.id}>
           <time dateTime={m.created_at}>{formatWhen(m.created_at)}</time>
           <p>
-            <strong>{KIND_LABEL[m.kind]}</strong> {Number(m.quantity_delta) > 0 ? "+" : ""}
-            {qty(m.quantity_delta, item.unit)}, leaving {qty(m.quantity_after, item.unit)}
-            {m.project_name ? ` — for ${m.project_name}` : ""}
+            <strong>{KIND_LABEL[m.kind]}</strong>{" "}
+            {t("{change}, leaving {quantity}", {
+              change: `${Number(m.quantity_delta) > 0 ? "+" : ""}${qty(m.quantity_delta, item.unit)}`,
+              quantity: qty(m.quantity_after, item.unit),
+            })}
+            {m.project_name ? ` — ${t("for {project}", { project: m.project_name })}` : ""}
             {m.note ? ` — ${m.note}` : ""}
             {m.created_by ? ` (${m.created_by})` : ""}
           </p>
@@ -632,26 +636,31 @@ function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
     return (
       <section className="panel" aria-labelledby="count-done">
         <h2 id="count-done" className="panel__title">
-          Count saved
+          {t("Count saved")}
         </h2>
         <p>
-          {result.results.length} {result.results.length === 1 ? "item" : "items"} counted,{" "}
-          {result.changed_count === 0 ? "no differences." : `${result.changed_count} different from the records.`}
-          {result.changed_count > 0 && ` Stock value changed by ${formatMoney(result.value_change, result.currency)}.`}
+          {result.changed_count === 0
+            ? t("{count} items counted, no differences.", { count: result.results.length })
+            : t("{count} items counted, {changed} different from the records.", {
+                count: result.results.length,
+                changed: result.changed_count,
+              })}
+          {result.changed_count > 0 &&
+            ` ${t("Stock value changed by {amount}.", { amount: formatMoney(result.value_change, result.currency) })}`}
         </p>
         {changed.length > 0 && (
           <table className="report__table">
             <thead>
               <tr>
-                <th scope="col">Item</th>
+                <th scope="col">{t("Item")}</th>
                 <th scope="col" className="num">
-                  Expected
+                  {t("Expected")}
                 </th>
                 <th scope="col" className="num">
-                  Counted
+                  {t("Counted")}
                 </th>
                 <th scope="col" className="num">
-                  Difference
+                  {t("Difference")}
                 </th>
               </tr>
             </thead>
@@ -672,7 +681,7 @@ function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
         )}
         <div className="form__actions inventory__done">
           <button type="button" className="btn btn--primary" onClick={onDone}>
-            Back to inventory
+            {t("Back to inventory")}
           </button>
         </div>
       </section>
@@ -682,27 +691,26 @@ function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
   return (
     <form onSubmit={submit} className="panel form" aria-labelledby="count-heading">
       <h2 id="count-heading" className="panel__title">
-        Stock count
+        {t("Stock count")}
       </h2>
       <p className="muted">
-        Enter what you count on the shelf. Items you leave empty aren't changed. Quantities are set to what you enter,
-        and the differences are recorded.
+        {t("Enter what you count on the shelf. Items you leave empty aren't changed. Quantities are set to what you enter, and the differences are recorded.")}
       </p>
       <FormError message={error} />
-      <FilterCheck label="Show expected quantities" checked={showExpected} onChange={setShowExpected} />
-      {!items && !error && <p className="muted">Loading…</p>}
+      <FilterCheck label={t("Show expected quantities")} checked={showExpected} onChange={setShowExpected} />
+      {!items && !error && <p className="muted">{t("Loading…")}</p>}
       {items && (
         <table className="report__table count-table">
           <thead>
             <tr>
-              <th scope="col">Item</th>
+              <th scope="col">{t("Item")}</th>
               {showExpected && (
                 <th scope="col" className="num">
-                  Expected
+                  {t("Expected")}
                 </th>
               )}
               <th scope="col" className="num">
-                Counted
+                {t("Counted")}
               </th>
             </tr>
           </thead>
@@ -721,7 +729,7 @@ function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
                     inputMode="decimal"
                     value={counts[i.id] ?? ""}
                     onChange={(e) => setCounts((c) => ({ ...c, [i.id]: e.target.value }))}
-                    aria-label={`Counted ${i.unit} of ${i.name}`}
+                    aria-label={t("Counted {unit} of {name}", { unit: i.unit, name: i.name })}
                   />{" "}
                   <span className="muted">{i.unit}</span>
                 </td>
@@ -731,19 +739,19 @@ function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
         </table>
       )}
       <Field
-        label="Note"
+        label={t("Note")}
         name="count_note"
         value={note}
         onChange={setNote}
-        hint='Defaults to "Stock count".'
+        hint={t("Defaults to \"Stock count\".")}
         required={false}
       />
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy || entered.length === 0}>
-          {busy ? "Saving…" : `Save count (${entered.length})`}
+          {busy ? t("Saving…") : t("Save count ({count})", { count: entered.length })}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

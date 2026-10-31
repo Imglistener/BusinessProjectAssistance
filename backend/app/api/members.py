@@ -13,6 +13,7 @@ from flask_jwt_extended import jwt_required
 from ..errors import ApiError
 from ..extensions import db
 from ..models import Organization, OrganizationInvitation, OrganizationMember, Role, User, utcnow
+from ..i18n import request_lang
 from ..services.audit import log_action
 from ..services.email import app_link, invitation_email, send_email
 from ..services.notifications import notify
@@ -202,7 +203,9 @@ def create_invitation(org_id: int):
     db.session.commit()
     org = db.session.get(Organization, org_id)
     emailed = send_email(
-        invitation_email(email, user.first_name, org.name, ROLE_LABELS[role], app_link(f"/invite/{token}")),
+        invitation_email(
+            email, user.first_name, org.name, ROLE_LABELS[role], app_link(f"/invite/{token}"), lang=request_lang()
+        ),
         idempotency_key=f"invitation/{inv.id}",
     )
     # The token is returned this once (so the owner can also share the link); only its hash is stored.

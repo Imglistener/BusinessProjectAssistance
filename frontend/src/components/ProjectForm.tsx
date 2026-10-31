@@ -3,6 +3,7 @@ import { ApiError, api } from "../api/client";
 import type { Organization, Project } from "../api/models";
 import { STATUS_LABEL } from "../lib/format";
 import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
+import { t } from "../i18n";
 
 // Archiving has its own button (with a confirmation), so it isn't offered here.
 const STATUS_OPTIONS = ["planned", "active", "on_hold", "completed"].map((s) => ({ value: s, label: STATUS_LABEL[s] }));
@@ -56,19 +57,19 @@ export function ProjectForm({ org, project, onSaved, onCancel }: Props) {
     },
     (e) => {
       if (e instanceof ApiError && e.field) setFieldErrors({ [e.field]: e.message });
-      else setError(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
+      else setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again."));
     },
   );
 
-  const title = editing ? "Edit project" : "New project";
+  const title = editing ? t("Edit project") : t("New project");
 
   return (
     <form onSubmit={submit} className="panel form" aria-label={title}>
       <h2 className="panel__title">{title}</h2>
       <FormError message={error} />
-      <Field label="Project name" name="name" value={form.name} onChange={set("name")} error={fieldErrors.name} />
+      <Field label={t("Project name")} name="name" value={form.name} onChange={set("name")} error={fieldErrors.name} />
       <div className="field">
-        <label htmlFor="description">Description</label>
+        <label htmlFor="description">{t("Description")}</label>
         <div className="field__control">
           <textarea
             id="description"
@@ -83,28 +84,28 @@ export function ProjectForm({ org, project, onSaved, onCancel }: Props) {
       </div>
       <div className="form__row">
         <Field
-          label="Budget"
+          label={t("Budget")}
           name="budget"
           value={form.budget}
           onChange={set("budget")}
           error={fieldErrors.budget}
-          hint={editing ? "Leave empty for no budget." : "You can set or change it later."}
+          hint={editing ? t("Leave empty for no budget.") : t("You can set or change it later.")}
           required={false}
           inputMode="decimal"
         />
         <Field
-          label="Currency"
+          label={t("Currency")}
           name="currency"
           value={form.currency}
           onChange={set("currency")}
           error={fieldErrors.currency}
-          hint="Fixed once expenses exist."
+          hint={t("Fixed once expenses exist.")}
           maxLength={3}
         />
       </div>
       <div className="form__row">
         <Field
-          label="Start date"
+          label={t("Start date")}
           name="start_date"
           type="date"
           value={form.start_date}
@@ -113,7 +114,7 @@ export function ProjectForm({ org, project, onSaved, onCancel }: Props) {
           required={false}
         />
         <Field
-          label="End date"
+          label={t("End date")}
           name="end_date"
           type="date"
           value={form.end_date}
@@ -123,14 +124,14 @@ export function ProjectForm({ org, project, onSaved, onCancel }: Props) {
         />
       </div>
       {!(editing && project.status === "archived") && (
-        <SelectField label="Status" name="status" value={form.status} onChange={set("status")} options={STATUS_OPTIONS} />
+        <SelectField label={t("Status")} name="status" value={form.status} onChange={set("status")} options={STATUS_OPTIONS} />
       )}
       <div className="form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Saving…" : editing ? "Save changes" : "Create project"}
+          {busy ? t("Saving…") : editing ? t("Save changes") : t("Create project")}
         </button>
         <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </form>

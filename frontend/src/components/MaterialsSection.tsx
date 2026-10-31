@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { formatMoney } from "../lib/format";
+import { formatMoney, formatNumber } from "../lib/format";
+import { t } from "../i18n";
 
 interface Materials {
   materials: { item_id: number; name: string; unit: string; quantity: string; value: string | null }[];
@@ -24,18 +25,18 @@ export function MaterialsSection({ projectId, refreshKey }: { projectId: number;
   return (
     <section className="projects-section" aria-labelledby="materials-heading">
       <div className="section-head">
-        <h2 id="materials-heading">Materials used</h2>
-        <Link to="/app/inventory">Inventory</Link>
+        <h2 id="materials-heading">{t("Materials used")}</h2>
+        <Link to="/app/inventory">{t("Inventory")}</Link>
       </div>
       <table className="report__table">
         <thead>
           <tr>
-            <th scope="col">Item</th>
+            <th scope="col">{t("Item")}</th>
             <th scope="col" className="num">
-              Issued
+              {t("Issued")}
             </th>
             <th scope="col" className="num">
-              Value
+              {t("Value")}
             </th>
           </tr>
         </thead>
@@ -44,16 +45,18 @@ export function MaterialsSection({ projectId, refreshKey }: { projectId: number;
             <tr key={m.item_id}>
               <td>{m.name}</td>
               <td className="num">
-                {Number(m.quantity).toLocaleString("en-US", { maximumFractionDigits: 2 })} {m.unit}
+                {formatNumber(m.quantity)} {m.unit}
               </td>
-              <td className="num">{m.value ? formatMoney(m.value, data.currency) : "No unit cost"}</td>
+              <td className="num">{m.value ? formatMoney(m.value, data.currency) : t("No unit cost")}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="muted report__note">
-        Total {formatMoney(data.total_value, data.currency)} at current unit costs. Stock issued from inventory isn't
-        counted in the project's spending; record a purchase as an expense if it should be.
+        {t(
+          "Total {amount} at current unit costs. Stock issued from inventory isn't counted in the project's spending; record a purchase as an expense if it should be.",
+          { amount: formatMoney(data.total_value, data.currency) },
+        )}
       </p>
     </section>
   );

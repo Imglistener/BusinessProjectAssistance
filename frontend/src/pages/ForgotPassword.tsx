@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { AuthLayout, Field, FormError, useSubmit } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
+import { t } from "../i18n";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -19,25 +20,26 @@ export default function ForgotPassword() {
   );
 
   return (
-    <AuthLayout title="Reset your password" subtitle="We'll email you a link to choose a new one.">
+    <AuthLayout title={t("Reset your password")} subtitle={t("We'll email you a link to choose a new one.")}>
       {sent ? (
         <div className="form">
           <p className="notice" role="status">
             {sent}
           </p>
-          <p className="muted">The link expires in 30 minutes. Check your spam folder if it doesn't arrive.</p>
+          <p className="muted">{t("The link expires in 30 minutes. Check your spam folder if it doesn't arrive.")}</p>
         </div>
       ) : (
         <form onSubmit={submit} className="form">
           <FormError message={error} />
-          <Field label="Email" name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
+          <Field label={t("Email")} name="email" type="email" autoComplete="email" value={email} onChange={setEmail} />
           <button className="btn btn--primary" type="submit" disabled={busy}>
-            {busy ? "Sending…" : "Send reset link"}
+            {busy ? t("Sending…") : t("Send reset link")}
           </button>
         </form>
       )}
       <p className="auth__switch">
-        Remembered it? <Link to="/login">Log in</Link>
+        {t("Remembered it?")}{" "}<Link to="/login">{t("Log in")}
+      </Link>
       </p>
     </AuthLayout>
   );

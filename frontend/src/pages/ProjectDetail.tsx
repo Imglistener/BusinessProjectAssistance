@@ -14,6 +14,7 @@ import { TaskSection } from "../components/TaskSection";
 import { TripSection } from "../components/TripSection";
 import { errorMessage } from "../lib/errors";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
+import { t } from "../i18n";
 
 export default function ProjectDetail() {
   const { projectId } = useParams();
@@ -29,8 +30,8 @@ export default function ProjectDetail() {
       .catch((e) =>
         setError(
           e instanceof ApiError && e.status === 404
-            ? "We couldn't find that project."
-            : errorMessage(e, "Couldn't load this project."),
+            ? t("We couldn't find that project.")
+            : errorMessage(e, t("Couldn't load this project.")),
         ),
       );
   }, [projectId]);
@@ -68,11 +69,11 @@ export default function ProjectDetail() {
   return (
     <AppShell>
       <Link to="/app" className="back">
-        All projects
+        {t("All projects")}
       </Link>
 
       <FormError message={error} />
-      {!project && !error && <p className="muted">Loading…</p>}
+      {!project && !error && <p className="muted">{t("Loading…")}</p>}
 
       {project && user && (
         <>
@@ -145,31 +146,31 @@ function ProjectActions({ project, onProjectChange }: { project: Project; onProj
           disabled={busy}
           onClick={() => run(`/projects/${project.id}`, { method: "PATCH", body: { status: "active" } })}
         >
-          {busy ? "Restoring…" : "Restore project"}
+          {busy ? t("Restoring…") : t("Restore project")}
         </button>
       ) : (
         <>
           <button type="button" className="btn btn--secondary" onClick={() => setEditing(true)}>
-            Edit project
+            {t("Edit project")}
           </button>
           {confirming ? (
             <span className="row__confirm">
-              <span>Archive it? Its expenses and tasks become read-only.</span>
+              <span>{t("Archive it? Its expenses and tasks become read-only.")}</span>
               <button
                 type="button"
                 className="link-btn link-btn--danger"
                 disabled={busy}
                 onClick={() => run(`/projects/${project.id}/archive`, { method: "POST" })}
               >
-                {busy ? "Archiving…" : "Archive"}
+                {busy ? t("Archiving…") : t("Archive")}
               </button>
               <button type="button" className="link-btn" onClick={() => setConfirming(false)} disabled={busy}>
-                Keep
+                {t("Keep")}
               </button>
             </span>
           ) : (
             <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
-              Archive
+              {t("Archive")}
             </button>
           )}
         </>
@@ -190,38 +191,38 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
         <div className="header-actions">
           <h1>{project.name}</h1>
           <span className="header-links">
-            <Link to={`/app/projects/${project.id}/report`}>Report</Link>
-            <Link to={`/app/assistant?project=${project.id}`}>Ask the assistant</Link>
+            <Link to={`/app/projects/${project.id}/report`}>{t("Report")}</Link>
+            <Link to={`/app/assistant?project=${project.id}`}>{t("Ask the assistant")}</Link>
           </span>
         </div>
         <p className="main__org">
           {STATUS_LABEL[project.status]}
           {dates ? `. ${dates}.` : "."}
-          {project.task_completion_pct !== null && ` ${formatPct(project.task_completion_pct)} of tasks done.`}
+          {project.task_completion_pct !== null &&
+            ` ${t("{pct} of tasks done.", { pct: formatPct(project.task_completion_pct) })}`}
         </p>
         {project.description && <p className="project__description">{project.description}</p>}
       </header>
 
       {project.status === "archived" && (
         <p className="notice" role="status">
-          This project is archived, so its expenses and tasks are read-only.
-          {canManage ? " Restore it to make changes." : ""}
+          {t("This project is archived, so its expenses and tasks are read-only.")}{canManage ? ` ${t("Restore it to make changes.")}` : ""}
         </p>
       )}
 
       {canManage && <ProjectActions project={project} onProjectChange={onProjectChange} />}
 
-      <section className="totals" aria-label="Budget">
+      <section className="totals" aria-label={t("Budget")}>
         <div>
-          <span className="totals__label">Budget</span>
+          <span className="totals__label">{t("Budget")}</span>
           <span className="totals__value">{formatMoney(project.budget, project.currency)}</span>
         </div>
         <div>
-          <span className="totals__label">Spent</span>
+          <span className="totals__label">{t("Spent")}</span>
           <span className="totals__value">{formatMoney(project.actual, project.currency)}</span>
         </div>
         <div>
-          <span className="totals__label">Remaining</span>
+          <span className="totals__label">{t("Remaining")}</span>
           <span className={project.over_budget ? "totals__value totals__value--over" : "totals__value"}>
             {formatMoney(project.remaining, project.currency)}
           </span>
@@ -233,7 +234,7 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
           <div
             className={project.over_budget ? "bar bar--over" : "bar"}
             role="progressbar"
-            aria-label="Budget used"
+            aria-label={t("Budget used")}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(used)}
@@ -242,8 +243,8 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
           </div>
           <p className={project.over_budget ? "project__note project__note--over" : "project__note"}>
             {project.over_budget
-              ? `Over budget by ${formatMoney(project.variance, project.currency)}`
-              : `${formatPct(project.consumed_pct)} of the budget used`}
+              ? t("Over budget by {amount}", { amount: formatMoney(project.variance, project.currency) })
+              : t("{pct} of the budget used", { pct: formatPct(project.consumed_pct) })}
           </p>
         </div>
       )}

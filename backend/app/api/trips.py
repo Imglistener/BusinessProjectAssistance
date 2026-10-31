@@ -14,6 +14,7 @@ from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
+from ..i18n import request_lang, translate
 from ..models import Expense, Organization, OrganizationMember, Project, Trip, TripItem, TripItemKind, TripStatus, User
 from ..services import metrics
 from ..services import projects as svc
@@ -358,7 +359,9 @@ def update_trip(trip_id: int):
     if outside:
         raise ApiError(
             "itinerary_outside_dates",
-            f"{len(outside)} itinerary {'item is' if len(outside) == 1 else 'items are'} outside the new dates. Move or remove them first.",
+            "1 itinerary item is outside the new dates. Move or remove it first."
+            if len(outside) == 1
+            else f"{len(outside)} itinerary items are outside the new dates. Move or remove them first.",
             409,
             {"field": "start_date" if any(i.date < start for i in outside) else "end_date"},
         )
@@ -435,7 +438,11 @@ def fuel_estimate(trip_id: int):
     if overrides["vehicle_type"] and overrides["vehicle_type"] not in travel.VEHICLES:
         raise ApiError("validation_error", "Unknown vehicle type.", 400, {"field": "vehicle_type"})
     try:
-        return jsonify(estimate=travel.estimate_for_trip(trip, project, overrides))
+        estimate = travel.estimate_for_trip(trip, project, overrides)
+        lang = request_lang()
+        estimate["assumptions"] = [translate(a, lang) for a in estimate["assumptions"]]
+        estimate["warnings"] = [translate(w, lang) for w in estimate["warnings"]]
+        return jsonify(estimate=estimate)
     except travel.EstimateUnavailable as e:
         raise ApiError("estimate_unavailable", str(e), 409)
 

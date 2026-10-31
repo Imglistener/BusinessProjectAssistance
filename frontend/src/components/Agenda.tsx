@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { DeadlineItem, Deadlines } from "../api/models";
+import { getLocale, t } from "../i18n";
 
-const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric" });
-const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short" });
+const dayFmt = new Intl.DateTimeFormat(getLocale(), { day: "numeric" });
+const monthFmt = new Intl.DateTimeFormat(getLocale(), { month: "short" });
 
 function parts(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -15,22 +16,22 @@ function parts(iso: string) {
 /** Plain-language timing, relative to today. */
 function when(item: DeadlineItem): string {
   const d = item.days_until_due;
-  if (d === null) return "No due date";
-  if (d < 0) return `${-d} ${d === -1 ? "day" : "days"} late`;
-  if (item.kind === "trip") return d === 0 ? "Leaves today" : d === 1 ? "Leaves tomorrow" : `Leaves in ${d} days`;
-  if (d === 0) return "Due today";
-  if (d === 1) return "Due tomorrow";
-  return `In ${d} days`;
+  if (d === null) return t("No due date");
+  if (d < 0) return t("{count} days late", { count: -d });
+  if (item.kind === "trip") return d === 0 ? t("Leaves today") : d === 1 ? t("Leaves tomorrow") : t("Leaves in {count} days", { count: d });
+  if (d === 0) return t("Due today");
+  if (d === 1) return t("Due tomorrow");
+  return t("In {count} days", { count: d });
 }
 
 const GROUPS: { key: string; title: string; test: (d: number | null) => boolean }[] = [
-  { key: "overdue", title: "Overdue", test: (d) => d !== null && d < 0 },
-  { key: "soon", title: "Today and tomorrow", test: (d) => d !== null && d >= 0 && d <= 1 },
-  { key: "week", title: "This week", test: (d) => d !== null && d >= 2 && d <= 7 },
-  { key: "later", title: "Later", test: (d) => d === null || d > 7 },
+  { key: "overdue", title: t("Overdue"), test: (d) => d !== null && d < 0 },
+  { key: "soon", title: t("Today and tomorrow"), test: (d) => d !== null && d >= 0 && d <= 1 },
+  { key: "week", title: t("This week"), test: (d) => d !== null && d >= 2 && d <= 7 },
+  { key: "later", title: t("Later"), test: (d) => d === null || d > 7 },
 ];
 
-const KIND_LABEL: Record<string, string> = { milestone: "Milestone", trip: "Trip" };
+const KIND_LABEL: Record<string, string> = { milestone: t("Milestone"), trip: t("Trip") };
 
 function Row({ item, showAssignee }: { item: DeadlineItem; showAssignee: boolean }) {
   const date = item.due_date ? parts(item.due_date) : null;
@@ -58,7 +59,7 @@ function Row({ item, showAssignee }: { item: DeadlineItem; showAssignee: boolean
             <span className={`agenda__kind agenda__kind--${item.kind}`}>{KIND_LABEL[item.kind]}</span>
           )}
           <span>{item.project_name}</span>
-          {showAssignee && item.kind === "task" && <span>{item.assignee ?? "Unassigned"}</span>}
+          {showAssignee && item.kind === "task" && <span>{item.assignee ?? t("Unassigned")}</span>}
         </span>
       </span>
     </li>
@@ -88,24 +89,24 @@ export function Agenda({ orgId, refreshKey }: { orgId: number; refreshKey: numbe
   return (
     <section className="agenda" aria-labelledby="agenda-title">
       <div className="agenda__head">
-        <h2 id="agenda-title">Agenda</h2>
-        <div className="segmented" role="group" aria-label="Show">
+        <h2 id="agenda-title">{t("Agenda")}</h2>
+        <div className="segmented" role="group" aria-label={t("Show")}>
           <button type="button" aria-pressed={view === "all"} onClick={() => setView("all")}>
-            Everything
+            {t("Everything")}
           </button>
           <button type="button" aria-pressed={view === "mine"} onClick={() => setView("mine")}>
-            Mine{data && data.my_task_count > 0 ? ` (${data.my_task_count})` : ""}
+            {t("Mine")}{data && data.my_task_count > 0 ? ` (${data.my_task_count})` : ""}
           </button>
         </div>
       </div>
 
-      {failed && <p className="muted">The agenda couldn't load. Reload the page to try again.</p>}
-      {!data && !failed && <p className="muted">Loading…</p>}
+      {failed && <p className="muted">{t("The agenda couldn't load. Reload the page to try again.")}</p>}
+      {!data && !failed && <p className="muted">{t("Loading…")}</p>}
       {data && items.length === 0 && (
         <p className="agenda__empty">
           {view === "all"
-            ? `Nothing overdue or due in the next ${data.horizon_days} days.`
-            : "No open tasks are assigned to you."}
+            ? t("Nothing overdue or due in the next {horizon_days} days.", { horizon_days: data.horizon_days })
+            : t("No open tasks are assigned to you.")}
         </p>
       )}
 
@@ -126,7 +127,7 @@ export function Agenda({ orgId, refreshKey }: { orgId: number; refreshKey: numbe
             </div>
           );
         })}
-      {hidden > 0 && <p className="muted agenda__more">and {hidden} more.</p>}
+      {hidden > 0 && <p className="muted agenda__more">{t("and {count} more.", { count: hidden })}</p>}
     </section>
   );
 }
