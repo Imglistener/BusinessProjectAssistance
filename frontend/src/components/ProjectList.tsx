@@ -1,34 +1,66 @@
+import { AlertTriangle, CalendarDays, ChevronRight } from "lucide-react";
+import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import type { Project } from "../api/models";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
-import { t } from "../i18n";
+import { isRtl, t } from "../i18n";
 import { tx } from "../i18n/rich";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-function Budget({ project }: { project: Project }) {
+/** Over budget beats overdue work; everything else is on track. */
+function health(p: Project): "over" | "late" | "ok" {
+  if (p.over_budget) return "over";
+  if (p.overdue_task_count > 0) return "late";
+  return "ok";
+}
+
+const STATUS_STYLE: Record<string, string> = {
+  planned: "bg-secondary text-secondary-foreground",
+  active: "bg-primary/10 text-primary",
+  on_hold: "bg-warning/15 text-amber-700 dark:text-amber-300",
+  completed: "bg-success/15 text-emerald-700 dark:text-emerald-300",
+  archived: "bg-muted text-muted-foreground",
+};
+
+export function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge variant="secondary" className={cn("rounded-md border-0 font-medium", STATUS_STYLE[status])}>
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
+function BudgetBar({ project }: { project: Project }) {
   const hasBudget = Number(project.budget) > 0;
   if (!hasBudget && Number(project.actual) === 0) {
-    return <p className="project__budget project__budget--none">{t("No budget set")}</p>;
+    return <p className="text-sm text-muted-foreground">{t("No budget set")}</p>;
   }
   const used = project.consumed_pct === null ? 0 : Math.min(Number(project.consumed_pct), 100);
   return (
-    <div className="project__budget">
-      <p>
+    <div className="grid gap-1.5">
+      <p className="tabular text-sm text-muted-foreground">
         {tx("{spent} spent of {budget}", {
-          spent: <strong>{formatMoney(project.actual, project.currency)}</strong>,
+          spent: <span className="font-medium text-foreground">{formatMoney(project.actual, project.currency)}</span>,
           budget: formatMoney(project.budget, project.currency),
         })}
       </p>
       <div
-        className={project.over_budget ? "bar bar--over" : "bar"}
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
         aria-label={t("Budget used")}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(used)}
       >
-        <div className="bar__fill" style={{ width: `${used}%` }} />
+        <motion.div
+          className={cn("h-full rounded-full", project.over_budget ? "bg-destructive" : "bg-primary")}
+          initial={{ width: 0 }}
+          animate={{ width: `${used}%` }}
+          transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+        />
       </div>
-      <p className={project.over_budget ? "project__note project__note--over" : "project__note"}>
+      <p className={cn("tabular text-xs", project.over_budget ? "font-medium text-destructive" : "text-muted-foreground")}>
         {project.over_budget
           ? t("Over budget by {amount}", { amount: formatMoney(project.variance, project.currency) })
           : hasBudget
@@ -42,36 +74,57 @@ function Budget({ project }: { project: Project }) {
   );
 }
 
-/** Over budget beats overdue work; everything else is on track. */
-function health(p: Project): "over" | "late" | "ok" {
-  if (p.over_budget) return "over";
-  if (p.overdue_task_count > 0) return "late";
-  return "ok";
-}
-
 export function ProjectList({ projects }: { projects: Project[] }) {
   return (
-    <ul className="projects">
-      {projects.map((p) => {
+    <ul className="divide-y">
+      {projects.map((p, i) => {
         const dates = formatDateRange(p.start_date, p.end_date);
+        const state = health(p);
         return (
-          <li key={p.id} className={`project project--${health(p)}`}>
-            <div className="project__main">
-              <h3 className="project__name">
-                <Link to={`/app/projects/${p.id}`}>{p.name}</Link>
-              </h3>
-              <p className="project__meta">
-                <span className={`status status--${p.status}`}>{STATUS_LABEL[p.status]}</span>
-                {dates && <span>{dates}</span>}
-                {p.overdue_task_count > 0 && (
-                  <span className="project__overdue">
-                    {t("{count} overdue tasks", { count: p.overdue_task_count })}
-                  </span>
+          <motion.li
+            key={p.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: Math.min(i, 8) * 0.03 }}
+          >
+            <Link
+              to={`/app/projects/${p.id}`}
+              className="group relative grid gap-4 py-4 ps-4 pe-2 transition-colors hover:bg-muted/50 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] sm:items-center"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-y-4 start-0 w-1 rounded-full",
+                  state === "over" ? "bg-destructive" : state === "late" ? "bg-warning" : "bg-border",
                 )}
-              </p>
-            </div>
-            <Budget project={p} />
-          </li>
+              />
+              <div className="grid min-w-0 gap-1.5">
+                <h3 className="project-name truncate font-medium text-foreground">{p.name}</h3>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <StatusBadge status={p.status} />
+                  {dates && (
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDays className="size-3.5" />
+                      {dates}
+                    </span>
+                  )}
+                  {p.overdue_task_count > 0 && (
+                    <span className="inline-flex items-center gap-1 font-medium text-destructive">
+                      <AlertTriangle className="size-3.5" />
+                      {t("{count} overdue tasks", { count: p.overdue_task_count })}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <BudgetBar project={p} />
+              <ChevronRight
+                className={cn(
+                  "hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block",
+                  isRtl() && "rotate-180 group-hover:-translate-x-0.5",
+                )}
+              />
+            </Link>
+          </motion.li>
         );
       })}
     </ul>

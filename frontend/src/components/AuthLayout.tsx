@@ -5,7 +5,7 @@ import { t } from "../i18n";
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="auth">
+    <div className="auth legacy">
       <aside className="auth__brand">
         <ZellijField className="auth__field" />
         <Wordmark light />

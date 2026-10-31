@@ -65,7 +65,7 @@ export default function Report() {
   };
 
   return (
-    <div className="report">
+    <div className="report legacy">
       <div className="report__toolbar no-print">
         <Link to={`/app/projects/${projectId}`} className="back">
           {t("Back to project")}

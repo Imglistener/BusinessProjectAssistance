@@ -1,8 +1,13 @@
+import { Flag, Plane } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { DeadlineItem, Deadlines } from "../api/models";
 import { getLocale, t } from "../i18n";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
 const dayFmt = new Intl.DateTimeFormat(getLocale(), { day: "numeric" });
 const monthFmt = new Intl.DateTimeFormat(getLocale(), { month: "short" });
@@ -31,37 +36,45 @@ const GROUPS: { key: string; title: string; test: (d: number | null) => boolean 
   { key: "later", title: t("Later"), test: (d) => d === null || d > 7 },
 ];
 
-const KIND_LABEL: Record<string, string> = { milestone: t("Milestone"), trip: t("Trip") };
-
 function Row({ item, showAssignee }: { item: DeadlineItem; showAssignee: boolean }) {
   const date = item.due_date ? parts(item.due_date) : null;
   const href =
     item.kind === "trip" ? `/app/projects/${item.project_id}/trips/${item.id}` : `/app/projects/${item.project_id}`;
   return (
-    <li className={item.overdue ? "agenda__item agenda__item--late" : "agenda__item"}>
-      <span className="agenda__date" aria-hidden={!date}>
-        {date ? (
-          <>
-            <span className="agenda__day">{date.day}</span>
-            <span className="agenda__month">{date.month}</span>
-          </>
-        ) : (
-          <span className="agenda__month">—</span>
-        )}
-      </span>
-      <span className="agenda__body">
-        <Link to={href} className="agenda__title">
-          {item.title}
-        </Link>
-        <span className="agenda__meta">
-          <span className="agenda__when">{when(item)}</span>
-          {KIND_LABEL[item.kind] && (
-            <span className={`agenda__kind agenda__kind--${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+    <li>
+      <Link
+        to={href}
+        className="group -mx-2 flex items-start gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
+      >
+        <span
+          className={cn(
+            "grid w-11 shrink-0 place-items-center rounded-lg border py-1 text-center leading-none",
+            item.overdue ? "border-destructive/30 bg-destructive/5 text-destructive" : "bg-muted/40",
           )}
-          <span>{item.project_name}</span>
-          {showAssignee && item.kind === "task" && <span>{item.assignee ?? t("Unassigned")}</span>}
+          aria-hidden={!date}
+        >
+          {date ? (
+            <>
+              <span className="tabular text-base font-semibold">{date.day}</span>
+              <span className="mt-0.5 text-[10px] uppercase tracking-wide opacity-70">{date.month}</span>
+            </>
+          ) : (
+            <span className="py-1.5 text-xs">—</span>
+          )}
         </span>
-      </span>
+        <span className="grid min-w-0 flex-1 gap-0.5">
+          <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+            {item.kind === "milestone" && <Flag className="size-3.5 shrink-0 text-warning" aria-label={t("Milestone")} />}
+            {item.kind === "trip" && <Plane className="size-3.5 shrink-0 text-primary" aria-label={t("Trip")} />}
+            <span className="truncate">{item.title}</span>
+          </span>
+          <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+            <span className={cn(item.overdue && "font-medium text-destructive")}>{when(item)}</span>
+            <span className="truncate">{item.project_name}</span>
+            {showAssignee && item.kind === "task" && <span>{item.assignee ?? t("Unassigned")}</span>}
+          </span>
+        </span>
+      </Link>
     </li>
   );
 }
@@ -87,47 +100,77 @@ export function Agenda({ orgId, refreshKey }: { orgId: number; refreshKey: numbe
     : 0;
 
   return (
-    <section className="agenda" aria-labelledby="agenda-title">
-      <div className="agenda__head">
-        <h2 id="agenda-title">{t("Agenda")}</h2>
-        <div className="segmented" role="group" aria-label={t("Show")}>
-          <button type="button" aria-pressed={view === "all"} onClick={() => setView("all")}>
+    <Card className="gap-4">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+        <CardTitle id="agenda-title" className="text-base">
+          {t("Agenda")}
+        </CardTitle>
+        <ToggleGroup
+          type="single"
+          size="sm"
+          variant="outline"
+          value={view}
+          onValueChange={(v) => v && setView(v as "all" | "mine")}
+          aria-label={t("Show")}
+        >
+          <ToggleGroupItem value="all" className="px-3 text-xs">
             {t("Everything")}
-          </button>
-          <button type="button" aria-pressed={view === "mine"} onClick={() => setView("mine")}>
-            {t("Mine")}{data && data.my_task_count > 0 ? ` (${data.my_task_count})` : ""}
-          </button>
-        </div>
-      </div>
-
-      {failed && <p className="muted">{t("The agenda couldn't load. Reload the page to try again.")}</p>}
-      {!data && !failed && <p className="muted">{t("Loading…")}</p>}
-      {data && items.length === 0 && (
-        <p className="agenda__empty">
-          {view === "all"
-            ? t("Nothing overdue or due in the next {horizon_days} days.", { horizon_days: data.horizon_days })
-            : t("No open tasks are assigned to you.")}
-        </p>
-      )}
-
-      {data &&
-        GROUPS.map((g) => {
-          const rows = items.filter((i) => g.test(i.days_until_due));
-          if (!rows.length) return null;
-          return (
-            <div key={g.key} className={`agenda__group agenda__group--${g.key}`}>
-              <h3>
-                {g.title} <span className="agenda__count">{rows.length}</span>
-              </h3>
-              <ul>
-                {rows.map((i) => (
-                  <Row key={`${i.kind}-${i.id}`} item={i} showAssignee={view === "all"} />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      {hidden > 0 && <p className="muted agenda__more">{t("and {count} more.", { count: hidden })}</p>}
-    </section>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="mine" className="px-3 text-xs">
+            {t("Mine")}
+            {data && data.my_task_count > 0 ? ` (${data.my_task_count})` : ""}
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </CardHeader>
+      <CardContent className="grid gap-5" aria-labelledby="agenda-title">
+        {failed && <p className="text-sm text-muted-foreground">{t("The agenda couldn't load. Reload the page to try again.")}</p>}
+        {!data && !failed && (
+          <div className="grid gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-3">
+                <Skeleton className="h-11 w-11 rounded-lg" />
+                <div className="grid flex-1 gap-2 py-1">
+                  <Skeleton className="h-3.5 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {data && items.length === 0 && (
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            {view === "all"
+              ? t("Nothing overdue or due in the next {horizon_days} days.", { horizon_days: data.horizon_days })
+              : t("No open tasks are assigned to you.")}
+          </p>
+        )}
+        {data &&
+          GROUPS.map((g) => {
+            const rows = items.filter((i) => g.test(i.days_until_due));
+            if (!rows.length) return null;
+            return (
+              <section key={g.key} className="grid gap-1">
+                <h3
+                  className={cn(
+                    "flex items-center gap-2 text-xs font-medium text-muted-foreground",
+                    g.key === "overdue" && "text-destructive",
+                  )}
+                >
+                  {g.title}
+                  <span className="tabular rounded-full bg-muted px-1.5 py-px text-[10px] text-muted-foreground">
+                    {rows.length}
+                  </span>
+                </h3>
+                <ul className="grid">
+                  {rows.map((i) => (
+                    <Row key={`${i.kind}-${i.id}`} item={i} showAssignee={view === "all"} />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        {hidden > 0 && <p className="text-xs text-muted-foreground">{t("and {count} more.", { count: hidden })}</p>}
+      </CardContent>
+    </Card>
   );
 }

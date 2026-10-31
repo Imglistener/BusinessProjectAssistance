@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, CircleDollarSign, Clock, FolderPlus, Plus, Search, X } from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ApiError, api } from "../api/client";
 import {
   canManageProjects,
@@ -9,15 +11,24 @@ import {
 } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
-import { Field, FormError, useSubmit } from "../components/AuthLayout";
-import { FilterBar, FilterCheck, FilterSelect, useDebounced } from "../components/Filters";
+import { useSubmit } from "../components/AuthLayout";
+import { useDebounced } from "../components/Filters";
 import { Agenda } from "../components/Agenda";
-import { ProjectForm } from "../components/ProjectForm";
+import { AnimatedMoney } from "../components/AnimatedMoney";
+import { FormAlert, SimpleSelect, TextField } from "../components/form";
+import { LogoMark } from "../components/Logo";
+import { ProjectFormDialog } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
 import { AppShell } from "../components/AppShell";
-import { ZellijField } from "../components/Zellij";
 import { STATUS_LABEL, formatMoney, formatPct } from "../lib/format";
 import { t } from "../i18n";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 const STATUS_FILTERS = [
   { value: "", label: t("All except archived") },
@@ -36,31 +47,44 @@ function greeting(hour: number) {
   return t("Good evening");
 }
 
+/** Cards rise in one short, staggered sequence on load; nothing moves after that. */
+const rise = (i: number) => ({
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.3, delay: i * 0.05, ease: [0.2, 0.7, 0.2, 1] as const },
+});
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { orgs, org, error: loadError, add } = useOrg();
   const hello = t("{greeting}, {name}", { greeting: greeting(new Date().getHours()), name: user?.first_name ?? "" });
 
   return (
-    <AppShell>
-      {!org && (
-        <header className="main__header">
-          <h1>{hello}</h1>
-        </header>
-      )}
-
-      <FormError message={loadError} />
-
-      {orgs === null && !loadError && <p className="muted">{t("Loading…")}</p>}
-
-      {orgs !== null && !org && <CreateOrganization onCreated={add} />}
-
-      {org && <OrgOverview key={org.id} org={org} hello={hello} />}
+    <AppShell legacy={false}>
+      <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 md:p-8">
+        <FormAlert message={loadError} />
+        {orgs === null && !loadError && <DashboardSkeleton />}
+        {orgs !== null && !org && <CreateOrganization hello={hello} onCreated={add} />}
+        {org && <OrgOverview key={org.id} org={org} hello={hello} />}
+      </div>
     </AppShell>
   );
 }
 
-function CreateOrganization({ onCreated }: { onCreated(org: Organization): void }) {
+function DashboardSkeleton() {
+  return (
+    <div className="grid gap-6" role="status" aria-label={t("Loading…")}>
+      <Skeleton className="h-9 w-72" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-40 md:col-span-2" />
+        <Skeleton className="h-40" />
+      </div>
+      <Skeleton className="h-96" />
+    </div>
+  );
+}
+
+function CreateOrganization({ hello, onCreated }: { hello: string; onCreated(org: Organization): void }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -74,20 +98,37 @@ function CreateOrganization({ onCreated }: { onCreated(org: Organization): void 
   );
 
   return (
-    <section className="empty empty--form">
-      <ZellijField className="empty__field" />
-      <div className="empty__body">
-        <h2>{t("Name your organization")}</h2>
-        <p>{t("Projects, budgets and teammates live inside an organization. You'll be its owner. Amounts default to MAD.")}</p>
-        <form onSubmit={submit} className="form form--inline">
-          <FormError message={error} />
-          <Field label={t("Organization name")} name="org_name" value={name} onChange={setName} />
-          <button className="btn btn--primary" type="submit" disabled={busy}>
-            {busy ? t("Creating…") : t("Create organization")}
-          </button>
-        </form>
-      </div>
-    </section>
+    <motion.div {...rise(0)} className="mx-auto grid w-full max-w-lg gap-6 pt-10">
+      <h1 className="text-2xl font-semibold tracking-tight">{hello}</h1>
+      <Card>
+        <CardHeader>
+          <span className="mb-2 flex size-10 items-center justify-center rounded-xl bg-primary/10">
+            <LogoMark className="size-6 text-primary" />
+          </span>
+          <CardTitle>{t("Name your organization")}</CardTitle>
+          <CardDescription>
+            {t("Projects, budgets and teammates live inside an organization. You'll be its owner. Amounts default to MAD.")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submit} className="grid gap-4">
+            <FormAlert message={error} />
+            <TextField
+              id="org_name"
+              label={t("Organization name")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={200}
+              autoFocus
+            />
+            <Button type="submit" disabled={busy} className="justify-self-start">
+              {busy ? t("Creating…") : t("Create organization")}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -110,7 +151,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
   if (overBudget) query.set("over_budget", "true");
   const queryString = query.toString();
 
-  // Bumped after a new project so the deadline panels refresh too.
+  // Bumped after a new project so the agenda refreshes too.
   const [refreshKey, setRefreshKey] = useState(0);
 
   const loadSummary = useCallback(() => {
@@ -131,7 +172,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
   useEffect(loadSummary, [loadSummary]);
   useEffect(loadProjects, [loadProjects]);
 
-  const load = () => {
+  const reload = () => {
     loadSummary();
     loadProjects();
     setRefreshKey((k) => k + 1);
@@ -149,159 +190,264 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
 
   return (
     <>
-      <FormError message={error} />
-
-      <section className="briefing" aria-label={t("Overview")}>
-        <ZellijField className="briefing__field" />
-        <div className="briefing__inner">
-          <div className="briefing__hello">
-            <h1>{hello}</h1>
-            <p>
-              {org.name}
-              {summary ? `${t(", ")}${t("{count} active projects", { count: summary.project_count })}` : ""}.{" "}
-              {t("Amounts in {currency}.", { currency: org.default_currency })}
-            </p>
-          </div>
-
-          {summary && totals.length === 0 && (
-            <p className="briefing__empty">{t("Budgets you set on projects add up here.")}</p>
-          )}
-          {totals.map((x) => (
-            <BudgetRibbon key={x.currency} totals={x} />
-          ))}
-
-          {summary && (summary.over_budget_project_count > 0 || summary.overdue_task_count > 0) && (
-            <ul className="briefing__alerts" aria-label={t("Needs attention")}>
-              {summary.over_budget_project_count > 0 && (
-                <li>
-                  <button type="button" onClick={() => setOverBudget(true)}>
-                    {t("{count} projects are over budget", { count: summary.over_budget_project_count })}
-                  </button>
-                </li>
-              )}
-              {summary.overdue_task_count > 0 && (
-                <li>
-                  {t("{count} overdue tasks, listed in the agenda", { count: summary.overdue_task_count })}
-                </li>
-              )}
-            </ul>
-          )}
+      <motion.header {...rise(0)} className="flex flex-wrap items-end justify-between gap-4">
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{hello}</h1>
+          <p className="text-sm text-muted-foreground">
+            {org.name}
+            {summary ? `${t(", ")}${t("{count} active projects", { count: summary.project_count })}` : ""}.{" "}
+            {t("Amounts in {currency}.", { currency: org.default_currency })}
+          </p>
         </div>
+        {canCreate && (
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="size-4" />
+            {t("New project")}
+          </Button>
+        )}
+      </motion.header>
+
+      <FormAlert message={error} />
+
+      <section aria-label={t("Overview")} className="grid gap-4 md:grid-cols-3">
+        {summary === null ? (
+          <>
+            <Skeleton className="h-44 md:col-span-2" />
+            <Skeleton className="h-44" />
+          </>
+        ) : (
+          <>
+            <motion.div {...rise(1)} className="grid gap-4 md:col-span-2">
+              {totals.length === 0 ? (
+                <Card className="h-full justify-center">
+                  <CardContent className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <CircleDollarSign className="size-5" />
+                    {t("Budgets you set on projects add up here.")}
+                  </CardContent>
+                </Card>
+              ) : (
+                totals.map((c) => <BudgetCard key={c.currency} totals={c} />)
+              )}
+            </motion.div>
+            <motion.div {...rise(2)} className="grid gap-4">
+              <AttentionCard
+                icon={<AlertTriangle className="size-4" />}
+                tone={summary.over_budget_project_count > 0 ? "danger" : "calm"}
+                value={summary.over_budget_project_count}
+                label={t("Projects over budget")}
+                onClick={summary.over_budget_project_count > 0 ? () => setOverBudget(true) : undefined}
+              />
+              <AttentionCard
+                icon={<Clock className="size-4" />}
+                tone={summary.overdue_task_count > 0 ? "warning" : "calm"}
+                value={summary.overdue_task_count}
+                label={t("Overdue tasks")}
+              />
+            </motion.div>
+          </>
+        )}
       </section>
 
-      <div className="dash-grid">
-        <aside className="dash-grid__side" aria-label={t("Agenda")}>
-          <Agenda orgId={org.id} refreshKey={refreshKey} />
-        </aside>
-
-        <section aria-labelledby="projects-heading" className="projects-section dash-grid__main">
-          <div className="section-head">
-            <h2 id="projects-heading">{t("Projects")}</h2>
-            {canCreate && !creating && !empty && (
-              <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-                {t("New project")}
-              </button>
-            )}
-          </div>
-
-          {creating && (
-            <ProjectForm
-              org={org}
-              onCancel={() => setCreating(false)}
-              onSaved={() => {
-                setCreating(false);
-                load();
-              }}
-            />
-          )}
-
-          {!empty && (
-            <FilterBar label={t("Filter projects")}>
-              <label className="filter filter--grow">
-                <span className="filter__label">{t("Search")}</span>
-                <input
-                  type="search"
-                  placeholder={t("Name or description")}
-                  value={search}
-                  maxLength={100}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </label>
-              <FilterSelect label={t("Status")} value={status} onChange={setStatus} options={STATUS_FILTERS} />
-              <FilterSelect label={t("Sort by")} value={sort} onChange={setSort} options={SORT_OPTIONS} />
-              <FilterCheck label={t("Only over budget")} checked={overBudget} onChange={setOverBudget} />
-            </FilterBar>
-          )}
-
-          {projects === null && !error && <p className="muted">{t("Loading…")}</p>}
-
-          {noMatches && (
-            <p className="muted">
-              {t("No projects match these filters.")}{" "}
-              <button type="button" className="link-btn" onClick={clearFilters}>
-                {t("Clear filters")}
-              </button>
-            </p>
-          )}
-
-          {projects && projects.length > 0 && <ProjectList projects={projects} />}
-
-          {empty && !creating && (
-            <div className="empty">
-              <ZellijField className="empty__field" />
-              <div className="empty__body">
-                <h2>{t("No projects yet")}</h2>
-                <p>
-                  {canCreate
-                    ? t("Add a project with a budget and dates. Totals, deadlines and warnings start showing here.")
-                    : t("Ask an organization owner or project manager to add the first project.")}
-                </p>
-                {canCreate && (
-                  <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-                    {t("Create a project")}
-                  </button>
-                )}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <motion.section {...rise(3)} aria-labelledby="projects-heading">
+          <Card className="gap-0 py-0">
+            <CardHeader className="gap-4 border-b py-5">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle id="projects-heading" className="text-base">
+                  {t("Projects")}
+                  {projects && projects.length > 0 && (
+                    <span className="tabular ms-2 text-sm font-normal text-muted-foreground">{projects.length}</span>
+                  )}
+                </CardTitle>
               </div>
-            </div>
-          )}
-        </section>
+              {!empty && (
+                <div role="search" aria-label={t("Filter projects")} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder={t("Name or description")}
+                      aria-label={t("Search")}
+                      value={search}
+                      maxLength={100}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="ps-9"
+                    />
+                  </div>
+                  <SimpleSelect ariaLabel={t("Status")} value={status} onChange={setStatus} options={STATUS_FILTERS} />
+                  <SimpleSelect ariaLabel={t("Sort by")} value={sort} onChange={setSort} options={SORT_OPTIONS} />
+                  <div className="flex items-center gap-2 sm:col-span-3">
+                    <Checkbox id="over-budget" checked={overBudget} onCheckedChange={(v) => setOverBudget(v === true)} />
+                    <Label htmlFor="over-budget" className="text-sm font-normal text-muted-foreground">
+                      {t("Only over budget")}
+                    </Label>
+                    {filtering && (
+                      <Button variant="ghost" size="sm" className="ms-auto h-7 text-xs" onClick={clearFilters}>
+                        <X className="size-3.5" />
+                        {t("Clear filters")}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="px-2 py-1">
+              {projects === null && !error && (
+                <div className="grid gap-4 p-4">
+                  {[0, 1, 2].map((i) => (
+                    <Skeleton key={i} className="h-16" />
+                  ))}
+                </div>
+              )}
+              {noMatches && (
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("No projects match these filters.")}</p>
+              )}
+              {projects && projects.length > 0 && <ProjectList projects={projects} />}
+              {empty && (
+                <div className="grid justify-items-center gap-3 px-6 py-14 text-center">
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <FolderPlus className="size-6" />
+                  </span>
+                  <h2 className="font-semibold">{t("No projects yet")}</h2>
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    {canCreate
+                      ? t("Add a project with a budget and dates. Totals, deadlines and warnings start showing here.")
+                      : t("Ask an organization owner or project manager to add the first project.")}
+                  </p>
+                  {canCreate && (
+                    <Button onClick={() => setCreating(true)} className="mt-2">
+                      <Plus className="size-4" />
+                      {t("Create a project")}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.section>
+
+        <motion.aside {...rise(4)} aria-label={t("Agenda")} className="lg:sticky lg:top-20">
+          <Agenda orgId={org.id} refreshKey={refreshKey} />
+        </motion.aside>
       </div>
+
+      <ProjectFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        org={org}
+        onSaved={() => {
+          setCreating(false);
+          reload();
+        }}
+      />
     </>
   );
 }
 
-/** Spending against budget for one currency, as a single bar: the dashboard's headline figure. */
-function BudgetRibbon({ totals: c }: { totals: CurrencyTotals }) {
+/** Spending against budget for one currency: the dashboard's headline figure. */
+function BudgetCard({ totals: c }: { totals: CurrencyTotals }) {
   const used = c.consumed_pct === null ? 0 : Number(c.consumed_pct);
   const over = c.remaining.startsWith("-");
   return (
-    <div className={over ? "ribbon ribbon--over" : "ribbon"}>
-      <p className="ribbon__headline">
-        <span className="ribbon__spent">{formatMoney(c.actual, c.currency)}</span>
-        <span className="ribbon__of">{t("spent of {amount} budgeted", { amount: formatMoney(c.budget, c.currency) })}</span>
-      </p>
+    <Card className="relative h-full overflow-hidden">
       <div
-        className="ribbon__bar"
-        role="progressbar"
-        aria-label={t("Budget used in {currency}", { currency: c.currency })}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(Math.min(used, 100))}
+        aria-hidden="true"
+        className="pointer-events-none absolute -end-24 -top-24 size-64 rounded-full bg-primary/10 blur-3xl"
+      />
+      <CardHeader>
+        <CardDescription>{t("Budget used in {currency}", { currency: c.currency })}</CardDescription>
+        <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <AnimatedMoney amount={c.actual} currency={c.currency} className="tabular text-3xl font-semibold tracking-tight md:text-4xl" />
+          <span className="tabular text-sm font-normal text-muted-foreground">
+            {t("spent of {amount} budgeted", { amount: formatMoney(c.budget, c.currency) })}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div
+          className="h-2.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-label={t("Budget used in {currency}", { currency: c.currency })}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(Math.min(used, 100))}
+        >
+          <motion.div
+            className={cn("h-full rounded-full", over ? "bg-destructive" : "bg-primary")}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(used, 100)}%` }}
+            transition={{ duration: 0.9, delay: 0.15, ease: [0.2, 0.7, 0.2, 1] }}
+          />
+        </div>
+        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Stat label={t("Used")} value={formatPct(c.consumed_pct)} />
+          <Stat
+            label={over ? t("Overspent") : t("Left to spend")}
+            value={formatMoney(over ? c.remaining.slice(1) : c.remaining, c.currency)}
+            tone={over ? "danger" : "good"}
+          />
+          <Stat label={t("Budget")} value={formatMoney(c.budget, c.currency)} className="hidden sm:grid" />
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ label, value, tone, className }: { label: string; value: string; tone?: "good" | "danger"; className?: string }) {
+  return (
+    <div className={cn("grid gap-0.5", className)}>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd
+        className={cn(
+          "tabular text-base font-semibold",
+          tone === "good" && "text-emerald-600 dark:text-emerald-400",
+          tone === "danger" && "text-destructive",
+        )}
       >
-        <span className="ribbon__fill" style={{ width: `${Math.min(used, 100)}%` }} />
-      </div>
-      <dl className="ribbon__figures">
-        <div>
-          <dt>{t("Used")}</dt>
-          <dd>{formatPct(c.consumed_pct)}</dd>
-        </div>
-        <div>
-          <dt>{over ? t("Overspent") : t("Left to spend")}</dt>
-          <dd className={over ? "ribbon__neg" : "ribbon__pos"}>
-            {formatMoney(over ? c.remaining.slice(1) : c.remaining, c.currency)}
-          </dd>
-        </div>
-      </dl>
+        {value}
+      </dd>
     </div>
+  );
+}
+
+function AttentionCard({
+  icon,
+  value,
+  label,
+  tone,
+  onClick,
+}: {
+  icon: ReactNode;
+  value: number;
+  label: string;
+  tone: "danger" | "warning" | "calm";
+  onClick?: () => void;
+}) {
+  const body = (
+    <CardContent className="flex items-center gap-4">
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl",
+          tone === "danger" && "bg-destructive/10 text-destructive",
+          tone === "warning" && "bg-warning/15 text-amber-600 dark:text-amber-300",
+          tone === "calm" && "bg-muted text-muted-foreground",
+        )}
+      >
+        {icon}
+      </span>
+      <span className="grid min-w-0 gap-0.5 text-start">
+        <span className="tabular text-2xl font-semibold leading-none">{value}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
+      </span>
+    </CardContent>
+  );
+  return onClick ? (
+    <Card className="justify-center p-0 transition-shadow hover:shadow-md">
+      <button type="button" onClick={onClick} className="w-full rounded-xl py-6 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {body}
+      </button>
+    </Card>
+  ) : (
+    <Card className="justify-center">{body}</Card>
   );
 }

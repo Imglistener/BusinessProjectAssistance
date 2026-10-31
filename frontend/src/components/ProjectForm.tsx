@@ -2,8 +2,12 @@ import { useState } from "react";
 import { ApiError, api } from "../api/client";
 import type { Organization, Project } from "../api/models";
 import { STATUS_LABEL } from "../lib/format";
-import { Field, FormError, SelectField, useSubmit } from "./AuthLayout";
+import { useSubmit } from "./AuthLayout";
+import { FormAlert, FormField, SimpleSelect, TextField } from "./form";
 import { t } from "../i18n";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 // Archiving has its own button (with a confirmation), so it isn't offered here.
 const STATUS_OPTIONS = ["planned", "active", "on_hold", "completed"].map((s) => ({ value: s, label: STATUS_LABEL[s] }));
@@ -64,76 +68,103 @@ export function ProjectForm({ org, project, onSaved, onCancel }: Props) {
   const title = editing ? t("Edit project") : t("New project");
 
   return (
-    <form onSubmit={submit} className="panel form" aria-label={title}>
-      <h2 className="panel__title">{title}</h2>
-      <FormError message={error} />
-      <Field label={t("Project name")} name="name" value={form.name} onChange={set("name")} error={fieldErrors.name} />
-      <div className="field">
-        <label htmlFor="description">{t("Description")}</label>
-        <div className="field__control">
-          <textarea
-            id="description"
-            name="description"
-            rows={3}
-            maxLength={5000}
-            value={form.description}
-            onChange={(e) => set("description")(e.target.value)}
-          />
-        </div>
-        {fieldErrors.description && <p className="field__message field__message--error">{fieldErrors.description}</p>}
-      </div>
-      <div className="form__row">
-        <Field
+    <form onSubmit={submit} className="grid gap-5" aria-label={title}>
+      <FormAlert message={error} />
+      <TextField
+        id="name"
+        label={t("Project name")}
+        value={form.name}
+        onChange={(e) => set("name")(e.target.value)}
+        error={fieldErrors.name}
+        required
+        maxLength={200}
+        autoFocus
+      />
+      <FormField id="description" label={t("Description")} error={fieldErrors.description}>
+        <Textarea
+          id="description"
+          name="description"
+          rows={3}
+          maxLength={5000}
+          value={form.description}
+          onChange={(e) => set("description")(e.target.value)}
+        />
+      </FormField>
+      <div className="grid gap-5 sm:grid-cols-[1fr_8rem]">
+        <TextField
+          id="budget"
           label={t("Budget")}
-          name="budget"
           value={form.budget}
-          onChange={set("budget")}
+          onChange={(e) => set("budget")(e.target.value)}
           error={fieldErrors.budget}
           hint={editing ? t("Leave empty for no budget.") : t("You can set or change it later.")}
-          required={false}
           inputMode="decimal"
+          className="tabular"
         />
-        <Field
+        <TextField
+          id="currency"
           label={t("Currency")}
-          name="currency"
           value={form.currency}
-          onChange={set("currency")}
+          onChange={(e) => set("currency")(e.target.value.toUpperCase())}
           error={fieldErrors.currency}
           hint={t("Fixed once expenses exist.")}
           maxLength={3}
+          required
         />
       </div>
-      <div className="form__row">
-        <Field
+      <div className="grid gap-5 sm:grid-cols-2">
+        <TextField
+          id="start_date"
+          type="date"
           label={t("Start date")}
-          name="start_date"
-          type="date"
           value={form.start_date}
-          onChange={set("start_date")}
+          onChange={(e) => set("start_date")(e.target.value)}
           error={fieldErrors.start_date}
-          required={false}
         />
-        <Field
-          label={t("End date")}
-          name="end_date"
+        <TextField
+          id="end_date"
           type="date"
+          label={t("End date")}
           value={form.end_date}
-          onChange={set("end_date")}
+          onChange={(e) => set("end_date")(e.target.value)}
           error={fieldErrors.end_date}
-          required={false}
         />
       </div>
       {!(editing && project.status === "archived") && (
-        <SelectField label={t("Status")} name="status" value={form.status} onChange={set("status")} options={STATUS_OPTIONS} />
+        <FormField id="status" label={t("Status")}>
+          <SimpleSelect id="status" value={form.status} onChange={set("status")} options={STATUS_OPTIONS} />
+        </FormField>
       )}
-      <div className="form__actions">
-        <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? t("Saving…") : editing ? t("Save changes") : t("Create project")}
-        </button>
-        <button className="btn btn--quiet" type="button" onClick={onCancel}>
+      <div className="flex flex-wrap justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" onClick={onCancel}>
           {t("Cancel")}
-        </button>
+        </Button>
+        <Button type="submit" disabled={busy}>
+          {busy ? t("Saving…") : editing ? t("Save changes") : t("Create project")}
+        </Button>
       </div>
     </form>
+  );
+}
+
+/** The project form in a dialog (dashboard "New project", project page "Edit project"). */
+export function ProjectFormDialog({
+  open,
+  onOpenChange,
+  ...props
+}: Omit<Props, "onCancel"> & { open: boolean; onOpenChange(open: boolean): void }) {
+  const editing = props.project !== undefined;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{editing ? t("Edit project") : t("New project")}</DialogTitle>
+          <DialogDescription>
+            {editing ? t("Changes are recorded in the project's activity.") : t("Add a budget and dates now or later.")}
+          </DialogDescription>
+        </DialogHeader>
+        {open && <ProjectForm {...props} onCancel={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -55,11 +55,12 @@ await step("log in as the demo owner", async () => {
 await step("dashboard shows totals, deadlines and projects", async () => {
   await page.waitForSelector("#agenda-title");
   await page.waitForSelector("text=Website redesign");
-  await page.waitForSelector("text=1 project is over budget");
+  await page.waitForSelector("text=Projects over budget");
+  await page.waitForSelector("text=Budget used in MAD");
 });
 
 await step("project page shows budget, milestones, tasks, expenses and activity", async () => {
-  await page.click(".project__name >> text=Website redesign");
+  await page.click(".project-name >> text=Website redesign");
   await page.waitForSelector("text=Over budget by 3,600.00 MAD");
   for (const id of ["#milestones-heading", "#tasks-heading", "#expenses-heading", "#activity-heading"]) {
     await page.waitForSelector(id);
@@ -107,7 +108,7 @@ await step("inventory: a stock count records the difference", async () => {
 
 await step("trips: plan a trip and add an itinerary item", async () => {
   await page.goto(`${BASE}/app`);
-  await page.click(".project__name >> text=Website redesign");
+  await page.click(".project-name >> text=Website redesign");
   await page.click("text=Plan a trip");
   await page.fill("[name='trip_title']", "E2E supplier visit");
   await page.fill("[name='trip_destination']", "Tangier");
@@ -123,7 +124,7 @@ await step("trips: plan a trip and add an itinerary item", async () => {
 
 await step("trips: route and fuel estimate show a cost range", async () => {
   await page.goto(`${BASE}/app`);
-  await page.click(".project__name >> text=Office move to Casablanca");
+  await page.click(".project-name >> text=Office move to Casablanca");
   await page.click("text=Furniture pickup");
   await page.waitForSelector("#route-heading");
   await page.waitForSelector(".fuel__value");
@@ -139,7 +140,7 @@ await step("settings: fuel prices are listed", async () => {
 });
 
 await step("notifications: badge and page", async () => {
-  await page.waitForSelector(".rail__badge");
+  await page.waitForSelector("[data-sidebar=menu-badge]");
   await page.click("text=Notifications");
   await page.waitForSelector(".note");
 });

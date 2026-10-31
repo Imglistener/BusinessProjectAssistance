@@ -23,7 +23,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   if (loading)
     return (
-      <div className="boot" role="status">
+      <div className="boot legacy" role="status">
         {t("Loading…")}
       </div>
     );
