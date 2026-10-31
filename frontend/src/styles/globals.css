@@ -136,6 +136,14 @@
   --sidebar-ring: oklch(0.68 0.16 273);
 }
 
+/* Native controls (date pickers, select menus, scrollbars) follow the theme too. */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -163,5 +171,22 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Printing (reports, itineraries) always uses the light palette, whatever the screen theme. */
+@media print {
+  .dark {
+    color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.141 0.005 285.823);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.141 0.005 285.823);
+    --primary: oklch(0.488 0.217 271.5);
+    --primary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.967 0.001 286.375);
+    --muted-foreground: oklch(0.552 0.016 285.938);
+    --border: oklch(0.92 0.004 286.32);
+    --destructive: oklch(0.577 0.245 27.325);
   }
 }
