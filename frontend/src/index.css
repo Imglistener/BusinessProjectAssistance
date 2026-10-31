@@ -1543,58 +1543,6 @@ a {
   }
 }
 
-/* ---------- Dashboard deadlines ---------- */
-.deadlines {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  gap: 1rem;
-}
-
-.deadlines__sub {
-  margin-top: 0.2rem;
-  font-size: 0.9rem;
-}
-
-.deadlines__list {
-  list-style: none;
-  margin: 0.9rem 0 0;
-  padding: 0;
-  border-top: 1px solid var(--line);
-}
-
-.deadline {
-  display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr);
-  gap: 0.9rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.deadline__when {
-  display: grid;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.deadline__when small {
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.deadline__what {
-  display: grid;
-  min-width: 0;
-}
-
-.deadline__what .row__meta {
-  margin-top: 0;
-}
-
-.deadlines__more {
-  margin-top: 0.6rem;
-  font-size: 0.9rem;
-}
-
 /* ---------- Inventory ---------- */
 .inventory__note {
   margin-top: -1.25rem;
@@ -1897,13 +1845,6 @@ a {
     position: sticky;
     top: 1.5rem;
   }
-  .dash-grid__side .deadlines {
-    grid-template-columns: 1fr;
-  }
-}
-
-.deadlines .panel {
-  box-shadow: var(--shadow-sm);
 }
 
 .rows > li,
@@ -2716,6 +2657,390 @@ a {
   }
 }
 
+/* ---------- Dashboard: briefing band, agenda, project rows ---------- */
+.briefing {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: radial-gradient(120% 140% at 100% 0%, #26318f 0%, #151c57 58%, #111750 100%);
+  color: #fff;
+  box-shadow: 0 24px 48px -32px rgba(21, 28, 87, 0.75);
+}
+
+.briefing__field {
+  position: absolute;
+  inset: 0;
+  color: rgba(255, 255, 255, 0.035);
+  pointer-events: none;
+}
+
+.briefing__field .zellij-dot {
+  fill: rgba(242, 179, 61, 0.13);
+}
+
+.briefing__inner {
+  position: relative;
+  display: grid;
+  gap: 1.6rem;
+  padding: clamp(1.5rem, 3.5vw, 2.5rem) clamp(1.25rem, 3.5vw, 2.75rem);
+}
+
+.briefing__hello h1 {
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.briefing__hello p {
+  margin-top: 0.35rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.briefing__empty {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ribbon {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ribbon__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+}
+
+.ribbon__spent {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ribbon__of {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 1.05rem;
+}
+
+.ribbon__bar {
+  position: relative;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.ribbon__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--saffron) 0%, #f7c867 100%);
+  transform-origin: left center;
+  animation: ribbon-grow 0.9s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.ribbon--over .ribbon__fill {
+  background: linear-gradient(90deg, #e2614e 0%, #ef8a6f 100%);
+}
+
+@keyframes ribbon-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.ribbon__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2.5rem;
+  margin: 0;
+}
+
+.ribbon__figures dt {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ribbon__figures dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ribbon__pos {
+  color: #8fe0b5;
+}
+
+.ribbon__neg {
+  color: #ffb4a6;
+}
+
+.briefing__alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.briefing__alerts li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.briefing__alerts li::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--saffron);
+}
+
+.briefing__alerts button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Agenda: one list, grouped by when things are due. */
+.agenda {
+  display: grid;
+  gap: 1.1rem;
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.agenda__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.agenda__head h2 {
+  font-size: 1.25rem;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.segmented button {
+  padding: 0.35rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(20, 24, 58, 0.15);
+}
+
+.agenda__group h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.agenda__group--overdue h3 {
+  color: var(--danger);
+}
+
+.agenda__count {
+  min-width: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.agenda__group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agenda__item {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 0.55rem 0;
+  align-items: center;
+}
+
+.agenda__item + .agenda__item {
+  border-top: 1px solid var(--line);
+}
+
+.agenda__date {
+  display: grid;
+  justify-items: center;
+  padding: 0.3rem 0;
+  border-radius: 10px;
+  background: var(--blue-100);
+  color: var(--blue-900);
+  line-height: 1.05;
+}
+
+.agenda__item--late .agenda__date {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.agenda__day {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.agenda__month {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.agenda__body {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.agenda__title {
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.agenda__title:hover {
+  color: var(--blue-600);
+  text-decoration: underline;
+}
+
+.agenda__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.agenda__when {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.agenda__item--late .agenda__when {
+  color: var(--danger);
+}
+
+.agenda__kind {
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  background: var(--paper);
+  font-weight: 600;
+}
+
+.agenda__kind--trip {
+  background: #e3f4ec;
+  color: #1f6b47;
+}
+
+.agenda__kind--milestone {
+  background: #fdf0d5;
+  color: #7a4b00;
+}
+
+.agenda__empty {
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--muted);
+}
+
+.agenda__more {
+  font-size: 0.9rem;
+}
+
+/* Project rows: the left edge says how each project is doing. */
+.projects > .project {
+  position: relative;
+  padding-left: 1.1rem;
+}
+
+.projects > .project::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  bottom: 1rem;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--blue-600);
+  opacity: 0.55;
+}
+
+.projects > .project--late::before {
+  background: var(--saffron);
+  opacity: 1;
+}
+
+.projects > .project--over::before {
+  background: var(--danger);
+  opacity: 1;
+}
+
+@media (min-width: 1180px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(21rem, 25rem);
+  }
+  .dash-grid__side {
+    order: 2;
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .star-mark--draw rect {
@@ -2727,5 +3052,8 @@ a {
   .lp-demo__draft {
     animation: none;
     opacity: 1;
+  }
+  .ribbon__fill {
+    animation: none;
   }
 }

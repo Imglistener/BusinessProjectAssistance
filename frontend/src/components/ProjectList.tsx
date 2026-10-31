@@ -35,13 +35,20 @@ function Budget({ project }: { project: Project }) {
   );
 }
 
+/** Over budget beats overdue work; everything else is on track. */
+function health(p: Project): "over" | "late" | "ok" {
+  if (p.over_budget) return "over";
+  if (p.overdue_task_count > 0) return "late";
+  return "ok";
+}
+
 export function ProjectList({ projects }: { projects: Project[] }) {
   return (
     <ul className="projects">
       {projects.map((p) => {
         const dates = formatDateRange(p.start_date, p.end_date);
         return (
-          <li key={p.id} className="project">
+          <li key={p.id} className={`project project--${health(p)}`}>
             <div className="project__main">
               <h3 className="project__name">
                 <Link to={`/app/projects/${p.id}`}>{p.name}</Link>

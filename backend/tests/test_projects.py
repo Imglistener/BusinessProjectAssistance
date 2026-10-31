@@ -251,8 +251,8 @@ def test_dashboard_totals_group_by_currency_and_skip_archived(client):
     assert s["project_count"] == 3
     assert s["over_budget_project_count"] == 1
     assert s["totals"] == [
-        {"currency": "EUR", "budget": "200.00", "actual": "50.00", "remaining": "150.00"},
-        {"currency": "MAD", "budget": "1500.50", "actual": "1200.25", "remaining": "300.25"},
+        {"currency": "EUR", "budget": "200.00", "actual": "50.00", "remaining": "150.00", "consumed_pct": "25.00"},
+        {"currency": "MAD", "budget": "1500.50", "actual": "1200.25", "remaining": "300.25", "consumed_pct": "79.99"},
     ]
 
 

@@ -292,6 +292,8 @@ export interface CurrencyTotals {
   budget: string;
   actual: string;
   remaining: string;
+  /** null when the budget is zero */
+  consumed_pct: string | null;
 }
 
 export interface DashboardSummary {

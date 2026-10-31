@@ -220,6 +220,7 @@ def organization_summary(org_id: int, tz_name: str) -> dict:
                 "budget": metrics.q(t["budget"]),
                 "actual": metrics.q(t["actual"]),
                 "remaining": metrics.remaining_budget(t["budget"], t["actual"]),
+                "consumed_pct": metrics.budget_consumed_pct(t["budget"], t["actual"]),
             }
         )
     return {

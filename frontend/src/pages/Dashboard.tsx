@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api } from "../api/client";
-import { canManageProjects, type DashboardSummary, type Organization, type Project } from "../api/models";
+import {
+  canManageProjects,
+  type CurrencyTotals,
+  type DashboardSummary,
+  type Organization,
+  type Project,
+} from "../api/models";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
 import { Field, FormError, useSubmit } from "../components/AuthLayout";
 import { FilterBar, FilterCheck, FilterSelect, useDebounced } from "../components/Filters";
-import { DeadlinesPanel } from "../components/Deadlines";
+import { Agenda } from "../components/Agenda";
 import { ProjectForm } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
 import { AppShell } from "../components/AppShell";
 import { ZellijField } from "../components/Zellij";
-import { STATUS_LABEL, formatMoney } from "../lib/format";
+import { STATUS_LABEL, formatMoney, formatPct } from "../lib/format";
 
 const STATUS_FILTERS = [
   { value: "", label: "All except archived" },
@@ -32,19 +38,15 @@ function greeting(hour: number) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { orgs, org, error: loadError, add } = useOrg();
+  const hello = `${greeting(new Date().getHours())}, ${user?.first_name ?? ""}`;
 
   return (
     <AppShell>
-      <header className="main__header">
-        <h1>
-          {greeting(new Date().getHours())}, {user?.first_name}
-        </h1>
-        {org && (
-          <p className="main__org">
-            {org.name}. Amounts in {org.default_currency}.
-          </p>
-        )}
-      </header>
+      {!org && (
+        <header className="main__header">
+          <h1>{hello}</h1>
+        </header>
+      )}
 
       <FormError message={loadError} />
 
@@ -52,7 +54,7 @@ export default function Dashboard() {
 
       {orgs !== null && !org && <CreateOrganization onCreated={add} />}
 
-      {org && <OrgOverview key={org.id} org={org} />}
+      {org && <OrgOverview key={org.id} org={org} hello={hello} />}
     </AppShell>
   );
 }
@@ -88,7 +90,7 @@ function CreateOrganization({ onCreated }: { onCreated(org: Organization): void 
   );
 }
 
-function OrgOverview({ org }: { org: Organization }) {
+function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,9 +142,7 @@ function OrgOverview({ org }: { org: Organization }) {
     setOverBudget(false);
   };
 
-  const totals = summary?.totals.length
-    ? summary.totals
-    : [{ currency: org.default_currency, budget: "", actual: "", remaining: "" }];
+  const totals = summary?.totals ?? [];
   const empty = projects !== null && projects.length === 0 && !filtering;
   const noMatches = projects !== null && projects.length === 0 && filtering;
 
@@ -150,42 +150,51 @@ function OrgOverview({ org }: { org: Organization }) {
     <>
       <FormError message={error} />
 
-      {totals.map((t) => (
-        <section key={t.currency} className="totals" aria-label={`Budget totals in ${t.currency}`}>
-          <div>
-            <span className="totals__label">Total budget</span>
-            <Amount value={t.budget} currency={t.currency} />
+      <section className="briefing" aria-label="Overview">
+        <ZellijField className="briefing__field" />
+        <div className="briefing__inner">
+          <div className="briefing__hello">
+            <h1>{hello}</h1>
+            <p>
+              {org.name}
+              {summary
+                ? `, ${summary.project_count} active ${summary.project_count === 1 ? "project" : "projects"}`
+                : ""}
+              . Amounts in {org.default_currency}.
+            </p>
           </div>
-          <div>
-            <span className="totals__label">Spent</span>
-            <Amount value={t.actual} currency={t.currency} />
-          </div>
-          <div>
-            <span className="totals__label">Remaining</span>
-            <Amount value={t.remaining} currency={t.currency} negative={t.remaining.startsWith("-")} />
-          </div>
-        </section>
-      ))}
 
-      {summary && (summary.over_budget_project_count > 0 || summary.overdue_task_count > 0) && (
-        <ul className="attention" aria-label="Needs attention">
-          {summary.over_budget_project_count > 0 && (
-            <li>
-              {summary.over_budget_project_count}{" "}
-              {summary.over_budget_project_count === 1 ? "project is" : "projects are"} over budget
-            </li>
+          {summary && totals.length === 0 && (
+            <p className="briefing__empty">Budgets you set on projects add up here.</p>
           )}
-          {summary.overdue_task_count > 0 && (
-            <li>
-              {summary.overdue_task_count} overdue {summary.overdue_task_count === 1 ? "task" : "tasks"}
-            </li>
+          {totals.map((t) => (
+            <BudgetRibbon key={t.currency} totals={t} />
+          ))}
+
+          {summary && (summary.over_budget_project_count > 0 || summary.overdue_task_count > 0) && (
+            <ul className="briefing__alerts" aria-label="Needs attention">
+              {summary.over_budget_project_count > 0 && (
+                <li>
+                  <button type="button" onClick={() => setOverBudget(true)}>
+                    {summary.over_budget_project_count}{" "}
+                    {summary.over_budget_project_count === 1 ? "project is" : "projects are"} over budget
+                  </button>
+                </li>
+              )}
+              {summary.overdue_task_count > 0 && (
+                <li>
+                  {summary.overdue_task_count} overdue {summary.overdue_task_count === 1 ? "task" : "tasks"}, listed in
+                  the agenda
+                </li>
+              )}
+            </ul>
           )}
-        </ul>
-      )}
+        </div>
+      </section>
 
       <div className="dash-grid">
-        <aside className="dash-grid__side" aria-label="Deadlines">
-          <DeadlinesPanel orgId={org.id} refreshKey={refreshKey} />
+        <aside className="dash-grid__side" aria-label="Agenda">
+          <Agenda orgId={org.id} refreshKey={refreshKey} />
         </aside>
 
         <section aria-labelledby="projects-heading" className="projects-section dash-grid__main">
@@ -264,11 +273,38 @@ function OrgOverview({ org }: { org: Organization }) {
   );
 }
 
-function Amount({ value, currency, negative = false }: { value: string; currency: string; negative?: boolean }) {
-  if (value === "") return <span className="totals__value totals__value--empty">— {currency}</span>;
+/** Spending against budget for one currency, as a single bar: the dashboard's headline figure. */
+function BudgetRibbon({ totals: t }: { totals: CurrencyTotals }) {
+  const used = t.consumed_pct === null ? 0 : Number(t.consumed_pct);
+  const over = t.remaining.startsWith("-");
   return (
-    <span className={negative ? "totals__value totals__value--over" : "totals__value"}>
-      {formatMoney(value, currency)}
-    </span>
+    <div className={over ? "ribbon ribbon--over" : "ribbon"}>
+      <p className="ribbon__headline">
+        <span className="ribbon__spent">{formatMoney(t.actual, t.currency)}</span>
+        <span className="ribbon__of">spent of {formatMoney(t.budget, t.currency)} budgeted</span>
+      </p>
+      <div
+        className="ribbon__bar"
+        role="progressbar"
+        aria-label={`Budget used in ${t.currency}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(Math.min(used, 100))}
+      >
+        <span className="ribbon__fill" style={{ width: `${Math.min(used, 100)}%` }} />
+      </div>
+      <dl className="ribbon__figures">
+        <div>
+          <dt>Used</dt>
+          <dd>{formatPct(t.consumed_pct)}</dd>
+        </div>
+        <div>
+          <dt>{over ? "Overspent" : "Left to spend"}</dt>
+          <dd className={over ? "ribbon__neg" : "ribbon__pos"}>
+            {formatMoney(over ? t.remaining.slice(1) : t.remaining, t.currency)}
+          </dd>
+        </div>
+      </dl>
+    </div>
   );
 }
