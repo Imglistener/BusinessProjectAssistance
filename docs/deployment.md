@@ -28,6 +28,7 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `PROXY_FIX_X_FOR` | `1` when one reverse proxy sits in front of the backend, so rate limits see the real client IP. `0` if nothing is in front. |
 | `JWT_ACCESS_TOKEN_HOURS` | How long a login lasts (default 12). |
 | `APP_BASE_URL` | The frontend address, used in emailed links. |
+| `EMAIL_PROVIDER=gmail`, `GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD`, `GOOGLE_APP_NAME` | Current setup: Gmail over SMTP with an App Password (no domain needed; roughly 500 emails a day). Test with `flask --app wsgi email-test --to you@example.com`. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
 | `GROQ_API_KEY`, `AI_*` | AI provider key and limits. The key stays on the server. |

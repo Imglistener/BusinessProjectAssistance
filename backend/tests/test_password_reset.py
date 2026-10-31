@@ -163,3 +163,95 @@ def test_resend_mode_without_key_falls_back_to_console(app):
     assert isinstance(email_svc.get_sender(), email_svc.ConsoleSender)
     app.config.update(RESEND_API_KEY="k", EMAIL_FROM="App <a@b.co>")
     assert isinstance(email_svc.get_sender(), ResendSender)
+
+
+# ---------- SMTP / Gmail sender ----------
+
+
+class FakeSMTP:
+    """Records what would be sent; can fail on demand."""
+
+    sent = []
+    logins = []
+    fail = []  # exceptions to raise, in order, from send_message
+
+    def __init__(self, host, port, timeout=None):
+        self.host, self.port = host, port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def starttls(self, context=None):
+        pass
+
+    def login(self, user, password):
+        FakeSMTP.logins.append((self.host, self.port, user, password))
+
+    def send_message(self, msg):
+        if FakeSMTP.fail:
+            raise FakeSMTP.fail.pop(0)
+        FakeSMTP.sent.append(msg)
+
+
+@pytest.fixture()
+def fake_smtp(monkeypatch):
+    import smtplib
+
+    FakeSMTP.sent, FakeSMTP.logins, FakeSMTP.fail = [], [], []
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(email_svc, "RETRY_DELAY_SECONDS", 0)
+    return FakeSMTP
+
+
+def gmail(app, name="Business Project Assistance"):
+    app.config.update(EMAIL_PROVIDER="gmail", GOOGLE_EMAIL="bpa.test@gmail.com",
+                      GOOGLE_APP_NAME=name, GOOGLE_APP_PASSWORD="abcd efgh ijkl mnop")
+
+
+def test_gmail_sends_reset_email(client, app, fake_smtp):
+    gmail(app)
+    register(client)
+    request_reset(client)
+    [msg] = fake_smtp.sent
+    assert fake_smtp.logins == [("smtp.gmail.com", 587, "bpa.test@gmail.com", "abcdefghijklmnop")]  # spaces removed
+    assert msg["From"] == "Business Project Assistance <bpa.test@gmail.com>"
+    assert msg["To"] == "alex@example.com" and msg["Subject"] == "Reset your password"
+    body = msg.get_body(preferencelist=("plain",)).get_content()
+    assert "/reset-password/" in body
+    assert msg.get_body(preferencelist=("html",)) is not None
+
+
+def test_smtp_retries_connection_errors_but_not_auth(app, fake_smtp):
+    import smtplib
+
+    gmail(app)
+    mail_ = Email(to="a@b.co", subject="s", text="t", html="<p>t</p>")
+    fake_smtp.fail = [smtplib.SMTPServerDisconnected()]
+    assert email_svc.get_sender().send(mail_, "k") is True
+    fake_smtp.fail = [smtplib.SMTPAuthenticationError(535, b"bad")] * 2
+    assert email_svc.get_sender().send(mail_, "k") is False
+    assert len(fake_smtp.fail) == 1  # gave up after the first auth error
+
+
+def test_gmail_without_password_falls_back_to_console(app):
+    app.config.update(EMAIL_PROVIDER="gmail", GOOGLE_EMAIL="x@gmail.com", GOOGLE_APP_PASSWORD="")
+    assert isinstance(email_svc.get_sender(), email_svc.ConsoleSender)
+
+
+def test_generic_smtp_uses_email_from(app, fake_smtp):
+    app.config.update(EMAIL_PROVIDER="smtp", SMTP_HOST="smtp.example.net", SMTP_PORT=587,
+                      SMTP_USERNAME="u", SMTP_PASSWORD="p", EMAIL_FROM="App <no-reply@example.net>")
+    assert email_svc.get_sender().send(Email(to="a@b.co", subject="s", text="t", html="<p>t</p>"), "k")
+    assert fake_smtp.sent[0]["From"] == "App <no-reply@example.net>"
+
+
+def test_email_test_command(app, fake_smtp):
+    from app.cli import email_test
+
+    gmail(app)
+    result = app.test_cli_runner().invoke(email_test, ["--to", "me@example.com"])
+    assert result.exit_code == 0 and "Sent with SmtpSender" in result.output
+    assert fake_smtp.sent[0]["To"] == "me@example.com"

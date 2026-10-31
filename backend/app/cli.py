@@ -35,6 +35,7 @@ from .models import (
 )
 from .services import fuel_sync
 from .services.audit import log_action
+from .services.email import Email, get_sender
 from .services.notifications import human_date
 from .services.projects import org_today
 
@@ -62,6 +63,23 @@ def fuel_prices_sync(force: bool) -> None:
         updated += 1
     db.session.commit()
     click.echo(f"Updated {updated} organization(s). Source: {fuel_sync.SOURCE_LABEL}")
+
+
+@click.command("email-test")
+@click.option("--to", "to", required=True, help="Where to send the test email.")
+def email_test(to: str) -> None:
+    """Send one test email with the configured EMAIL_PROVIDER, to check the setup."""
+    sender = get_sender()
+    email = Email(
+        to=to,
+        subject="Test email from Business Project Assistance",
+        text="This is a test. If you can read it, password reset emails will be delivered.",
+        html="<p>This is a test. If you can read it, password reset emails will be delivered.</p>",
+    )
+    if sender.send(email, "email-test"):
+        click.echo(f"Sent with {type(sender).__name__} to {to}. Check the inbox (and the spam folder).")
+    else:
+        raise click.ClickException(f"Not sent ({type(sender).__name__}). See the warning above for the reason.")
 
 
 @click.command("demo-data")

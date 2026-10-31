@@ -149,6 +149,11 @@
 ## Public landing page (implemented)
 - "/" shows the product page to visitors (signed-in users get "Open your dashboard"). Replaces the splash screen.
 
+## Email delivery (implemented)
+- For now: Gmail over SMTP (EMAIL_PROVIDER=gmail, App Password) for password resets and invites. Verified with a
+  real test email on 2026-10-31. A generic SMTP option exists for other providers.
+- Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
+
 ## Still open
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.

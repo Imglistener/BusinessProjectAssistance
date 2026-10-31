@@ -24,6 +24,15 @@ class Config:
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "console")
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+    # EMAIL_PROVIDER=gmail: send through a Gmail account with an App Password (no domain needed).
+    GOOGLE_EMAIL = os.getenv("GOOGLE_EMAIL", "").strip()
+    GOOGLE_APP_NAME = os.getenv("GOOGLE_APP_NAME", "").strip()
+    GOOGLE_APP_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD", "")
+    # EMAIL_PROVIDER=smtp: any other SMTP service (Brevo, Zoho, Mailgun SMTP...). From address: EMAIL_FROM.
+    SMTP_HOST = os.getenv("SMTP_HOST", "")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     # Uploaded receipts. A local folder for now; back it up with the database (see docs/deployment.md).
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads"))
     MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
@@ -54,4 +63,6 @@ class TestConfig(Config):
     GROQ_API_KEY = ""  # tests never reach a real provider
     EMAIL_PROVIDER = "console"
     RESEND_API_KEY = ""
+    GOOGLE_APP_PASSWORD = ""
+    SMTP_PASSWORD = ""
     UPLOAD_DIR = ""  # set per test to a temporary folder
