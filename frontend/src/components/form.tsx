@@ -22,7 +22,8 @@ export function FormField({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("grid gap-2", className)}>
+    // min-w-0: in a grid row, a long select label must not push the field wider than its column.
+    <div className={cn("grid min-w-0 gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
       {children}
       {error ? (
@@ -102,7 +103,11 @@ export function SimpleSelect({
 }) {
   return (
     <Select value={value === "" ? EMPTY : value} onValueChange={(v) => onChange(v === EMPTY ? "" : v)}>
-      <SelectTrigger id={id} className={cn("w-full", className)} aria-label={ariaLabel}>
+      <SelectTrigger
+        id={id}
+        className={cn("w-full min-w-0 *:data-[slot=select-value]:block *:data-[slot=select-value]:truncate", className)}
+        aria-label={ariaLabel}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

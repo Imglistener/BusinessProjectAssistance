@@ -75,7 +75,7 @@ Assistant page says it isn't set up and everything else works normally.
 
 To use Google Gemini instead, create a key at https://aistudio.google.com/apikey, then in `.env` set
 `AI_PROVIDER=gemini` and `GEMINI_API_KEY=...` and restart the backend. `AI_MODEL` left empty means
-`gemini-3.8-flash`; `gemini-3.5-flash-lite` allows more requests a day on the free tier. Your free-tier
+`gemini-3.5-flash-lite`; `gemini-3.6-flash` answers better but allows fewer requests a minute. Your free-tier
 limits are shown at https://aistudio.google.com/rate-limit. On Google's free tier, prompts (which include
 your organization's figures) may be used to improve Google's products; a paid tier avoids that.
 
