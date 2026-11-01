@@ -26,11 +26,16 @@
 
 ## AI assistant (approved defaults, 2026-10-30)
 - Model: `openai/gpt-oss-120b` on Groq (llama-3.3-70b-versatile is no longer offered on the account).
-- Gemini can be used instead (`AI_PROVIDER=gemini`, `GEMINI_API_KEY`; default model `gemini-3.8-flash`,
+- Gemini can be used instead (`AI_PROVIDER=gemini`, `GEMINI_API_KEY`; default model `gemini-3.5-flash-lite`,
   thinking effort low). Added 2026-11-01 because Groq's free tier allows only 8K tokens a minute. Not yet run
   against the real Gemini API (no key yet): the adapter follows Google's OpenAI-compatibility docs and sends
   back tool-call thought signatures (`extra_content`) as received. Free-tier prompts may be used by Google to
   improve its products.
+- Checked 2026-11-01 with the user's free key: `gemini-3.8-flash` didn't answer at all (even "Say ok" timed out
+  after 90 s), `gemini-3.6-flash` answered in seconds but hit its per-minute limit on the second question,
+  `gemini-3.5-flash-lite` works and is the default. Flash-Lite drifted into French for English questions, so the
+  backend now detects the message's language (Arabic script, or common French/English words) and names it in
+  the prompt; unclear messages fall back to the app's language.
 - Cost cap: per-request cost = tokens x configured price per million tokens
   (defaults 0.15 in / 0.75 out USD; verify against Groq's pricing page). The cap is app-wide, not per organization.
 - Conversations are not stored server-side: the browser keeps the conversation and sends the last
@@ -173,6 +178,22 @@
   issue / adjust / create / transfer / move / delete lines. It can't create warehouses (they need a map position);
   "organize" means proposing transfers.
 - Not yet checked on Postgres: the migration adds enum values with ALTER TYPE (Docker wasn't running).
+
+## Test pass 2026-11-01
+- Backend 344 tests, frontend type-check and build, smoke test (15 steps), `ai-eval` on Gemini Flash-Lite 11/11,
+  and screenshots in English, French and Arabic, light and dark, desktop and phone width.
+- Dependencies: `npm audit` flagged React Router 6 (open redirect, fixed only in 7.18+) and Vite 5 (dev-server
+  issues, several Windows-specific). Upgraded to React Router 7.18.5, Vite 7.3.7 and @vitejs/plugin-react 5.2;
+  `npm audit` now reports 0. `pip-audit` on the backend: no known vulnerabilities.
+- Fixed: Radix components (tabs, menus, selects) were left to right in Arabic; the inventory tabs showed items
+  and warehouse cards in LTR order. A direction provider now follows the app language.
+- Fixed: a long option label in a select pushed the next field over in two-column dialogs (Move to another
+  inventory).
+- Fixed in the assistant: Flash-Lite answered English questions in French (now the backend names the reply
+  language); it sometimes left out the warehouse of a new item or guessed one that doesn't exist (tool
+  descriptions now say so, and the model is told to correct guessed names itself). Model answers still vary:
+  check the draft card before confirming.
+- Still not checked: the Postgres migration (Docker Desktop wasn't running).
 
 ## Deleting projects (implemented, my defaults)
 - Owners only. One project (project page) or several (Select on the dashboard), all or nothing. The confirmation

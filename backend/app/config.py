@@ -48,7 +48,7 @@ class Config:
     GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
-    AI_MODEL = os.getenv("AI_MODEL") or {"gemini": "gemini-3.8-flash"}.get(AI_PROVIDER, "openai/gpt-oss-120b")
+    AI_MODEL = os.getenv("AI_MODEL") or {"gemini": "gemini-3.5-flash-lite"}.get(AI_PROVIDER, "openai/gpt-oss-120b")
     # Gemini only: minimal | low | medium | high. Thinking is billed as output and slows answers; default low.
     AI_REASONING_EFFORT = os.getenv("AI_REASONING_EFFORT", "")
     AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))

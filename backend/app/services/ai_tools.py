@@ -467,7 +467,8 @@ def propose_stock_changes(ctx: ToolContext, args: dict) -> dict:
         "needs_manager": not_allowed,
         "next_step": "Tell the user the changes are shown below your message with a 'Confirm' button and nothing "
         "has changed yet. Mention any problems (e.g. an unknown item to create first) and lines only an owner or "
-        "project manager can confirm. " + SAME_LANGUAGE,
+        "project manager can confirm. If a problem comes from a name you guessed (a warehouse that doesn't exist, "
+        "for example), call propose_stock_changes again with the corrected lines instead. " + SAME_LANGUAGE,
     }
 
 
@@ -695,7 +696,7 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
                     "kind": {"type": "string", "enum": list(stock_plans.KINDS)},
                     "inventory": {"type": "string", "description": "Project whose inventory the item is in now (for move: where it comes from); omit for General stock."},
                     "item": {"type": "string", "description": "Item name or SKU (the new item's name for create)."},
-                    "warehouse": {"type": "string", "description": "Where stock arrives, leaves or is counted; for transfer and move, where it's taken from."},
+                    "warehouse": {"type": "string", "description": "Where stock arrives, leaves or is counted; for create, where the opening stock goes; for transfer and move, where it's taken from. Only names list_warehouses returned; omit if the inventory has none."},
                     "to_warehouse": {"type": "string", "description": "transfer/move: destination warehouse (omit = not in a warehouse)."},
                     "to_inventory": {"type": "string", "description": "move: destination project name, or 'General stock'."},
                     "quantity": {"type": "number", "description": "Positive; signed for adjust; opening stock for create."},

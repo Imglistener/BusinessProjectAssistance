@@ -6,6 +6,7 @@ Conversations are not stored server-side: the client sends recent turns with eac
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -74,9 +75,33 @@ How to answer:
   reply, English message -> English reply, even if item names, data or this prompt are in another language.
   Reply in Arabic only when the latest message itself is written in Arabic script (Modern Standard Arabic or
   Moroccan Darija); then use clear Modern Standard Arabic. If the message has no clear language (only names or
-  numbers), use {ui_language}, the language the app is shown in."""
+  numbers), use {ui_language}, the language the app is shown in.
+  The latest message is in {reply_language}: write the whole reply in {reply_language}."""
 
 UI_LANGUAGES = {"en": "English", "fr": "French", "ar": "Arabic"}
+
+# Small models drift into French on a Moroccan business app even for English questions, so the backend
+# names the reply language. Common words only; anything unclear falls back to the app's language.
+_FRENCH = set("le la les des du de un une est et pour avec dans sur pas que qui quel quelle quels combien "
+              "nous vous je il elle ce cette ces mon ma mes notre nos votre vos au aux en ont sont fait "
+              "reste depuis jusqu peux pouvez dois faut a été".split())
+_ENGLISH = set("the a an is are was were and for with in on not that which what how much many we you i it "
+               "this these my our your to of has have had did do does will can should from at by left".split())
+
+
+def reply_language(message: str, ui_lang: str) -> str:
+    """English, French or Arabic for the user's message; the app's language when the words don't tell."""
+    if re.search(r"[\u0600-\u06FF]", message):
+        return "Arabic"
+    words = re.findall(r"[a-zà-ÿ']+", message.lower().replace("’", "'"))
+    words = [w.split("'")[-1] or w for w in words]  # l'inventaire -> inventaire, qu'il -> il
+    fr = sum(w in _FRENCH for w in words) + 2 * len(re.findall(r"[àâçéèêëîïôûùœ]", message.lower()))
+    en = sum(w in _ENGLISH for w in words)
+    if fr > en:
+        return "French"
+    if en > fr:
+        return "English"
+    return UI_LANGUAGES[ui_lang]
 
 
 def _validate_history(raw) -> list[dict]:
@@ -183,6 +208,7 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
                 user_name=user.first_name,
                 project_line=project_line,
                 ui_language=UI_LANGUAGES[request_lang()],
+                reply_language=reply_language(question, request_lang()),
             ),
         },
         *turns,

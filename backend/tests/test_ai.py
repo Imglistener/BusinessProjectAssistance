@@ -101,6 +101,28 @@ def test_answer_uses_backend_figures_and_records_usage(client, fake, app):
     assert usage.cost_usd == Decimal("0.001004")
 
 
+@pytest.mark.parametrize(
+    "message, ui, expected",
+    [
+        ("At the spend rate of the last 30 days, how long will the budget last?", "fr", "English"),
+        ("Combien reste-t-il sur le budget du déménagement ?", "en", "French"),
+        ("Supprime le ruban d'emballage de l'inventaire", "en", "French"),
+        ("شحال باقي فالميزانية؟", "en", "Arabic"),
+        ("Mobile app MVP", "fr", "French"),  # no clear language: the app's
+        ("Mobile app MVP", "en", "English"),
+    ],
+)
+def test_reply_language_follows_the_message(message, ui, expected):
+    assert ai_chat.reply_language(message, ui) == expected
+
+
+def test_prompt_names_the_reply_language(client, fake):
+    h, org_id, _ = setup(client)
+    p = fake(say("Hi"))
+    ask(client, h, org_id, message="Quel est le budget restant ?")
+    assert "The latest message is in French" in p.calls[0]["messages"][0]["content"]
+
+
 def test_system_prompt_has_context_and_tools_are_offered(client, fake):
     h, org_id, pid = setup(client)
     p = fake(say("Hi"))
