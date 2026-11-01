@@ -1,760 +1,519 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ApiError, api } from "../api/client";
+import {
+  ArrowLeftRight,
+  Boxes,
+  ClipboardList,
+  History,
+  Archive,
+  ArchiveRestore,
+  MoreHorizontal,
+  PackageMinus,
+  PackagePlus,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  Truck,
+  Warehouse as WarehouseIcon,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { api } from "../api/client";
 import {
   canContribute,
   canManageProjects,
   type InventoryItem,
   type InventorySummary,
-  type Movement,
   type Organization,
   type Project,
+  type Warehouse,
 } from "../api/models";
 import { useOrg } from "../auth/OrgContext";
+import { AnimatedMoney } from "../components/AnimatedMoney";
 import { AppShell } from "../components/AppShell";
-import { Field, FormError, SelectField, useSubmit } from "../components/AuthLayout";
-import { FilterBar, FilterCheck, useDebounced } from "../components/Filters";
-import { formatWhen } from "../lib/activity";
+import { useDebounced } from "../components/Filters";
+import { FormAlert, SimpleSelect } from "../components/form";
+import {
+  DeleteItemDialog,
+  HistoryDialog,
+  ItemFormDialog,
+  MoveDialog,
+  MovementDialog,
+  TransferDialog,
+  type MovementKind,
+} from "../components/inventory/ItemDialogs";
+import { StockCountDialog } from "../components/inventory/StockCountDialog";
+import { Warehouses } from "../components/inventory/Warehouses";
 import { errorMessage } from "../lib/errors";
 import { formatMoney, formatNumber } from "../lib/format";
-import { AnimatedMoney } from "../components/AnimatedMoney";
 import { t } from "../i18n";
 import { tx } from "../i18n/rich";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
-const qty = (q: string, unit: string) => `${formatNumber(q)} ${unit}`;
-const KIND_LABEL: Record<string, string> = {
-  receive: t("Received"),
-  issue: t("Issued"),
-  adjust: t("Adjusted"),
-  count: t("Counted"),
-};
+interface Listing {
+  items: InventoryItem[];
+  summary: InventorySummary;
+  warehouses: Warehouse[];
+  scope: { project_id: number | null; project_name: string | null };
+}
+
+type Open =
+  | { kind: "add" }
+  | { kind: "edit" | "transfer" | "move" | "history"; item: InventoryItem }
+  | { kind: "movement"; item: InventoryItem; movement: MovementKind }
+  | { kind: "count" }
+  | null;
 
 export default function Inventory() {
   const { orgs, org, error } = useOrg();
   return (
-    <AppShell>
-      <header className="main__header">
-        <h1>{t("Inventory")}</h1>
-        {org && (
-          <p className="main__org">
-            {t("Stock kept by {organization}. Values in {currency}.", { organization: org.name, currency: org.default_currency })}
+    <AppShell legacy={false}>
+      <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 md:p-8">
+        <FormAlert message={error} />
+        {orgs === null && !error && <Skeleton className="h-96" />}
+        {orgs !== null && !org && (
+          <p className="text-sm text-muted-foreground">
+            {tx("Create your organization on the {dashboard} first.", {
+              dashboard: (
+                <Link to="/app" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {t("dashboard")}
+                </Link>
+              ),
+            })}
           </p>
         )}
-      </header>
-      <FormError message={error} />
-      {orgs === null && !error && <p className="muted">{t("Loading…")}</p>}
-      {orgs !== null && !org && (
-        <p className="muted">
-          {tx("Create your organization on the {dashboard} first.", { dashboard: <Link to="/app">{t("dashboard")}</Link> })}
-        </p>
-      )}
-      {org && <InventoryManager key={org.id} org={org} />}
+        {org && <InventoryManager key={org.id} org={org} />}
+      </div>
     </AppShell>
   );
 }
 
 function InventoryManager({ org }: { org: Organization }) {
-  const canManage = canManageProjects(org.role);
-  const canMove = canContribute(org.role);
-  const [items, setItems] = useState<InventoryItem[] | null>(null);
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
+  const [params, setParams] = useSearchParams();
+  const scope = params.get("scope") ?? "general";
   const [projects, setProjects] = useState<Project[]>([]);
+  const [data, setData] = useState<Listing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
-  const [mode, setMode] = useState<"list" | "add" | "count">("list");
+  const [archived, setArchived] = useState(false);
+  const [open, setOpen] = useState<Open>(null);
+  const [deleting, setDeleting] = useState<InventoryItem | null>(null);
+  const [tab, setTab] = useState(params.get("tab") === "warehouses" ? "warehouses" : "items");
   const q = useDebounced(search.trim());
 
-  const params = new URLSearchParams();
-  if (q) params.set("q", q);
-  if (lowOnly) params.set("low_stock", "true");
-  if (showArchived) params.set("include_archived", "true");
-  const query = params.toString();
-
-  const load = useCallback(() => {
-    api<{ items: InventoryItem[]; summary: InventorySummary }>(`/organizations/${org.id}/inventory?${query}`)
-      .then((r) => {
-        setError(null);
-        setItems(r.items);
-        setSummary(r.summary);
-      })
-      .catch((e) => setError(errorMessage(e, t("Couldn't load the inventory."))));
-  }, [org.id, query]);
-
-  useEffect(load, [load]);
   useEffect(() => {
-    api<{ projects: Project[] }>(`/organizations/${org.id}/projects`)
+    api<{ projects: Project[] }>(`/organizations/${org.id}/projects?include_archived=true&sort=name`)
       .then((r) => setProjects(r.projects))
       .catch(() => setProjects([]));
   }, [org.id]);
 
-  const replace = (item: InventoryItem) => {
-    setItems((prev) => prev?.map((i) => (i.id === item.id ? item : i)) ?? prev);
-    // Totals and low-stock counts move with every change; refresh them.
+  const load = useCallback(() => {
+    const query = new URLSearchParams({ scope });
+    if (q) query.set("q", q);
+    if (lowOnly) query.set("low_stock", "true");
+    if (archived) query.set("include_archived", "true");
+    api<Listing>(`/organizations/${org.id}/inventory?${query}`)
+      .then((r) => {
+        setError(null);
+        setData(r);
+      })
+      .catch((e) => setError(errorMessage(e, t("Couldn't load the inventory."))));
+  }, [org.id, scope, q, lowOnly, archived]);
+
+  useEffect(load, [load]);
+
+  const done = () => {
+    setOpen(null);
     load();
   };
 
-  if (mode === "count" && items) {
-    return (
-      <StockCount
-        org={org}
-        onDone={() => {
-          setMode("list");
-          load();
-        }}
-      />
-    );
-  }
+  const project = scope === "general" ? null : projects.find((p) => String(p.id) === scope) ?? null;
+  const readOnly = project?.status === "archived";
+  const canUse = canContribute(org.role) && !readOnly;
+  const canManage = canManageProjects(org.role) && !readOnly;
+  const projectId = scope === "general" ? null : Number(scope);
+  const warehouses = data?.warehouses ?? [];
+  const currency = data?.summary.currency ?? org.default_currency;
+  const items = data?.items ?? [];
+
+  const scopeOptions = [
+    { value: "general", label: t("General stock") },
+    ...projects.map((p) => ({ value: String(p.id), label: p.status === "archived" ? t("{name} (archived)", { name: p.name }) : p.name })),
+  ];
 
   return (
     <>
-      {summary && (
-        <section className="totals" aria-label={t("Inventory totals")}>
-          <div>
-            <span className="totals__label">{t("Items in stock")}</span>
-            <span className="totals__value">{summary.item_count}</span>
-          </div>
-          <div>
-            <span className="totals__label">{t("Stock value")}</span>
-            <AnimatedMoney className="totals__value" amount={summary.stock_value} currency={summary.currency} />
-          </div>
-          <div>
-            <span className="totals__label">{t("Low stock")}</span>
-            <span className={summary.low_stock_count > 0 ? "totals__value totals__value--over" : "totals__value"}>
-              {summary.low_stock_count}
-            </span>
-          </div>
-        </section>
+      <motion.header
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-wrap items-end justify-between gap-4"
+      >
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{t("Inventory")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {scope === "general"
+              ? t("General stock is the organization's own; each project also has its own inventory.")
+              : t("The inventory of {project}.", { project: project?.name ?? "…" })}{" "}
+            {t("Values in {currency}.", { currency: org.default_currency })}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+          <SimpleSelect
+            ariaLabel={t("Inventory")}
+            value={scope}
+            onChange={(v) => {
+              setParams(v === "general" ? {} : { scope: v });
+              setData(null);
+            }}
+            options={scopeOptions}
+            className="w-64"
+          />
+          {canUse && (
+            <Button variant="outline" onClick={() => setOpen({ kind: "count" })} disabled={!items.length}>
+              <ClipboardList className="size-4" />
+              {t("Stock count")}
+            </Button>
+          )}
+          {canManage && (
+            <Button onClick={() => setOpen({ kind: "add" })}>
+              <Plus className="size-4" />
+              {t("Add item")}
+            </Button>
+          )}
+        </div>
+      </motion.header>
+
+      {readOnly && (
+        <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {t("This project is archived, so its inventory is read-only.")}
+        </p>
       )}
-      {summary && summary.unpriced_item_count > 0 && (
-        <p className="muted inventory__note">
-          {t("{count} items have no unit cost, so they aren't in the stock value.", { count: summary.unpriced_item_count })}
+      <FormAlert message={error} />
+
+      <section aria-label={t("Inventory totals")} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {data === null ? (
+          [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)
+        ) : (
+          <>
+            <Stat i={0} icon={<Boxes className="size-4" />} label={t("Items in stock")} value={String(data.summary.item_count)} />
+            <Stat i={1} icon={<PackagePlus className="size-4" />} label={t("Stock value")}
+              value={<AnimatedMoney amount={data.summary.stock_value} currency={currency} />} />
+            <Stat i={2} icon={<PackageMinus className="size-4" />} label={t("Low stock")} value={String(data.summary.low_stock_count)}
+              tone={data.summary.low_stock_count > 0 ? "warn" : undefined} />
+            <Stat i={3} icon={<WarehouseIcon className="size-4" />} label={t("Warehouses")} value={String(warehouses.length)} />
+          </>
+        )}
+      </section>
+      {data && data.summary.unpriced_item_count > 0 && (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          {t("{count} items have no unit cost, so they aren't in the stock value.", { count: data.summary.unpriced_item_count })}
         </p>
       )}
 
-      <FormError message={error} />
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          setTab(v);
+          const next = new URLSearchParams(params);
+          if (v === "warehouses") next.set("tab", "warehouses");
+          else next.delete("tab");
+          setParams(next, { replace: true });
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="items">
+            {t("Items")}
+            {data && <span className="tabular ms-1.5 text-xs text-muted-foreground">{data.summary.item_count}</span>}
+          </TabsTrigger>
+          <TabsTrigger value="warehouses">
+            {t("Warehouses")}
+            {data && <span className="tabular ms-1.5 text-xs text-muted-foreground">{warehouses.length}</span>}
+          </TabsTrigger>
+        </TabsList>
 
-      <section className="projects-section" aria-labelledby="items-heading">
-        <div className="section-head">
-          <h2 id="items-heading">{t("Items")}</h2>
-          <div className="form__actions">
-            {canMove && items && items.length > 0 && mode === "list" && (
-              <button type="button" className="btn btn--secondary" onClick={() => setMode("count")}>
-                {t("Stock count")}
-              </button>
-            )}
-            {canManage && mode === "list" && (
-              <button type="button" className="btn btn--primary" onClick={() => setMode("add")}>
-                {t("Add item")}
-              </button>
-            )}
+        <TabsContent value="items" className="mt-4 grid gap-4">
+          <div role="search" aria-label={t("Filter items")} className="flex flex-wrap items-center gap-4">
+            <div className="relative min-w-64 flex-1">
+              <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={100}
+                placeholder={t("Name, SKU or location")} aria-label={t("Search")} className="ps-9" />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={lowOnly} onCheckedChange={(v) => setLowOnly(v === true)} />
+              {t("Only low stock")}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={archived} onCheckedChange={(v) => setArchived(v === true)} />
+              {t("Show archived")}
+            </label>
           </div>
-        </div>
 
-        {mode === "add" && (
-          <ItemForm
-            org={org}
-            onCancel={() => setMode("list")}
-            onSaved={() => {
-              setMode("list");
-              load();
-            }}
-          />
-        )}
+          {data === null && !error && (
+            <div className="grid gap-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-24" />
+              ))}
+            </div>
+          )}
+          {data && items.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="grid justify-items-center gap-2 py-12 text-center">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Boxes className="size-5" />
+                </span>
+                <p className="font-medium">{search || lowOnly ? t("No items match these filters.") : t("No items yet.")}</p>
+                {!search && !lowOnly && (
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    {t("No items yet. Add what you keep in stock, with a reorder level to get low-stock warnings.")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {items.length > 0 && (
+            <ul className="grid gap-3">
+              {items.map((item, i) => (
+                <ItemRow
+                  key={item.id}
+                  index={i}
+                  item={item}
+                  currency={currency}
+                  canUse={canUse && !item.archived}
+                  canManage={canManage}
+                  hasWarehouses={warehouses.length > 0}
+                  onOpen={setOpen}
+                  onDelete={() => setDeleting(item)}
+                  onArchive={async () => {
+                    try {
+                      await api(`/inventory/${item.id}`, { method: "PATCH", body: { archived: !item.archived } });
+                      load();
+                    } catch (e) {
+                      setError(errorMessage(e));
+                    }
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </TabsContent>
 
-        <FilterBar label={t("Filter items")}>
-          <label className="filter filter--grow">
-            <span className="filter__label">{t("Search")}</span>
-            <input
-              type="search"
-              placeholder={t("Name, SKU or location")}
-              value={search}
-              maxLength={100}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
-          <FilterCheck label={t("Only low stock")} checked={lowOnly} onChange={setLowOnly} />
-          <FilterCheck label={t("Show archived")} checked={showArchived} onChange={setShowArchived} />
-        </FilterBar>
+        <TabsContent value="warehouses" className="mt-4">
+          <Warehouses orgId={org.id} projectId={projectId} warehouses={warehouses} currency={currency} canManage={canManage} onChanged={load} />
+        </TabsContent>
+      </Tabs>
 
-        {items === null && !error && <p className="muted">{t("Loading…")}</p>}
-        {items && items.length === 0 && (
-          <p className="muted">
-            {q || lowOnly
-              ? t("No items match these filters.")
-              : canManage
-                ? t("No items yet. Add what you keep in stock, with a reorder level to get low-stock warnings.")
-                : t("No items yet.")}
-          </p>
-        )}
-        {items && items.length > 0 && (
-          <ul className="rows">
-            {items.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                org={org}
-                projects={projects}
-                canManage={canManage}
-                canMove={canMove}
-                onChange={replace}
-                onError={setError}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      <ItemFormDialog
+        open={open?.kind === "add" || open?.kind === "edit"}
+        onOpenChange={(o) => !o && setOpen(null)}
+        orgId={org.id}
+        projectId={projectId}
+        item={open?.kind === "edit" ? open.item : null}
+        warehouses={warehouses}
+        currency={currency}
+        onSaved={done}
+      />
+      {open?.kind === "movement" && (
+        <MovementDialog open onOpenChange={(o) => !o && setOpen(null)} kind={open.movement} item={open.item}
+          warehouses={warehouses} projects={projects.filter((p) => p.status !== "archived")} onSaved={done} />
+      )}
+      {open?.kind === "transfer" && (
+        <TransferDialog open onOpenChange={(o) => !o && setOpen(null)} item={open.item} warehouses={warehouses} onSaved={done} />
+      )}
+      {open?.kind === "move" && (
+        <MoveDialog open onOpenChange={(o) => !o && setOpen(null)} orgId={org.id} item={open.item} warehouses={warehouses}
+          projects={projects} onSaved={done} />
+      )}
+      {open?.kind === "history" && <HistoryDialog open onOpenChange={(o) => !o && setOpen(null)} item={open.item} />}
+      <StockCountDialog open={open?.kind === "count"} onOpenChange={(o) => !o && setOpen(null)} orgId={org.id}
+        items={items.filter((i) => !i.archived)} warehouses={warehouses} onSaved={load} />
+      <DeleteItemDialog item={deleting} onClose={() => setDeleting(null)} onDeleted={load} />
     </>
   );
 }
 
-function ItemRow({
-  item,
-  org,
-  projects,
-  canManage,
-  canMove,
-  onChange,
-  onError,
-}: {
-  item: InventoryItem;
-  org: Organization;
-  projects: Project[];
-  canManage: boolean;
-  canMove: boolean;
-  onChange(item: InventoryItem): void;
-  onError(message: string): void;
-}) {
-  const [panel, setPanel] = useState<null | "receive" | "issue" | "adjust" | "edit" | "history">(null);
-  const meta = [item.sku, item.location].filter(Boolean).join(" — ");
-
-  const toggleArchive = async () => {
-    try {
-      const r = await api<{ item: InventoryItem }>(`/inventory/${item.id}`, {
-        method: "PATCH",
-        body: { archived: !item.archived },
-      });
-      onChange(r.item);
-    } catch (e) {
-      onError(errorMessage(e));
-    }
-  };
-
+function Stat({ i, icon, label, value, tone }: { i: number; icon: ReactNode; label: string; value: ReactNode; tone?: "warn" }) {
   return (
-    <li className={item.archived ? "row row--voided row--stacked" : "row row--stacked"}>
-      <div className="row row--plain">
-        <div className="row__main">
-          <p className="row__title">
-            {item.name}
-            {item.low_stock && <span className="tag tag--warn">{t("Low stock")}</span>}
-            {item.archived && <span className="tag">{t("Archived")}</span>}
-          </p>
-          <p className="row__meta">
-            {meta ? `${meta} — ` : ""}
-            {item.unit_cost ? t("{price} per {unit}", { price: formatMoney(item.unit_cost, item.currency), unit: item.unit }) : t("No unit cost")}
-            {item.reorder_level ? ` — ${t("reorder at {quantity}", { quantity: qty(item.reorder_level, item.unit) })}` : ""}
-          </p>
-        </div>
-        <div className="row__side">
-          <span className="row__amount">
-            {qty(item.quantity_on_hand, item.unit)}
-            {item.stock_value && (
-              <small className="inventory__value">{formatMoney(item.stock_value, item.currency)}</small>
-            )}
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 * (i + 1) }}>
+      <Card className="gap-2 py-5">
+        <CardContent className="grid gap-2">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className={cn("flex size-7 items-center justify-center rounded-lg bg-muted", tone === "warn" && "bg-warning/15 text-amber-600 dark:text-amber-300")}>
+              {icon}
+            </span>
+            {label}
           </span>
-        </div>
-      </div>
-      <div className="row__confirm inventory__actions">
-        {!item.archived && canMove && (
-          <>
-            <button type="button" className="link-btn" onClick={() => setPanel(panel === "receive" ? null : "receive")}>
-              {t("Receive")}
-            </button>
-            <button type="button" className="link-btn" onClick={() => setPanel(panel === "issue" ? null : "issue")}>
-              {t("Issue")}
-            </button>
-          </>
-        )}
-        {!item.archived && canManage && (
-          <>
-            <button type="button" className="link-btn" onClick={() => setPanel(panel === "adjust" ? null : "adjust")}>
-              {t("Adjust")}
-            </button>
-            <button type="button" className="link-btn" onClick={() => setPanel(panel === "edit" ? null : "edit")}>
-              {t("Edit")}
-            </button>
-          </>
-        )}
-        <button type="button" className="link-btn" onClick={() => setPanel(panel === "history" ? null : "history")}>
-          {t("History")}
-        </button>
-        {canManage && (
-          <button type="button" className="link-btn" onClick={toggleArchive}>
-            {item.archived ? t("Restore") : t("Archive")}
-          </button>
-        )}
-      </div>
-
-      {(panel === "receive" || panel === "issue" || panel === "adjust") && (
-        <MovementForm
-          item={item}
-          kind={panel}
-          projects={projects}
-          onCancel={() => setPanel(null)}
-          onSaved={(updated) => {
-            setPanel(null);
-            onChange(updated);
-          }}
-        />
-      )}
-      {panel === "edit" && (
-        <ItemForm
-          org={org}
-          item={item}
-          onCancel={() => setPanel(null)}
-          onSaved={(updated) => {
-            setPanel(null);
-            onChange(updated);
-          }}
-        />
-      )}
-      {panel === "history" && <History item={item} />}
-    </li>
+          <span className={cn("tabular text-2xl font-semibold", tone === "warn" && "text-amber-600 dark:text-amber-300")}>{value}</span>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
-function MovementForm({
+function ItemRow({
+  index,
   item,
-  kind,
-  projects,
-  onSaved,
-  onCancel,
+  currency,
+  canUse,
+  canManage,
+  hasWarehouses,
+  onOpen,
+  onDelete,
+  onArchive,
 }: {
+  index: number;
   item: InventoryItem;
-  kind: "receive" | "issue" | "adjust";
-  projects: Project[];
-  onSaved(item: InventoryItem): void;
-  onCancel(): void;
+  currency: string;
+  canUse: boolean;
+  canManage: boolean;
+  hasWarehouses: boolean;
+  onOpen(open: Open): void;
+  onDelete(): void;
+  onArchive(): void;
 }) {
-  const [quantity, setQuantity] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const id = `move_${item.id}_`;
-  const title = { receive: t("Receive stock"), issue: t("Issue stock"), adjust: t("Adjust stock") }[kind];
-
-  const { busy, submit } = useSubmit(
-    async () => {
-      setError(null);
-      setFieldErrors({});
-      const r = await api<{ item: InventoryItem }>(`/inventory/${item.id}/movements`, {
-        body: {
-          kind,
-          quantity: quantity.trim().replace(",", "."),
-          note: note.trim() || null,
-          project_id: kind === "issue" && projectId ? Number(projectId) : null,
-        },
-      });
-      onSaved(r.item);
-    },
-    (e) => {
-      if (e instanceof ApiError && e.field) setFieldErrors({ [e.field]: e.message });
-      else setError(errorMessage(e));
-    },
-  );
-
+  const meta = [item.sku, item.location].filter(Boolean).join(" · ");
+  const notInWarehouse = Number(item.not_in_warehouse);
   return (
-    <form onSubmit={submit} className="panel form inventory__form" aria-label={`${title}: ${item.name}`}>
-      <h3 className="panel__title">{title}</h3>
-      <FormError message={error} />
-      <div className="form__row">
-        <Field
-          label={kind === "adjust" ? t("Change ({unit}, use - to remove)", { unit: item.unit }) : t("Quantity ({unit})", { unit: item.unit })}
-          name={`${id}qty`}
-          value={quantity}
-          onChange={setQuantity}
-          error={fieldErrors.quantity}
-          inputMode="decimal"
-        />
-        {kind === "issue" ? (
-          <SelectField
-            label={t("For project")}
-            name={`${id}project`}
-            value={projectId}
-            onChange={setProjectId}
-            options={[
-              { value: "", label: t("No project") },
-              ...projects.map((p) => ({ value: String(p.id), label: p.name })),
-            ]}
-          />
-        ) : (
-          <Field
-            label={kind === "adjust" ? t("Reason") : t("Note")}
-            name={`${id}note`}
-            value={note}
-            onChange={setNote}
-            error={fieldErrors.note}
-            required={kind === "adjust"}
-          />
-        )}
-      </div>
-      {kind === "issue" && (
-        <Field
-          label={t("Note")}
-          name={`${id}note`}
-          value={note}
-          onChange={setNote}
-          error={fieldErrors.note}
-          required={false}
-        />
-      )}
-      {fieldErrors.project_id && <p className="field__message field__message--error">{fieldErrors.project_id}</p>}
-      <p className="muted">{t("On hand now: {quantity}.", { quantity: qty(item.quantity_on_hand, item.unit) })}</p>
-      <div className="form__actions">
-        <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? t("Saving…") : title}
-        </button>
-        <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          {t("Cancel")}
-        </button>
-      </div>
-    </form>
-  );
-}
+    <motion.li
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: Math.min(index, 8) * 0.03 }}
+    >
+      <Card className={cn("gap-3 py-4", item.archived && "opacity-70")}>
+        <CardContent className="grid gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid min-w-0 gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="item-name font-medium">{item.name}</h3>
+                {item.low_stock && (
+                  <Badge variant="secondary" className="rounded-md border-0 bg-warning/15 text-amber-700 dark:text-amber-300">
+                    {t("Low stock")}
+                  </Badge>
+                )}
+                {item.archived && (
+                  <Badge variant="secondary" className="rounded-md">
+                    {t("Archived")}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {[
+                  meta,
+                  item.unit_cost ? t("{price} per {unit}", { price: formatMoney(item.unit_cost, currency), unit: item.unit }) : t("No unit cost"),
+                  item.reorder_level && t("reorder at {quantity}", { quantity: `${formatNumber(item.reorder_level)} ${item.unit}` }),
+                ]
+                  .filter(Boolean)
+                  .join(" — ")}
+              </p>
+            </div>
+            <div className="grid justify-items-end">
+              <span className="tabular text-lg font-semibold">
+                {formatNumber(item.quantity_on_hand)} <span className="text-sm font-normal text-muted-foreground">{item.unit}</span>
+              </span>
+              {item.stock_value && <span className="tabular text-xs text-muted-foreground">{formatMoney(item.stock_value, currency)}</span>}
+            </div>
+          </div>
 
-function ItemForm({
-  org,
-  item,
-  onSaved,
-  onCancel,
-}: {
-  org: Organization;
-  item?: InventoryItem;
-  onSaved(item: InventoryItem): void;
-  onCancel(): void;
-}) {
-  const [form, setForm] = useState({
-    name: item?.name ?? "",
-    sku: item?.sku ?? "",
-    unit: item?.unit ?? "pcs",
-    unit_cost: item?.unit_cost ?? "",
-    reorder_level: item?.reorder_level ?? "",
-    location: item?.location ?? "",
-    quantity: "",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
-  const id = item ? `item_${item.id}_` : "item_";
-  const num = (v: string) => (v.trim() === "" ? null : v.trim().replace(",", "."));
-
-  const { busy, submit } = useSubmit(
-    async () => {
-      setError(null);
-      setFieldErrors({});
-      const body: Record<string, string | null> = {
-        name: form.name.trim(),
-        sku: form.sku.trim() || null,
-        unit: form.unit.trim() || "pcs",
-        unit_cost: num(form.unit_cost),
-        reorder_level: num(form.reorder_level),
-        location: form.location.trim() || null,
-      };
-      const r = item
-        ? await api<{ item: InventoryItem }>(`/inventory/${item.id}`, { method: "PATCH", body })
-        : await api<{ item: InventoryItem }>(`/organizations/${org.id}/inventory`, {
-            body: { ...body, quantity: num(form.quantity) },
-          });
-      onSaved(r.item);
-    },
-    (e) => {
-      if (e instanceof ApiError && e.field) setFieldErrors({ [e.field]: e.message });
-      else setError(errorMessage(e));
-    },
-  );
-
-  return (
-    <form onSubmit={submit} className="panel form inventory__form" aria-label={item ? t("Edit item") : t("Add item")}>
-      <h3 className="panel__title">{item ? t("Edit item") : t("Add item")}</h3>
-      <FormError message={error} />
-      <div className="form__row">
-        <Field label={t("Name")} name={`${id}name`} value={form.name} onChange={set("name")} error={fieldErrors.name} />
-        <Field
-          label={t("SKU")}
-          name={`${id}sku`}
-          value={form.sku}
-          onChange={set("sku")}
-          error={fieldErrors.sku}
-          required={false}
-        />
-      </div>
-      <div className="form__row">
-        <Field
-          label={t("Unit")}
-          name={`${id}unit`}
-          value={form.unit}
-          onChange={set("unit")}
-          error={fieldErrors.unit}
-          hint={t("pcs, box, kg, litre…")}
-          maxLength={20}
-        />
-        <Field
-          label={t("Unit cost ({default_currency})", { default_currency: org.default_currency })}
-          name={`${id}cost`}
-          value={form.unit_cost}
-          onChange={set("unit_cost")}
-          error={fieldErrors.unit_cost}
-          required={false}
-          inputMode="decimal"
-        />
-      </div>
-      <div className="form__row">
-        <Field
-          label={t("Reorder level")}
-          name={`${id}reorder`}
-          value={form.reorder_level}
-          onChange={set("reorder_level")}
-          error={fieldErrors.reorder_level}
-          hint={t("Warn when stock gets this low.")}
-          required={false}
-          inputMode="decimal"
-        />
-        <Field
-          label={t("Location")}
-          name={`${id}location`}
-          value={form.location}
-          onChange={set("location")}
-          error={fieldErrors.location}
-          required={false}
-        />
-      </div>
-      {!item && (
-        <Field
-          label={t("Opening stock")}
-          name={`${id}qty`}
-          value={form.quantity}
-          onChange={set("quantity")}
-          error={fieldErrors.quantity}
-          hint={t("How many you have now. Leave empty for zero.")}
-          required={false}
-          inputMode="decimal"
-        />
-      )}
-      <div className="form__actions">
-        <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? t("Saving…") : item ? t("Save changes") : t("Add item")}
-        </button>
-        <button className="btn btn--quiet" type="button" onClick={onCancel}>
-          {t("Cancel")}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function History({ item }: { item: InventoryItem }) {
-  const [rows, setRows] = useState<Movement[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api<{ movements: Movement[] }>(`/inventory/${item.id}/movements?limit=20`)
-      .then((r) => setRows(r.movements))
-      .catch((e) => setError(errorMessage(e, t("Couldn't load the history."))));
-  }, [item.id, item.quantity_on_hand]);
-
-  if (error) return <FormError message={error} />;
-  if (!rows) return <p className="muted">{t("Loading…")}</p>;
-  return (
-    <ol className="activity inventory__history">
-      {rows.map((m) => (
-        <li key={m.id}>
-          <time dateTime={m.created_at}>{formatWhen(m.created_at)}</time>
-          <p>
-            <strong>{KIND_LABEL[m.kind]}</strong>{" "}
-            {t("{change}, leaving {quantity}", {
-              change: `${Number(m.quantity_delta) > 0 ? "+" : ""}${qty(m.quantity_delta, item.unit)}`,
-              quantity: qty(m.quantity_after, item.unit),
-            })}
-            {m.project_name ? ` — ${t("for {project}", { project: m.project_name })}` : ""}
-            {m.note ? ` — ${m.note}` : ""}
-            {m.created_by ? ` (${m.created_by})` : ""}
-          </p>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-interface CountResult {
-  item_id: number;
-  name: string;
-  unit: string;
-  expected: string;
-  counted: string;
-  difference: string;
-}
-
-/** Count what's on the shelf; only items with a number entered are recorded. */
-function StockCount({ org, onDone }: { org: Organization; onDone(): void }) {
-  const [items, setItems] = useState<InventoryItem[] | null>(null);
-  const [counts, setCounts] = useState<Record<number, string>>({});
-  const [showExpected, setShowExpected] = useState(false);
-  const [note, setNote] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    results: CountResult[];
-    changed_count: number;
-    value_change: string;
-    currency: string;
-  } | null>(null);
-
-  useEffect(() => {
-    api<{ items: InventoryItem[] }>(`/organizations/${org.id}/inventory`)
-      .then((r) => setItems(r.items))
-      .catch((e) => setError(errorMessage(e)));
-  }, [org.id]);
-
-  const entered = Object.entries(counts).filter(([, v]) => v.trim() !== "");
-
-  const { busy, submit } = useSubmit(
-    async () => {
-      setError(null);
-      const r = await api<typeof result>(`/organizations/${org.id}/inventory/counts`, {
-        body: {
-          note: note.trim() || null,
-          counts: entered.map(([itemId, v]) => ({ item_id: Number(itemId), counted: v.trim().replace(",", ".") })),
-        },
-      });
-      setResult(r);
-    },
-    (e) => setError(errorMessage(e)),
-  );
-
-  if (result) {
-    const changed = result.results.filter((r) => Number(r.difference) !== 0);
-    return (
-      <section className="panel" aria-labelledby="count-done">
-        <h2 id="count-done" className="panel__title">
-          {t("Count saved")}
-        </h2>
-        <p>
-          {result.changed_count === 0
-            ? t("{count} items counted, no differences.", { count: result.results.length })
-            : t("{count} items counted, {changed} different from the records.", {
-                count: result.results.length,
-                changed: result.changed_count,
-              })}
-          {result.changed_count > 0 &&
-            ` ${t("Stock value changed by {amount}.", { amount: formatMoney(result.value_change, result.currency) })}`}
-        </p>
-        {changed.length > 0 && (
-          <table className="report__table">
-            <thead>
-              <tr>
-                <th scope="col">{t("Item")}</th>
-                <th scope="col" className="num">
-                  {t("Expected")}
-                </th>
-                <th scope="col" className="num">
-                  {t("Counted")}
-                </th>
-                <th scope="col" className="num">
-                  {t("Difference")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {changed.map((r) => (
-                <tr key={r.item_id}>
-                  <td>{r.name}</td>
-                  <td className="num">{qty(r.expected, r.unit)}</td>
-                  <td className="num">{qty(r.counted, r.unit)}</td>
-                  <td className={Number(r.difference) < 0 ? "num overdue" : "num"}>
-                    {Number(r.difference) > 0 ? "+" : ""}
-                    {qty(r.difference, r.unit)}
-                  </td>
-                </tr>
+          {(item.stock.length > 0 || (hasWarehouses && notInWarehouse !== 0)) && (
+            <ul className="flex flex-wrap gap-2" aria-label={t("Stock by warehouse")}>
+              {item.stock.map((s) => (
+                <li key={s.warehouse_id} className="tabular inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-0.5 text-xs">
+                  <WarehouseIcon className="size-3 text-primary" />
+                  {s.warehouse} · {formatNumber(s.quantity)}
+                </li>
               ))}
-            </tbody>
-          </table>
-        )}
-        <div className="form__actions inventory__done">
-          <button type="button" className="btn btn--primary" onClick={onDone}>
-            {t("Back to inventory")}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="panel form" aria-labelledby="count-heading">
-      <h2 id="count-heading" className="panel__title">
-        {t("Stock count")}
-      </h2>
-      <p className="muted">
-        {t("Enter what you count on the shelf. Items you leave empty aren't changed. Quantities are set to what you enter, and the differences are recorded.")}
-      </p>
-      <FormError message={error} />
-      <FilterCheck label={t("Show expected quantities")} checked={showExpected} onChange={setShowExpected} />
-      {!items && !error && <p className="muted">{t("Loading…")}</p>}
-      {items && (
-        <table className="report__table count-table">
-          <thead>
-            <tr>
-              <th scope="col">{t("Item")}</th>
-              {showExpected && (
-                <th scope="col" className="num">
-                  {t("Expected")}
-                </th>
+              {notInWarehouse !== 0 && (
+                <li className="tabular inline-flex items-center gap-1.5 rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {t("Not in a warehouse")} · {formatNumber(item.not_in_warehouse)}
+                </li>
               )}
-              <th scope="col" className="num">
-                {t("Counted")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i) => (
-              <tr key={i.id}>
-                <td>
-                  <label htmlFor={`count_${i.id}`}>{i.name}</label>
-                  {i.location && <span className="muted"> — {i.location}</span>}
-                </td>
-                {showExpected && <td className="num">{qty(i.quantity_on_hand, i.unit)}</td>}
-                <td className="num">
-                  <input
-                    id={`count_${i.id}`}
-                    className="count-input"
-                    inputMode="decimal"
-                    value={counts[i.id] ?? ""}
-                    onChange={(e) => setCounts((c) => ({ ...c, [i.id]: e.target.value }))}
-                    aria-label={t("Counted {unit} of {name}", { unit: i.unit, name: i.name })}
-                  />{" "}
-                  <span className="muted">{i.unit}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <Field
-        label={t("Note")}
-        name="count_note"
-        value={note}
-        onChange={setNote}
-        hint={t("Defaults to \"Stock count\".")}
-        required={false}
-      />
-      <div className="form__actions">
-        <button className="btn btn--primary" type="submit" disabled={busy || entered.length === 0}>
-          {busy ? t("Saving…") : t("Save count ({count})", { count: entered.length })}
-        </button>
-        <button className="btn btn--quiet" type="button" onClick={onDone}>
-          {t("Cancel")}
-        </button>
-      </div>
-    </form>
+            </ul>
+          )}
+
+          {(canUse || canManage) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {canUse && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => onOpen({ kind: "movement", item, movement: "receive" })}>
+                    <PackagePlus className="size-4" />
+                    {t("Receive")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onOpen({ kind: "movement", item, movement: "issue" })}>
+                    <PackageMinus className="size-4" />
+                    {t("Issue")}
+                  </Button>
+                  {hasWarehouses && (
+                    <Button size="sm" variant="ghost" onClick={() => onOpen({ kind: "transfer", item })}>
+                      <ArrowLeftRight className="size-4" />
+                      {t("Transfer")}
+                    </Button>
+                  )}
+                </>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" aria-label={t("More actions for {name}", { name: item.name })}>
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  {canManage && !item.archived && (
+                    <DropdownMenuItem onSelect={() => onOpen({ kind: "movement", item, movement: "adjust" })}>
+                      <SlidersHorizontal className="size-4" />
+                      {t("Adjust")}
+                    </DropdownMenuItem>
+                  )}
+                  {canManage && !item.archived && (
+                    <DropdownMenuItem onSelect={() => onOpen({ kind: "move", item })}>
+                      <Truck className="size-4" />
+                      {t("Move to another inventory")}
+                    </DropdownMenuItem>
+                  )}
+                  {canManage && (
+                    <DropdownMenuItem onSelect={() => onOpen({ kind: "edit", item })}>
+                      <Pencil className="size-4" />
+                      {t("Edit")}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onSelect={() => onOpen({ kind: "history", item })}>
+                    <History className="size-4" />
+                    {t("History")}
+                  </DropdownMenuItem>
+                  {canManage && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={onArchive}>
+                        {item.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
+                        {item.archived ? t("Restore") : t("Archive")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={onDelete} className="text-destructive focus:text-destructive">
+                        <Trash2 className="size-4" />
+                        {t("Delete")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.li>
   );
 }

@@ -24,6 +24,7 @@ const TOOL_LABEL: Record<string, string> = {
   draft_project_update: t("Project facts for the draft"),
   get_inventory_status: t("Inventory"),
   find_inventory_items: t("Stock items"),
+  list_warehouses: t("Warehouses"),
   propose_stock_changes: t("Stock changes draft"),
   calculate: t("Calculator"),
   vat: t("VAT calculation"),

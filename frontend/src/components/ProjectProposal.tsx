@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type Organization, type Project, type ProjectPlan } from "../api/models";
 import { errorMessage } from "../lib/errors";
-import { PRIORITY_LABEL, formatDate, formatMoney } from "../lib/format";
+import { PRIORITY_LABEL, formatDate, formatMoney, formatNumber } from "../lib/format";
 import { FormError } from "./AuthLayout";
 import { t } from "../i18n";
 import { tx } from "../i18n/rich";
@@ -20,6 +20,8 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
   const [end, setEnd] = useState(plan.end_date ?? "");
   const [keepMilestone, setKeepMilestone] = useState(() => plan.milestones.map(() => true));
   const [keepTask, setKeepTask] = useState(() => plan.tasks.map(() => true));
+  const stockLines = plan.inventory ?? [];
+  const [keepStock, setKeepStock] = useState(() => stockLines.map(() => true));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Project | null>(null);
@@ -62,6 +64,7 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
           tasks: plan.tasks
             .filter((_, i) => keepTask[i])
             .map((x) => ({ ...x, milestone: x.milestone && kept.has(x.milestone.toLowerCase()) ? x.milestone : null })),
+          inventory: stockLines.filter((_, i) => keepStock[i]),
         },
       });
       setCreated(r.project);
@@ -136,6 +139,27 @@ export function ProjectProposal({ plan, org }: { plan: ProjectPlan; org: Organiz
                         {PRIORITY_LABEL[x.priority]}
                         {x.due_date ? `${t(", ")}${t("due {date}", { date: formatDate(x.due_date) })}` : ""}
                         {x.milestone ? `${t(", ")}${x.milestone}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {stockLines.length > 0 && (
+          <div>
+            <h4>{t("Opening inventory")}</h4>
+            <ul>
+              {stockLines.map((x, i) => (
+                <li key={`${x.name}-${i}`}>
+                  <label className="check">
+                    <input type="checkbox" checked={keepStock[i]} onChange={() => toggle(setKeepStock, i)} />
+                    <span>
+                      {x.name}
+                      <span className="muted">
+                        {" — "}
+                        {x.quantity ? `${formatNumber(x.quantity)} ${x.unit}` : x.unit}
                       </span>
                     </span>
                   </label>

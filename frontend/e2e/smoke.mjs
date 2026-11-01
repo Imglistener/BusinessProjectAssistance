@@ -92,18 +92,50 @@ await step("inventory: receive stock clears the low-stock warning", async () => 
   const paper = page.locator("li", { hasText: "Printer paper A4" }).first();
   await paper.locator("text=Low stock").waitFor();
   await paper.getByRole("button", { name: "Receive" }).click();
-  await paper.locator("input[name$='qty']").fill("10");
-  await paper.getByRole("button", { name: "Receive stock" }).click();
-  await page.waitForSelector("text=14 box");
+  await page.fill("#move_qty", "10");
+  await page.getByRole("dialog").getByRole("button", { name: "Receive stock" }).click();
+  await paper.locator("text=14").first().waitFor();
+  await page.waitForTimeout(300);
   if (await paper.locator("text=Low stock").count()) throw new Error("still marked low stock");
 });
 
 await step("inventory: a stock count records the difference", async () => {
-  await page.click("text=Stock count");
+  await page.getByRole("button", { name: "Stock count" }).click();
   await page.fill("[aria-label='Counted pcs of Office chair']", "7");
   await page.click("text=Save count (1)");
-  await page.waitForSelector("text=Count saved");
+  await page.waitForSelector("text=1 item counted, 1 different from the records.");
   await page.waitForSelector("text=-1 pcs");
+  await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
+});
+
+await step("warehouses: add one and transfer stock into it", async () => {
+  await page.getByRole("tab", { name: /Warehouses/ }).click();
+  await page.getByRole("button", { name: "Add warehouse" }).first().click();
+  await page.fill("#warehouse_name", "E2E depot");
+  await page.fill("#warehouse_address", "Ain Sebaa, Casablanca");
+  await page.click("text=Save warehouse");
+  await page.waitForSelector(".warehouse-name >> text=E2E depot");
+  await page.getByRole("tab", { name: /Items/ }).click();
+  const paper = page.locator("li", { hasText: "Printer paper A4" }).first();
+  await paper.getByRole("button", { name: "Transfer" }).click();
+  await page.click("#transfer_to");
+  await page.getByRole("option", { name: /E2E depot/ }).click();
+  await page.fill("#transfer_qty", "4");
+  await page.getByRole("dialog").getByRole("button", { name: "Transfer" }).click();
+  await paper.locator("text=E2E depot · 4").waitFor();
+});
+
+await step("project inventory: open it from the project and add an item", async () => {
+  await page.goto(`${BASE}/app`);
+  await page.click(".project-name >> text=Website redesign");
+  await page.locator("#project-inventory-heading").waitFor();
+  await page.locator("section[aria-labelledby=project-inventory-heading] a").click();
+  await page.waitForURL(/scope=\d+/);
+  await page.getByRole("button", { name: "Add item" }).click();
+  await page.fill("#item_name", "Roll-up banner");
+  await page.fill("#item_quantity", "3");
+  await page.getByRole("dialog").getByRole("button", { name: "Add item" }).click();
+  await page.waitForSelector(".item-name >> text=Roll-up banner");
 });
 
 await step("trips: plan a trip and add an itinerary item", async () => {

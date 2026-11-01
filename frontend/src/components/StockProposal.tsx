@@ -20,6 +20,9 @@ const KIND_LABEL: Record<StockChangeKind, string> = {
   issue: t("Issue"),
   adjust: t("Adjust"),
   create: t("New item"),
+  transfer: t("Transfer"),
+  move: t("Move"),
+  delete: t("Delete"),
 };
 
 const KIND_STYLE: Record<StockChangeKind, string> = {
@@ -27,6 +30,9 @@ const KIND_STYLE: Record<StockChangeKind, string> = {
   issue: "bg-primary/10 text-primary",
   adjust: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   create: "bg-secondary text-secondary-foreground",
+  transfer: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  move: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  delete: "bg-destructive/10 text-destructive",
 };
 
 const num = (s: string | null | undefined) => {
@@ -57,8 +63,12 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
         return { before: l.on_hand_before, after: l.kind === "create" ? qty[i] || "0" : l.on_hand_after, negative: false };
       }
       const start = running.get(l.item_id) ?? num(l.on_hand_before);
+      if (l.kind === "delete") {
+        running.set(l.item_id, 0);
+        return { before: String(start), after: "0", negative: false };
+      }
       const q = num(qty[i]);
-      const delta = l.kind === "issue" ? -q : q;
+      const delta = l.kind === "transfer" ? 0 : l.kind === "issue" || l.kind === "move" ? -q : q;
       const after = keep[i] && Number.isFinite(q) ? start + delta : start;
       running.set(l.item_id, after);
       return { before: String(start), after: String(after), negative: after < 0 };
@@ -70,26 +80,40 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
   const chosen = draft.lines.map((l, i) => ({ l, i })).filter(({ i }) => keep[i]);
   const invalid = chosen.some(({ l, i }) => {
     const q = num(qty[i]);
+    if (l.kind === "delete") return false;
     return !Number.isFinite(q) || (l.kind === "adjust" ? q === 0 : l.kind === "create" ? q < 0 : q <= 0) || preview[i].negative;
   });
 
   const confirm = async () => {
     setBusy(true);
     setError(null);
-    const changes = chosen.map(({ l, i }) =>
-      l.kind === "create"
-        ? {
-            kind: "create",
-            name: l.name,
-            unit: l.unit,
-            sku: l.sku,
-            location: l.location,
-            unit_cost: l.unit_cost,
-            reorder_level: l.reorder_level,
-            quantity: qty[i] || "0",
-          }
-        : { kind: l.kind, item_id: l.item_id, quantity: qty[i], project_id: l.project_id, note: l.note },
-    );
+    const changes = chosen.map(({ l, i }) => {
+      if (l.kind === "create") {
+        return {
+          kind: "create",
+          name: l.name,
+          unit: l.unit,
+          sku: l.sku,
+          location: l.location,
+          unit_cost: l.unit_cost,
+          reorder_level: l.reorder_level,
+          quantity: qty[i] || "0",
+          inventory_project_id: l.inventory_project_id,
+          warehouse_id: l.warehouse_id,
+        };
+      }
+      if (l.kind === "delete") return { kind: "delete", item_id: l.item_id };
+      return {
+        kind: l.kind,
+        item_id: l.item_id,
+        quantity: qty[i],
+        warehouse_id: l.warehouse_id,
+        to_warehouse_id: l.to_warehouse_id,
+        to_project_id: l.to_project_id,
+        project_id: l.project_id,
+        note: l.note,
+      };
+    });
     try {
       await api(`/organizations/${org.id}/inventory/changes`, { body: { changes } });
       setDone(changes.length);
@@ -103,6 +127,9 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
     }
   };
 
+  // The inventories these lines touch, for the "Open stock" link.
+  const scopes = [...new Set(draft.lines.map((l) => l.inventory_project_id))];
+
   if (done !== null) {
     return (
       <motion.div
@@ -114,7 +141,7 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
         <CircleCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
         <span className="flex-1 font-medium">{t("Stock updated: {count} changes saved.", { count: done })}</span>
         <Button asChild size="sm" variant="outline">
-          <Link to="/app/inventory">
+          <Link to={`/app/inventory${scopes.length === 1 ? `?scope=${scopes[0] ?? "general"}` : ""}`}>
             {t("Open stock")}
             <ArrowRight className="size-3.5 rtl:rotate-180" />
           </Link>
@@ -169,6 +196,7 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
                     {KIND_LABEL[l.kind]}
                   </Badge>
                   <span className="truncate text-sm font-medium">{l.name ?? "?"}</span>
+                  <span className="text-xs text-muted-foreground">{whereText(l)}</span>
                   {l.project_name && (
                     <span className="text-xs text-muted-foreground">{t("for {project}", { project: l.project_name })}</span>
                   )}
@@ -202,7 +230,7 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
                   )
                 )}
               </div>
-              {!blocked && (
+              {!blocked && l.kind !== "delete" && (
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="sr-only">{t("Quantity ({unit})", { unit: l.unit ?? "" })}</span>
                   <Input
@@ -233,4 +261,18 @@ export function StockProposal({ draft, org }: { draft: StockDraft; org: Organiza
       </div>
     </motion.section>
   );
+}
+
+/** "Office move · Casablanca depot → Tangier store", in the reader's language. */
+function whereText(l: StockDraftLine): string {
+  const inventory = l.inventory_project_id === null ? t("General stock") : l.inventory_name;
+  const here = l.warehouse_name ?? (l.kind === "transfer" ? t("Not in a warehouse") : null);
+  if (l.kind === "transfer") {
+    return `${inventory} · ${t("{from} to {to}", { from: here ?? t("Not in a warehouse"), to: l.to_warehouse_name ?? t("Not in a warehouse") })}`;
+  }
+  if (l.kind === "move") {
+    const to = l.to_project_id === null ? t("General stock") : (l.to_inventory_name ?? "");
+    return t("{from} to {to}", { from: [inventory, here].filter(Boolean).join(" · "), to: [to, l.to_warehouse_name].filter(Boolean).join(" · ") });
+  }
+  return [inventory, here].filter(Boolean).join(" · ");
 }

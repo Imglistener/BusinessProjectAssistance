@@ -137,26 +137,38 @@ and only owners and project managers can create projects.
 
 ## Inventory
 
-**Inventory** in the left-hand menu tracks what your organization keeps in stock.
+Each project has its own inventory, and your organization has **General stock** for everything that isn't tied
+to a project. Open **Inventory** in the left-hand menu and pick the inventory at the top, or select **Open
+inventory** on a project.
 
 ![The inventory](images/en-inventory.jpg)
 
-- **Add item**: name, unit (pcs, box, kg…), unit cost, a reorder level and where it's kept. Items at or below
-  their reorder level are marked **Low stock**.
-- **Receive** when stock arrives; **Issue** when it's used, optionally for a project (it then appears under
-  **Materials used** on that project). **Adjust** corrects stock for damage or loss, with a reason.
-- **Stock count**: count what's on the shelves and enter the numbers. Quantities are set to what you counted
-  and the differences are shown and recorded. You can hide the expected quantities while counting.
-- **History** shows every change to an item.
+- **Add item**: name, unit (pcs, box, kg…), unit cost, a reorder level, the spot in the warehouse, and the
+  opening stock with the warehouse it's in. Items at or below their reorder level are marked **Low stock**.
+- **Receive** when stock arrives and **Issue** when it's used, choosing the warehouse. Stock used from a
+  project's inventory (or issued from General stock for a project) appears under **Materials used** on that
+  project. **Adjust** corrects stock for damage or loss, with a reason.
+- **Warehouses** (the second tab): add the places where you keep stock, with an address you search for or pin
+  on the map. One item can be spread across several warehouses; each item shows how much is where.
+- **Transfer** moves stock between warehouses of the same inventory. **Move to another inventory** moves it
+  between General stock and a project (or between projects); the item there is found by name, or added.
+- **Stock count**: pick a warehouse, count what's on its shelves and enter the numbers. Quantities there are
+  set to what you counted and the differences are shown and recorded.
+- **History** shows every change to an item. **Archive** hides an item but keeps its history; **Delete**
+  removes it and its history for good. A warehouse can be deleted once it's empty.
 
 Stock issued to a project isn't added to the project's spending; record purchases as expenses if they
 should count against a budget.
 
-You can also tell the assistant what happened, for example "We received 20 boxes of printer paper and
-2 office chairs broke". It drafts the stock changes and shows each one with the quantity before and after.
-Correct any quantity, untick what you don't want, and select **Confirm**. Nothing changes until you do.
-Deliveries of something you don't stock yet become a new item. The same rules apply as on the Stock page:
-contributors can confirm receipts and issues; adding items and adjustments need an owner or project manager.
+When you create a project, the optional second step lets you list the stock it starts with.
+
+You can also tell the assistant what happened or what you need, for example "We received 20 boxes of printer
+paper at the Maarif site store", "Move 10 chairs from General stock to the office move" or "Tidy up the office
+move's warehouses". It drafts the changes (deliveries, use, adjustments, new items, transfers, moves between
+inventories and deletions) and shows each one with the quantity before and after. Correct any quantity, untick
+what you don't want, and select **Confirm**. Nothing changes until you do. The same rules apply as on the
+Inventory page: contributors can confirm deliveries, use and transfers; adding, adjusting, moving between
+inventories and deleting items, and managing warehouses, need an owner or project manager.
 
 ## The assistant
 

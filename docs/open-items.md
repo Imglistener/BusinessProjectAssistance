@@ -154,6 +154,21 @@
   real test email on 2026-10-31. A generic SMTP option exists for other providers.
 - Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
 
+## Project inventories and warehouses (implemented, your choices + my defaults)
+- Each project has its own inventory; the organization's earlier shared stock became "General stock" (items and
+  warehouses with no project). Stock moves between them with "Move to another inventory" (found by name, else
+  created; a different unit is refused).
+- Warehouses have an address and a map position (OpenStreetMap search / click). An item's stock can be split
+  across warehouses (inventory_stock); transfers move it between them. Stock counts are per warehouse.
+- Items can be deleted for good (with their history; the audit log keeps a record). Warehouses only when empty.
+- Roles: contributors receive, issue, transfer and count; owners and project managers add/edit/delete items,
+  adjust, move between inventories and manage warehouses.
+- New projects can start with an inventory (optional second step, or in an assistant draft).
+- Assistant: find_inventory_items and list_warehouses read any inventory; propose_stock_changes drafts receive /
+  issue / adjust / create / transfer / move / delete lines. It can't create warehouses (they need a map position);
+  "organize" means proposing transfers.
+- Not yet checked on Postgres: the migration adds enum values with ALTER TYPE (Docker wasn't running).
+
 ## Deleting projects (implemented, my defaults)
 - Owners only. One project (project page) or several (Select on the dashboard), all or nothing. The confirmation
   shows exact counts from POST /organizations/:id/projects/delete-preview and asks to type "delete".

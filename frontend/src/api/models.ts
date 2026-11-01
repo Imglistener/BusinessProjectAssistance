@@ -103,8 +103,17 @@ export interface Deadlines {
   my_task_count: number;
 }
 
+/** How much of an item one warehouse holds. */
+export interface WarehouseStock {
+  warehouse_id: number;
+  warehouse: string;
+  quantity: string;
+}
+
 export interface InventoryItem {
   id: number;
+  /** the project whose inventory it's in; null for General stock */
+  project_id: number | null;
   name: string;
   sku: string | null;
   unit: string;
@@ -118,6 +127,23 @@ export interface InventoryItem {
   /** null when the item has no unit cost */
   stock_value: string | null;
   low_stock: boolean;
+  /** warehouses holding some of it */
+  stock: WarehouseStock[];
+  not_in_warehouse: string;
+}
+
+/** A place where stock is kept, in General stock or a project's inventory. */
+export interface Warehouse {
+  id: number;
+  project_id: number | null;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  notes: string | null;
+  item_count: number;
+  units: string;
+  value: string;
 }
 
 export interface InventorySummary {
@@ -131,11 +157,13 @@ export interface InventorySummary {
 export interface Movement {
   id: number;
   item_id: number;
-  kind: "receive" | "issue" | "adjust" | "count";
+  kind: "receive" | "issue" | "adjust" | "count" | "transfer" | "move_out" | "move_in";
   quantity_delta: string;
   quantity_after: string;
   project_id: number | null;
   project_name: string | null;
+  warehouse: string | null;
+  to_warehouse: string | null;
   note: string | null;
   created_by: string | null;
   created_at: string;
@@ -314,7 +342,17 @@ export interface ToolTraceEntry {
   ok: boolean;
 }
 
+/** A new project's opening stock (typed in, or drafted by the assistant). */
+export interface OpeningItem {
+  name: string;
+  unit: string;
+  quantity: string | null;
+  unit_cost: string | null;
+  reorder_level?: string | null;
+}
+
 export interface ProjectPlan {
+  inventory?: OpeningItem[];
   name: string;
   description: string | null;
   currency: string;
@@ -341,11 +379,22 @@ export interface ChatReply {
   ai_generated: true;
 }
 
-export type StockChangeKind = "receive" | "issue" | "adjust" | "create";
+export type StockChangeKind = "receive" | "issue" | "adjust" | "create" | "transfer" | "move" | "delete";
 
 /** One drafted stock change, already matched to an item and project, with a preview of the result. */
 export interface StockDraftLine {
   kind: StockChangeKind;
+  /** which inventory the line is in: a project's, or General stock (null) */
+  inventory_project_id: number | null;
+  inventory_name: string;
+  warehouse_id: number | null;
+  warehouse_name: string | null;
+  /** transfer and move: destination warehouse (null = not in a warehouse) */
+  to_warehouse_id: number | null;
+  to_warehouse_name: string | null;
+  /** move: destination inventory */
+  to_project_id: number | null;
+  to_inventory_name: string | null;
   /** null for "create" (a new item) and for lines whose item wasn't found */
   item_id: number | null;
   name: string | null;

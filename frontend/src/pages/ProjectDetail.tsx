@@ -9,6 +9,7 @@ import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
 import { MilestoneSection } from "../components/MilestoneSection";
 import { MaterialsSection } from "../components/MaterialsSection";
+import { ProjectInventoryCard } from "../components/ProjectInventoryCard";
 import { DeleteProjectsDialog } from "../components/DeleteProjectsDialog";
 import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
@@ -96,6 +97,7 @@ export default function ProjectDetail() {
           />
           <TripSection project={project} onTripsChange={setTrips} />
           <ExpenseSection project={project} userId={user.id} trips={trips} onProjectChange={merge} />
+          <ProjectInventoryCard projectId={project.id} refreshKey={activityKey} />
           <MaterialsSection projectId={project.id} refreshKey={activityKey} />
           <ActivitySection project={project} refreshKey={activityKey} />
         </>

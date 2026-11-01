@@ -148,29 +148,44 @@ projets.
 
 ## Stock
 
-**Stock**, dans le menu de gauche, suit ce que votre organisation garde en réserve.
+Chaque projet a son propre inventaire, et votre organisation a un **stock général** pour tout ce qui n'est pas
+lié à un projet. Ouvrez **Stock** dans le menu de gauche et choisissez l'inventaire en haut, ou sélectionnez
+**Ouvrir l'inventaire** sur un projet.
 
 ![Le stock](images/fr-inventory.jpg)
 
-- **Ajouter un article** : nom, unité (pièce, boîte, kg…), coût unitaire, seuil de réapprovisionnement et
-  emplacement. Les articles au seuil ou en dessous sont marqués **Stock bas**.
-- **Entrée** quand du stock arrive ; **Sortie** quand il est utilisé, éventuellement pour un projet (il
-  apparaît alors sous **Matériel utilisé** sur ce projet). **Ajuster** corrige le stock en cas de casse ou de
-  perte, avec un motif.
-- **Inventaire** : comptez ce qui est en rayon et saisissez les quantités. Le stock prend les valeurs
-  comptées, et les écarts sont affichés et enregistrés. Vous pouvez masquer les quantités attendues pendant
-  le comptage.
-- **Historique** montre chaque mouvement d'un article.
+- **Ajouter un article** : nom, unité (pièce, boîte, kg…), coût unitaire, seuil de réapprovisionnement,
+  emplacement dans l'entrepôt, et stock initial avec son entrepôt. Les articles au seuil ou en dessous sont
+  marqués **Stock bas**.
+- **Entrée** quand du stock arrive et **Sortie** quand il est utilisé, en choisissant l'entrepôt. Le stock
+  utilisé depuis l'inventaire d'un projet (ou sorti du stock général pour un projet) apparaît sous **Matériel
+  utilisé** sur ce projet. **Ajuster** corrige le stock en cas de casse ou de perte, avec un motif.
+- **Entrepôts** (le deuxième onglet) : ajoutez les lieux où vous stockez, avec une adresse que vous recherchez
+  ou placez sur la carte. Un article peut être réparti entre plusieurs entrepôts ; chaque article indique
+  combien se trouve où.
+- **Transférer** déplace du stock entre les entrepôts d'un même inventaire. **Déplacer vers un autre
+  inventaire** le déplace entre le stock général et un projet (ou entre projets) ; l'article y est retrouvé
+  par son nom, ou ajouté.
+- **Inventaire** : choisissez un entrepôt, comptez ce qui est en rayon et saisissez les quantités. Les
+  quantités y prennent les valeurs comptées, et les écarts sont affichés et enregistrés.
+- **Historique** montre chaque mouvement d'un article. **Archiver** masque un article en gardant son
+  historique ; **Supprimer** l'efface définitivement avec son historique. Un entrepôt peut être supprimé une
+  fois vide.
 
 Le stock sorti pour un projet n'est pas ajouté à ses dépenses ; enregistrez les achats comme dépenses s'ils
 doivent compter dans un budget.
 
-Vous pouvez aussi dire à l'assistant ce qui s'est passé, par exemple « On a reçu 20 boîtes de papier et
-2 chaises de bureau sont cassées ». Il prépare les mouvements de stock et affiche chacun avec la quantité avant
-et après. Corrigez une quantité si besoin, décochez ce que vous ne voulez pas, puis sélectionnez **Confirmer**.
-Rien ne change avant. La livraison d'un article que vous n'avez pas encore devient un nouvel article. Les règles
-sont les mêmes que sur la page Stock : les contributeurs peuvent confirmer les entrées et les sorties ; la création
-d'articles et les ajustements demandent un propriétaire ou un chef de projet.
+Quand vous créez un projet, la deuxième étape (facultative) permet d'indiquer le stock dont il dispose au départ.
+
+Vous pouvez aussi dire à l'assistant ce qui s'est passé ou ce dont vous avez besoin, par exemple « On a reçu
+20 boîtes de papier au magasin du chantier de Maarif », « Déplace 10 chaises du stock général vers le
+déménagement » ou « Range les entrepôts du déménagement ». Il prépare les mouvements (entrées, sorties,
+ajustements, nouveaux articles, transferts, déplacements entre inventaires et suppressions) et affiche chacun
+avec la quantité avant et après. Corrigez une quantité si besoin, décochez ce que vous ne voulez pas, puis
+sélectionnez **Confirmer**. Rien ne change avant. Les règles sont les mêmes que sur la page Stock : les
+contributeurs peuvent confirmer les entrées, sorties et transferts ; ajouter, ajuster, déplacer entre
+inventaires et supprimer des articles, ainsi que gérer les entrepôts, demandent un propriétaire ou un chef de
+projet.
 
 ## L'assistant
 

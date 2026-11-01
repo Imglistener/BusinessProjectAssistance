@@ -15,6 +15,7 @@ from .models import (
     FuelType,
     InventoryItem,
     InventoryMovement,
+    InventoryStock,
     MovementKind,
     Notification,
     Milestone,
@@ -31,6 +32,7 @@ from .models import (
     TripItemKind,
     TripStatus,
     User,
+    Warehouse,
     utcnow,
 )
 from .services import fuel_sync
@@ -251,6 +253,28 @@ def demo_data(yes: bool) -> None:
     db.session.add(InventoryMovement(organization_id=org.id, item_id=chairs.id, kind=MovementKind.ISSUE,
                                      quantity_delta=Decimal("-6"), quantity_after=Decimal("8"), project_id=move.id,
                                      note="Meeting room", created_by=mate.id))
+
+    # The office move's own inventory: two warehouses, stock split between them.
+    site = Warehouse(organization_id=org.id, project_id=move.id, name="Maarif site store",
+                     address="Boulevard d'Anfa, Maarif, Casablanca", lat=33.5862, lng=-7.6326)
+    depot = Warehouse(organization_id=org.id, project_id=move.id, name="Ain Sebaa storage",
+                      address="Zone industrielle Ain Sebaa, Casablanca", lat=33.6047, lng=-7.5326)
+    db.session.add_all([site, depot])
+    db.session.flush()
+    for name, unit, cost, here, there in [("Moving boxes", "box", "12.00", "30", "50"),
+                                          ("Packing tape", "roll", "15.00", "12", None),
+                                          ("Desk", "pcs", "1800.00", None, "6")]:
+        total = sum(Decimal(q) for q in (here, there) if q)
+        item = InventoryItem(organization_id=org.id, project_id=move.id, name=name, unit=unit, unit_cost=Decimal(cost),
+                             quantity_on_hand=total, archived=False)
+        db.session.add(item)
+        db.session.flush()
+        for warehouse, qty in ((site, here), (depot, there)):
+            if qty:
+                db.session.add(InventoryStock(item_id=item.id, warehouse_id=warehouse.id, quantity=Decimal(qty)))
+                db.session.add(InventoryMovement(organization_id=org.id, item_id=item.id, kind=MovementKind.COUNT,
+                                                 quantity_delta=Decimal(qty), quantity_after=total, project_id=move.id,
+                                                 warehouse_id=warehouse.id, note="Opening stock", created_by=owner.id))
 
     # A few notifications so the bell isn't empty.
     for user, kind, title, body, link in [
