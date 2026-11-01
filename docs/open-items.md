@@ -26,6 +26,11 @@
 
 ## AI assistant (approved defaults, 2026-10-30)
 - Model: `openai/gpt-oss-120b` on Groq (llama-3.3-70b-versatile is no longer offered on the account).
+- Gemini can be used instead (`AI_PROVIDER=gemini`, `GEMINI_API_KEY`; default model `gemini-3.8-flash`,
+  thinking effort low). Added 2026-11-01 because Groq's free tier allows only 8K tokens a minute. Not yet run
+  against the real Gemini API (no key yet): the adapter follows Google's OpenAI-compatibility docs and sends
+  back tool-call thought signatures (`extra_content`) as received. Free-tier prompts may be used by Google to
+  improve its products.
 - Cost cap: per-request cost = tokens x configured price per million tokens
   (defaults 0.15 in / 0.75 out USD; verify against Groq's pricing page). The cap is app-wide, not per organization.
 - Conversations are not stored server-side: the browser keeps the conversation and sends the last

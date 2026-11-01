@@ -135,7 +135,8 @@ def _assistant_turn(resp: ProviderResponse) -> dict:
     turn: dict = {"role": "assistant", "content": resp.content or ""}
     if resp.tool_calls:
         turn["tool_calls"] = [
-            {"id": c.id, "type": "function", "function": {"name": c.name, "arguments": c.arguments}}
+            {"id": c.id, "type": "function", "function": {"name": c.name, "arguments": c.arguments},
+             **({"extra_content": c.extra} if c.extra else {})}
             for c in resp.tool_calls
         ]
     return turn

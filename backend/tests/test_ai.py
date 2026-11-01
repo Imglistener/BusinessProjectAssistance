@@ -8,7 +8,7 @@ import requests
 from app.extensions import db
 from app.models import AIUsage, ExpenseStatus, Role, Task, TaskStatus
 from app.services import ai_chat, ai_tools
-from app.services.ai_provider import GroqProvider, ProviderError, ProviderResponse, ToolCall
+from app.services.ai_provider import GeminiProvider, GroqProvider, ProviderError, ProviderResponse, ToolCall
 
 from .helpers import auth_headers
 from .test_projects import add_expense, add_member, create_project, make_org
@@ -380,6 +380,72 @@ def test_groq_long_retry_after_is_rate_limited_error(monkeypatch):
     monkeypatch.setattr(requests, "post", lambda *a, **k: Http(429, {}))
     with pytest.raises(ProviderRateLimited):
         groq().chat([], None)
+
+
+# ---------- Gemini adapter ----------
+
+
+def gemini():
+    return GeminiProvider("gkey", "gemini-x", "https://gemini.test/v1beta/openai/", 5)
+
+
+def test_gemini_adapts_the_request_and_keeps_thought_signatures(monkeypatch):
+    sent = {}
+    signature = {"google": {"thought_signature": "sig-1"}}
+
+    def post(url, json, headers, timeout):
+        sent.update(url=url, body=json, headers=headers)
+        return FakeHttp(200, {
+            "choices": [{"message": {"content": None, "tool_calls": [
+                {"id": "t1", "type": "function", "extra_content": signature,
+                 "function": {"name": "list_projects", "arguments": "{}"}}]}}],
+            "usage": {"prompt_tokens": 7, "completion_tokens": 2},
+        })
+
+    monkeypatch.setattr(requests, "post", post)
+    tools = ai_tools.tool_definitions()
+    messages = [{"role": "system", "content": "rules"}, {"role": "user", "content": "hi"},
+                {"role": "system", "content": "answer now"}]
+    r = gemini().chat(messages, tools)
+
+    assert sent["url"] == "https://gemini.test/v1beta/openai/chat/completions"
+    assert sent["headers"]["Authorization"] == "Bearer gkey" and sent["body"]["reasoning_effort"] == "low"
+    # Only the first message stays a system message.
+    assert [m["role"] for m in sent["body"]["messages"]] == ["system", "user", "user"]
+    # Optional fields: a single type plus nullable, which Gemini's schema subset understands.
+    stock = next(t for t in sent["body"]["tools"] if t["function"]["name"] == "propose_stock_changes")
+    fields = stock["function"]["parameters"]["properties"]["changes"]["items"]["properties"]
+    assert fields["warehouse"]["type"] == "string" and fields["warehouse"]["nullable"] is True
+    assert "nullable" not in fields["kind"]
+    # The caller's tool definitions are left alone.
+    assert ai_tools.tool_definitions() == tools
+    assert r.tool_calls[0].extra == signature
+
+
+def test_thought_signatures_go_back_with_the_assistant_turn(client, fake):
+    h, org_id, _ = setup(client)
+    signature = {"google": {"thought_signature": "sig-1"}}
+    p = fake(
+        ProviderResponse(content=None, tool_calls=[ToolCall(id="c1", name="list_projects", arguments="{}", extra=signature)]),
+        say("Done"),
+    )
+    assert ask(client, h, org_id).get_json()["answer"] == "Done"
+    turn = next(m for m in p.calls[1]["messages"] if m["role"] == "assistant")
+    assert turn["tool_calls"][0]["extra_content"] == signature
+
+
+def test_provider_is_chosen_by_config(app):
+    from app.services.ai_provider import ProviderNotConfigured, get_provider
+
+    with app.app_context():
+        app.config.update(AI_PROVIDER="gemini", GEMINI_API_KEY="", AI_MODEL="gemini-x", AI_REASONING_EFFORT="")
+        with pytest.raises(ProviderNotConfigured):
+            get_provider()
+        app.config["GEMINI_API_KEY"] = "gkey"
+        p = get_provider()
+        assert isinstance(p, GeminiProvider) and p.reasoning_effort == "low" and p.model == "gemini-x"
+        app.config.update(AI_PROVIDER="groq", GROQ_API_KEY="k")
+        assert isinstance(get_provider(), GroqProvider)
 
 
 def test_provider_rate_limit_gives_busy_message(client, fake):

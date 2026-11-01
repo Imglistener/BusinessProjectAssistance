@@ -42,10 +42,15 @@ class Config:
     # Frontend address used in emailed links.
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5173")
 
-    AI_PROVIDER = os.getenv("AI_PROVIDER", "groq")
+    # "groq" or "gemini"; each has its own key, and AI_MODEL defaults to that provider's model.
+    AI_PROVIDER = (os.getenv("AI_PROVIDER") or "groq").strip().lower()
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-    AI_MODEL = os.getenv("AI_MODEL") or "openai/gpt-oss-120b"
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
+    AI_MODEL = os.getenv("AI_MODEL") or {"gemini": "gemini-3.8-flash"}.get(AI_PROVIDER, "openai/gpt-oss-120b")
+    # Gemini only: minimal | low | medium | high. Thinking is billed as output and slows answers; default low.
+    AI_REASONING_EFFORT = os.getenv("AI_REASONING_EFFORT", "")
     AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
     AI_MONTHLY_COST_CAP_USD = Decimal(os.getenv("AI_MONTHLY_COST_CAP_USD", "10"))
     # USD per million tokens, used for the monthly cap. Check the provider's current price list.
@@ -61,6 +66,7 @@ class TestConfig(Config):
     SECRET_KEY = "test-secret-key-that-is-long-enough-123"
     JWT_SECRET_KEY = "test-jwt-secret-key-that-is-long-enough-456"
     GROQ_API_KEY = ""  # tests never reach a real provider
+    GEMINI_API_KEY = ""
     EMAIL_PROVIDER = "console"
     RESEND_API_KEY = ""
     GOOGLE_APP_PASSWORD = ""

@@ -31,7 +31,7 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `EMAIL_PROVIDER=gmail`, `GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD`, `GOOGLE_APP_NAME` | Current setup: Gmail over SMTP with an App Password (no domain needed; roughly 500 emails a day). Test with `flask --app wsgi email-test --to you@example.com`. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
-| `GROQ_API_KEY`, `AI_*` | AI provider key and limits. The key stays on the server. |
+| `AI_PROVIDER`, `GROQ_API_KEY` or `GEMINI_API_KEY`, `AI_*` | AI provider (`groq` or `gemini`), its key and limits. The key stays on the server. |
 
 ## First deployment
 
