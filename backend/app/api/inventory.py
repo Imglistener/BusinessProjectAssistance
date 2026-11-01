@@ -1,7 +1,8 @@
-"""Inventory: stock items, movements (receive / issue / adjust) and stock counts.
+"""Inventory: stock items, warehouses, movements (receive / issue / adjust / transfer / move) and stock counts.
 
-Quantities only change through movements, so every change has a who, when and why. Values use the
-organization's default currency. Arithmetic on quantities and values lives in services.metrics.
+Each project has its own inventory, and the organization has General stock (items and warehouses without a
+project). Lists take ?scope=general (default), ?scope=<project id> or ?scope=all. The rules live in
+services.stock; this module checks access and input. Values use the organization's default currency.
 """
 from __future__ import annotations
 
@@ -13,12 +14,21 @@ from sqlalchemy import or_
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import InventoryItem, InventoryMovement, MovementKind, Organization, Project, ProjectStatus, User
+from ..models import (
+    InventoryItem,
+    InventoryMovement,
+    InventoryStock,
+    MovementKind,
+    Organization,
+    Project,
+    User,
+    Warehouse,
+)
 from ..services import metrics
 from ..services import projects as svc
-from ..services.audit import log_action
-from ..services.notifications import members_with_roles, notify
+from ..services import stock
 from ..services.permissions import CONTRIBUTE_ROLES, PROJECT_WRITE_ROLES, get_membership, require_role
+from ..services.stock import item_to_dict, q2 as _q
 from ..services.tokens import aware
 from . import api_bp
 from .auth import current_user
@@ -35,33 +45,17 @@ from .validation import (
 
 MAX_COUNT_LINES = 500
 HISTORY_PAGE = 50
-# Contributors receive, issue and count stock; manual adjustments are for managers.
+# Contributors receive, issue, transfer and count stock; adjustments and managing items, warehouses and moves
+# between inventories are for managers.
 ADJUST_ROLES = PROJECT_WRITE_ROLES
 
-
-def _q(v) -> str | None:
-    return None if v is None else f"{Decimal(v):.2f}"
-
-
-def item_to_dict(item: InventoryItem, currency: str) -> dict:
-    return {
-        "id": item.id,
-        "name": item.name,
-        "sku": item.sku,
-        "unit": item.unit,
-        "unit_cost": _q(item.unit_cost),
-        "currency": currency,
-        "quantity_on_hand": _q(item.quantity_on_hand),
-        "reorder_level": _q(item.reorder_level),
-        "location": item.location,
-        "description": item.description,
-        "archived": item.archived,
-        "stock_value": _q(metrics.stock_value(item.quantity_on_hand, item.unit_cost)),
-        "low_stock": not item.archived and metrics.is_low_stock(item.quantity_on_hand, item.reorder_level),
-    }
+# Kept for the assistant's confirmed drafts (services.stock_plans).
+_apply = stock.apply
+_audit = stock.audit
+_check_project = stock.check_project
 
 
-def movement_to_dict(m: InventoryMovement, names: dict, projects: dict) -> dict:
+def movement_to_dict(m: InventoryMovement, names: dict, projects: dict, warehouses: dict) -> dict:
     return {
         "id": m.id,
         "item_id": m.item_id,
@@ -70,6 +64,8 @@ def movement_to_dict(m: InventoryMovement, names: dict, projects: dict) -> dict:
         "quantity_after": _q(m.quantity_after),
         "project_id": m.project_id,
         "project_name": projects.get(m.project_id),
+        "warehouse": warehouses.get(m.warehouse_id),
+        "to_warehouse": warehouses.get(m.to_warehouse_id),
         "note": m.note,
         "created_by": names.get(m.created_by),
         "created_at": aware(m.created_at).isoformat(),
@@ -95,65 +91,29 @@ def _item_for_user(item_id: int, user_id: int, *, lock: bool = False):
     return item, membership, org
 
 
-def _audit(user_id: int, item: InventoryItem, action: str, meta: dict) -> None:
-    log_action(
-        organization_id=item.organization_id,
-        actor_id=user_id,
-        action=action,
-        entity_type="inventory_item",
-        entity_id=item.id,
-        meta=meta,
-    )
-
-
-def _apply(item: InventoryItem, user_id: int, kind: MovementKind, delta: Decimal, *, project_id=None, note=None):
-    was_low = metrics.is_low_stock(item.quantity_on_hand, item.reorder_level)
-    after = item.quantity_on_hand + delta
-    if after < 0:
-        raise ApiError(
-            "insufficient_stock",
-            f"Only {_q(item.quantity_on_hand)} {item.unit} on hand.",
-            409,
-            {"field": "quantity"},
-        )
-    item.quantity_on_hand = after
-    movement = InventoryMovement(
-        organization_id=item.organization_id,
-        item_id=item.id,
-        kind=kind,
-        quantity_delta=delta,
-        quantity_after=after,
-        project_id=project_id,
-        note=note,
-        created_by=user_id,
-    )
-    db.session.add(movement)
-    db.session.flush()
-    meta = {"kind": kind.value, "delta": _q(delta), "after": _q(after), "unit": item.unit, "item": item.name}
-    if project_id:
-        meta["project_id"] = project_id  # shows the issue in that project's activity
-    _audit(user_id, item, f"inventory.{kind.value}", meta)
-    if not was_low and metrics.is_low_stock(after, item.reorder_level):
-        notify(
-            organization_id=item.organization_id,
-            user_ids=members_with_roles(item.organization_id, *PROJECT_WRITE_ROLES),
-            actor_id=user_id,
-            kind="low_stock",
-            title=f"Low stock: {item.name}",
-            body=f"{_q(after)} {item.unit} left (reorder level {_q(item.reorder_level)}).",
-            link="/app/inventory",
-        )
-    return movement
-
-
-def _check_project(org_id: int, project_id) -> None:
-    if project_id is None:
-        return
+def _scope(org_id: int):
+    """?scope=general (default) | all | <project id>: (filter for project_id, project or None)."""
+    raw = (request.args.get("scope") or "general").strip()
+    if raw == "general":
+        return "general", None
+    if raw == "all":
+        return "all", None
+    try:
+        project_id = int(raw)
+    except ValueError:
+        raise ApiError("validation_error", "Choose General stock or a project.", 400, {"field": "scope"})
     p = db.session.get(Project, project_id)
     if p is None or p.organization_id != org_id:
-        raise ApiError("validation_error", "Project must belong to this organization.", 400, {"field": "project_id"})
-    if p.status == ProjectStatus.ARCHIVED:
-        raise ApiError("project_archived", "That project is archived.", 409, {"field": "project_id"})
+        raise ApiError("not_found", "Project not found.", 404)
+    return "project", p
+
+
+def _in_scope(query, model, kind: str, project):
+    if kind == "general":
+        return query.filter(model.project_id.is_(None))
+    if kind == "project":
+        return query.filter(model.project_id == project.id)
+    return query
 
 
 def _summary(items: list[InventoryItem]) -> dict:
@@ -174,6 +134,12 @@ def _summary(items: list[InventoryItem]) -> dict:
     }
 
 
+def _warehouse_list(org_id: int, kind: str, project) -> list[dict]:
+    rows = _in_scope(Warehouse.query.filter_by(organization_id=org_id), Warehouse, kind, project).order_by(Warehouse.name).all()
+    contents = stock.warehouse_contents([w.id for w in rows])
+    return [stock.warehouse_to_dict(w, contents.get(w.id)) for w in rows]
+
+
 # ---------- items ----------
 
 
@@ -182,7 +148,9 @@ def _summary(items: list[InventoryItem]) -> dict:
 def list_inventory(org_id: int):
     user = current_user()
     _, org = _org(org_id, user.id)
-    query = InventoryItem.query.filter_by(organization_id=org_id)
+    kind, project = _scope(org_id)
+    base = _in_scope(InventoryItem.query.filter_by(organization_id=org_id), InventoryItem, kind, project)
+    query = base
     if request.args.get("include_archived") != "true":
         query = query.filter(InventoryItem.archived.is_(False))
     q = (request.args.get("q") or "").strip()
@@ -198,11 +166,16 @@ def list_inventory(org_id: int):
             )
         )
     items = query.order_by(InventoryItem.name, InventoryItem.id).all()
-    every = InventoryItem.query.filter_by(organization_id=org_id).all()
-    rows = [item_to_dict(i, org.default_currency) for i in items]
+    per_item = stock.stock_by_item([i.id for i in items])
+    rows = [item_to_dict(i, org.default_currency, per_item.get(i.id, [])) for i in items]
     if request.args.get("low_stock") == "true":
         rows = [r for r in rows if r["low_stock"]]
-    return jsonify(items=rows, summary={**_summary(every), "currency": org.default_currency})
+    return jsonify(
+        items=rows,
+        summary={**_summary(base.all()), "currency": org.default_currency},
+        warehouses=_warehouse_list(org_id, kind, project) if kind != "all" else [],
+        scope={"project_id": project.id if project else None, "project_name": project.name if project else None},
+    )
 
 
 def _item_fields(data: dict, *, creating: bool) -> dict:
@@ -221,20 +194,35 @@ def _item_fields(data: dict, *, creating: bool) -> dict:
     return fields
 
 
+def create_item_in(org_id: int, user_id: int, data: dict, project) -> InventoryItem:
+    """Shared by the Stock page and project creation (opening inventory)."""
+    item = InventoryItem(
+        organization_id=org_id,
+        project_id=project.id if project else None,
+        quantity_on_hand=Decimal("0"),
+        archived=False,
+        **_item_fields(data, creating=True),
+    )
+    db.session.add(item)
+    db.session.flush()
+    stock.audit(user_id, item, "inventory.item_created", {"item": item.name})
+    opening = parse_quantity(data, "quantity", required=False)
+    if opening:
+        warehouse = stock.warehouse_in_inventory(item, parse_optional_id(data, "warehouse_id"))
+        stock.apply(item, user_id, MovementKind.COUNT, opening, note="Opening stock", warehouse=warehouse)
+    return item
+
+
 @api_bp.post("/organizations/<int:org_id>/inventory")
 @jwt_required()
 def create_item(org_id: int):
+    """{name, unit?, ..., quantity?, warehouse_id?, project_id?}: in General stock, or a project's inventory."""
     user = current_user()
     membership, org = _org(org_id, user.id)
     require_role(membership, *PROJECT_WRITE_ROLES)
     data = get_json_body()
-    item = InventoryItem(organization_id=org_id, quantity_on_hand=Decimal("0"), archived=False, **_item_fields(data, creating=True))
-    db.session.add(item)
-    db.session.flush()
-    _audit(user.id, item, "inventory.item_created", {"item": item.name})
-    opening = parse_quantity(data, "quantity", required=False)
-    if opening:
-        _apply(item, user.id, MovementKind.COUNT, opening, note="Opening stock")
+    project = stock.project_for_inventory(org_id, parse_optional_id(data, "project_id"))
+    item = create_item_in(org_id, user.id, data, project)
     db.session.commit()
     return jsonify(item=item_to_dict(item, org.default_currency)), 201
 
@@ -266,9 +254,21 @@ def update_item(item_id: int):
             [old, new] if key in ("archived", "unit") else "changed"
         )
     if meta:
-        _audit(user.id, item, "inventory.item_updated", meta)
+        stock.audit(user.id, item, "inventory.item_updated", meta)
         db.session.commit()
     return jsonify(item=item_to_dict(item, org.default_currency))
+
+
+@api_bp.delete("/inventory/<int:item_id>")
+@jwt_required()
+def delete_item(item_id: int):
+    """Remove an item for good, with its stock and history (managers). Archiving keeps them."""
+    user = current_user()
+    item, membership, _ = _item_for_user(item_id, user.id, lock=True)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    stock.delete_item(item, user.id)
+    db.session.commit()
+    return jsonify(deleted=True)
 
 
 # ---------- movements ----------
@@ -277,7 +277,7 @@ def update_item(item_id: int):
 @api_bp.post("/inventory/<int:item_id>/movements")
 @jwt_required()
 def record_movement(item_id: int):
-    """{kind: receive|issue|adjust, quantity, project_id?, note?}. Adjust takes a signed quantity."""
+    """{kind: receive|issue|adjust, quantity, warehouse_id?, project_id?, note?}. Adjust takes a signed quantity."""
     user = current_user()
     item, membership, org = _item_for_user(item_id, user.id, lock=True)
     data = get_json_body()
@@ -285,10 +285,10 @@ def record_movement(item_id: int):
     if kind not in ("receive", "issue", "adjust"):
         raise ApiError("validation_error", "Kind must be receive, issue or adjust.", 400, {"field": "kind"})
     require_role(membership, *(ADJUST_ROLES if kind == "adjust" else CONTRIBUTE_ROLES))
-    if item.archived:
-        raise ApiError("item_archived", "This item is archived. Restore it to change its stock.", 409)
+    stock.check_item_editable(item)
 
     note = optional_str(data, "note", max_len=500)
+    warehouse = stock.warehouse_in_inventory(item, parse_optional_id(data, "warehouse_id"))
     project_id = None
     if kind == "adjust":
         delta = parse_signed_quantity(data, "quantity")
@@ -297,15 +297,64 @@ def record_movement(item_id: int):
     else:
         qty = parse_quantity(data, "quantity", positive=True)
         delta = qty if kind == "receive" else -qty
-        if kind == "issue":
+        if kind == "issue" and item.project_id is None:
             project_id = parse_optional_id(data, "project_id")
-            _check_project(item.organization_id, project_id)
+            stock.check_project(item.organization_id, project_id)
 
-    movement = _apply(item, user.id, MovementKind(kind), delta, project_id=project_id, note=note)
+    movement = stock.apply(item, user.id, MovementKind(kind), delta, project_id=project_id, note=note, warehouse=warehouse)
     db.session.commit()
-    names = {user.id: f"{user.first_name} {user.last_name}"}
-    projects = {project_id: db.session.get(Project, project_id).name} if project_id else {}
-    return jsonify(item=item_to_dict(item, org.default_currency), movement=movement_to_dict(movement, names, projects)), 201
+    return jsonify(item=item_to_dict(item, org.default_currency), movement=_movement_dict(movement)), 201
+
+
+@api_bp.post("/inventory/<int:item_id>/transfers")
+@jwt_required()
+def transfer_stock(item_id: int):
+    """{quantity, from_warehouse_id | null, to_warehouse_id | null, note?}: between places of this inventory."""
+    user = current_user()
+    item, membership, org = _item_for_user(item_id, user.id, lock=True)
+    require_role(membership, *CONTRIBUTE_ROLES)
+    stock.check_item_editable(item)
+    data = get_json_body()
+    qty = parse_quantity(data, "quantity", positive=True)
+    source = stock.warehouse_in_inventory(item, parse_optional_id(data, "from_warehouse_id"), field="from_warehouse_id")
+    target = stock.warehouse_in_inventory(item, parse_optional_id(data, "to_warehouse_id"), field="to_warehouse_id")
+    movement = stock.transfer(item, user.id, qty, source, target, optional_str(data, "note", max_len=500))
+    db.session.commit()
+    return jsonify(item=item_to_dict(item, org.default_currency), movement=_movement_dict(movement)), 201
+
+
+@api_bp.post("/inventory/<int:item_id>/move")
+@jwt_required()
+def move_stock(item_id: int):
+    """{to_project_id | null, quantity, from_warehouse_id?, to_warehouse_id?, note?}: to another inventory.
+
+    General stock -> a project, a project -> General stock, or between projects. Managers only.
+    """
+    user = current_user()
+    item, membership, org = _item_for_user(item_id, user.id, lock=True)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    stock.check_item_editable(item)
+    data = get_json_body()
+    if "to_project_id" not in data:
+        raise ApiError("validation_error", "Choose where to move it.", 400, {"field": "to_project_id"})
+    target_project = stock.project_for_inventory(item.organization_id, parse_optional_id(data, "to_project_id"), field="to_project_id")
+    qty = parse_quantity(data, "quantity", positive=True)
+    source = stock.warehouse_in_inventory(item, parse_optional_id(data, "from_warehouse_id"), field="from_warehouse_id")
+    target = stock.move_to_inventory(
+        item, user.id, qty, target_project, source=source,
+        target_warehouse_id=parse_optional_id(data, "to_warehouse_id"), note=optional_str(data, "note", max_len=500),
+    )
+    db.session.commit()
+    return jsonify(item=item_to_dict(item, org.default_currency), target=item_to_dict(target, org.default_currency)), 201
+
+
+def _movement_dict(m: InventoryMovement) -> dict:
+    user = db.session.get(User, m.created_by)
+    names = {user.id: f"{user.first_name} {user.last_name}"} if user else {}
+    projects = {m.project_id: db.session.get(Project, m.project_id).name} if m.project_id else {}
+    wids = {w for w in (m.warehouse_id, m.to_warehouse_id) if w}
+    warehouses = {w.id: w.name for w in Warehouse.query.filter(Warehouse.id.in_(wids))} if wids else {}
+    return movement_to_dict(m, names, projects, warehouses)
 
 
 def _history(query, limit: int, offset: int):
@@ -313,9 +362,11 @@ def _history(query, limit: int, offset: int):
     rows = query.order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc()).limit(limit).offset(offset).all()
     user_ids = {m.created_by for m in rows}
     project_ids = {m.project_id for m in rows if m.project_id}
+    wids = {w for m in rows for w in (m.warehouse_id, m.to_warehouse_id) if w}
     names = {u.id: f"{u.first_name} {u.last_name}" for u in User.query.filter(User.id.in_(user_ids))} if user_ids else {}
     projects = {p.id: p.name for p in Project.query.filter(Project.id.in_(project_ids))} if project_ids else {}
-    return total, [movement_to_dict(m, names, projects) for m in rows]
+    warehouses = {w.id: w.name for w in Warehouse.query.filter(Warehouse.id.in_(wids))} if wids else {}
+    return total, [movement_to_dict(m, names, projects, warehouses) for m in rows]
 
 
 def _page() -> tuple[int, int]:
@@ -338,7 +389,7 @@ def item_movements(item_id: int):
 @api_bp.get("/projects/<int:project_id>/materials")
 @jwt_required()
 def project_materials(project_id: int):
-    """Stock issued to a project, per item, valued at the items' current unit cost."""
+    """Stock used on a project (issued from General stock or from its own inventory), valued at current cost."""
     user = current_user()
     project, _ = svc.get_project_for_user(project_id, user.id)
     org = db.session.get(Organization, project.organization_id)
@@ -357,13 +408,28 @@ def project_materials(project_id: int):
     return jsonify(materials=rows, total_value=_q(metrics.q(total)), currency=org.default_currency)
 
 
+@api_bp.get("/projects/<int:project_id>/inventory-summary")
+@jwt_required()
+def project_inventory_summary(project_id: int):
+    """The project's own inventory at a glance, for its page."""
+    user = current_user()
+    project, _ = svc.get_project_for_user(project_id, user.id)
+    org = db.session.get(Organization, project.organization_id)
+    items = InventoryItem.query.filter_by(project_id=project.id).all()
+    warehouse_count = Warehouse.query.filter_by(project_id=project.id).count()
+    return jsonify(summary={**_summary(items), "currency": org.default_currency, "warehouse_count": warehouse_count})
+
+
 # ---------- stock counts ----------
 
 
 @api_bp.post("/organizations/<int:org_id>/inventory/counts")
 @jwt_required()
 def record_count(org_id: int):
-    """{counts: [{item_id, counted}], note?}. Sets each item to what was counted; returns the differences."""
+    """{counts: [{item_id, counted, warehouse_id?}], note?}. Sets what's at each place to what was counted.
+
+    With a warehouse, the count is for that warehouse; without one, for stock that isn't in a warehouse.
+    """
     user = current_user()
     membership, org = _org(org_id, user.id)
     require_role(membership, *CONTRIBUTE_ROLES)
@@ -375,39 +441,43 @@ def record_count(org_id: int):
         raise ApiError("validation_error", f"Count at most {MAX_COUNT_LINES} items at a time.", 400, {"field": "counts"})
     note = optional_str(data, "note", max_len=500) or "Stock count"
 
-    parsed: list[tuple[int, Decimal]] = []
-    seen = set()
+    parsed: list[tuple[int, int | None, Decimal]] = []
+    seen: set[tuple[int, int | None]] = set()
     for line in lines:
         if not isinstance(line, dict):
             raise ApiError("validation_error", "Each count needs an item and a quantity.", 400, {"field": "counts"})
         item_id = parse_optional_id(line, "item_id")
-        if item_id is None or item_id in seen:
+        warehouse_id = parse_optional_id(line, "warehouse_id")
+        if item_id is None or (item_id, warehouse_id) in seen:
             raise ApiError("validation_error", "Each item can be counted once.", 400, {"field": "counts"})
-        seen.add(item_id)
-        parsed.append((item_id, parse_quantity(line, "counted")))
+        seen.add((item_id, warehouse_id))
+        parsed.append((item_id, warehouse_id, parse_quantity(line, "counted")))
 
+    ids = {i for i, _ in seen}
     items = {
         i.id: i
         for i in db.session.query(InventoryItem)
-        .filter(InventoryItem.id.in_(seen), InventoryItem.organization_id == org_id)
+        .filter(InventoryItem.id.in_(ids), InventoryItem.organization_id == org_id)
         .with_for_update()
     }
-    if len(items) != len(seen):
+    if len(items) != len(ids):
         raise ApiError("validation_error", "Some items aren't in this organization.", 400, {"field": "counts"})
-    if any(items[i].archived for i in seen):
+    if any(items[i].archived for i in ids):
         raise ApiError("item_archived", "Archived items can't be counted.", 409)
 
     results = []
     value_change = Decimal("0")
-    for item_id, counted in parsed:
+    for item_id, warehouse_id, counted in parsed:
         item = items[item_id]
-        expected = item.quantity_on_hand
+        warehouse = stock.warehouse_in_inventory(item, warehouse_id)
+        expected = stock.place_quantity(item, warehouse)
         delta = counted - expected
         if delta != 0:
-            _apply(item, user.id, MovementKind.COUNT, delta, note=note)
+            stock.apply(item, user.id, MovementKind.COUNT, delta, note=note, warehouse=warehouse)
             value_change += metrics.stock_value(delta, item.unit_cost) or 0
         results.append({"item_id": item_id, "name": item.name, "unit": item.unit, "expected": _q(expected),
-                        "counted": _q(counted), "difference": _q(delta)})
+                        "counted": _q(counted), "difference": _q(delta),
+                        "warehouse": warehouse.name if warehouse else None})
     db.session.commit()
     return jsonify(
         results=results,
@@ -417,16 +487,118 @@ def record_count(org_id: int):
     )
 
 
+# ---------- warehouses ----------
+
+
+def _warehouse_fields(data: dict, *, creating: bool) -> dict:
+    fields: dict = {}
+    if creating or "name" in data:
+        fields["name"] = require_str(data, "name", max_len=120)
+    for key, max_len in (("address", 300), ("notes", 500)):
+        if creating or key in data:
+            fields[key] = optional_str(data, key, max_len=max_len)
+    if creating or "lat" in data or "lng" in data:
+        lat, lng = data.get("lat"), data.get("lng")
+        if (lat is None) != (lng is None):
+            raise ApiError("validation_error", "Give both coordinates, or neither.", 400, {"field": "lat"})
+        if lat is not None:
+            if isinstance(lat, bool) or isinstance(lng, bool) or not isinstance(lat, (int, float)) or not isinstance(lng, (int, float)):
+                raise ApiError("validation_error", "Coordinates must be numbers.", 400, {"field": "lat"})
+            if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+                raise ApiError("validation_error", "Coordinates are out of range.", 400, {"field": "lat"})
+        fields["lat"], fields["lng"] = (float(lat), float(lng)) if lat is not None else (None, None)
+    return fields
+
+
+def _warehouse_for_user(warehouse_id: int, user_id: int):
+    w = db.session.get(Warehouse, warehouse_id)
+    if w is None:
+        raise ApiError("not_found", "Warehouse not found.", 404)
+    try:
+        membership, org = _org(w.organization_id, user_id)
+    except ApiError:
+        raise ApiError("not_found", "Warehouse not found.", 404)
+    return w, membership, org
+
+
+def _warehouse_audit(user_id: int, w: Warehouse, action: str, meta: dict) -> None:
+    from ..services.audit import log_action
+
+    if w.project_id:
+        meta = {**meta, "project_id": w.project_id}
+    log_action(organization_id=w.organization_id, actor_id=user_id, action=action, entity_type="warehouse",
+               entity_id=w.id, meta=meta)
+
+
+@api_bp.get("/organizations/<int:org_id>/warehouses")
+@jwt_required()
+def list_warehouses(org_id: int):
+    user = current_user()
+    _org(org_id, user.id)
+    kind, project = _scope(org_id)
+    return jsonify(warehouses=_warehouse_list(org_id, kind, project))
+
+
+@api_bp.post("/organizations/<int:org_id>/warehouses")
+@jwt_required()
+def create_warehouse(org_id: int):
+    """{name, address?, lat?, lng?, notes?, project_id?}: for General stock, or a project's inventory."""
+    user = current_user()
+    membership, _ = _org(org_id, user.id)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    data = get_json_body()
+    project = stock.project_for_inventory(org_id, parse_optional_id(data, "project_id"))
+    w = Warehouse(organization_id=org_id, project_id=project.id if project else None, **_warehouse_fields(data, creating=True))
+    db.session.add(w)
+    db.session.flush()
+    _warehouse_audit(user.id, w, "warehouse.created", {"warehouse": w.name})
+    db.session.commit()
+    return jsonify(warehouse=stock.warehouse_to_dict(w)), 201
+
+
+@api_bp.patch("/warehouses/<int:warehouse_id>")
+@jwt_required()
+def update_warehouse(warehouse_id: int):
+    user = current_user()
+    w, membership, _ = _warehouse_for_user(warehouse_id, user.id)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    changed = []
+    for key, value in _warehouse_fields(get_json_body(), creating=False).items():
+        if getattr(w, key) != value:
+            setattr(w, key, value)
+            changed.append(key)
+    if changed:
+        _warehouse_audit(user.id, w, "warehouse.updated", {"warehouse": w.name, "fields": changed})
+        db.session.commit()
+    return jsonify(warehouse=stock.warehouse_to_dict(w, stock.warehouse_contents([w.id]).get(w.id)))
+
+
+@api_bp.delete("/warehouses/<int:warehouse_id>")
+@jwt_required()
+def delete_warehouse(warehouse_id: int):
+    """Only an empty warehouse can go; its history stays (movements just lose the warehouse name)."""
+    user = current_user()
+    w, membership, _ = _warehouse_for_user(warehouse_id, user.id)
+    require_role(membership, *PROJECT_WRITE_ROLES)
+    if InventoryStock.query.filter(InventoryStock.warehouse_id == w.id, InventoryStock.quantity != 0).first():
+        raise ApiError("warehouse_not_empty", "Move the stock out of this warehouse first.", 409)
+    InventoryStock.query.filter_by(warehouse_id=w.id).delete(synchronize_session=False)
+    InventoryMovement.query.filter_by(warehouse_id=w.id).update({InventoryMovement.warehouse_id: None}, synchronize_session=False)
+    InventoryMovement.query.filter_by(to_warehouse_id=w.id).update({InventoryMovement.to_warehouse_id: None}, synchronize_session=False)
+    _warehouse_audit(user.id, w, "warehouse.deleted", {"warehouse": w.name})
+    db.session.delete(w)
+    db.session.commit()
+    return jsonify(deleted=True)
+
+
 # ---------- changes confirmed from an assistant draft ----------
 
 
 @api_bp.post("/organizations/<int:org_id>/inventory/changes")
 @jwt_required()
 def apply_stock_changes(org_id: int):
-    """{changes: [{kind, item_id | name..., quantity, project_id?, note?}]}: all saved, or none.
-
-    The assistant drafts these (services.stock_plans); every line is checked again here.
-    """
+    """{changes: [...]}: all saved, or none. The assistant drafts these (services.stock_plans); every line is
+    checked again here."""
     from ..services import stock_plans
 
     user = current_user()

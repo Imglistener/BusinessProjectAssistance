@@ -12,7 +12,7 @@ from ..extensions import db
 from ..models import Milestone, Organization, Project, ProjectStatus, Role, Task, TaskPriority, TaskStatus
 from ..services import project_delete
 from ..services import projects as svc
-from ..services.plans import PlanError, validate_plan
+from ..services.plans import PlanError, validate_inventory, validate_plan
 from ..services.audit import log_action
 from ..services.permissions import PROJECT_WRITE_ROLES, get_membership, require_role
 from . import api_bp
@@ -118,6 +118,10 @@ def create_project(org_id: int):
     data = get_json_body()
     start, end = parse_date(data, "start_date"), parse_date(data, "end_date")
     _check_dates(start, end)
+    try:
+        inventory = validate_inventory(data.get("inventory"))  # optional opening inventory
+    except PlanError as e:
+        raise ApiError("validation_error", str(e), 400, {"field": e.field} if e.field else None)
 
     project = Project(
         organization_id=org_id,
@@ -141,6 +145,7 @@ def create_project(org_id: int):
         entity_id=project.id,
         meta={"name": project.name, "budget": _money(project.budget), "currency": project.currency},
     )
+    _add_opening_inventory(org_id, user.id, project, inventory)
     db.session.commit()
     return jsonify(project=_one_project_dict(project, org)), 201
 
@@ -195,6 +200,7 @@ def create_project_from_plan(org_id: int):
                 milestone_id=milestone_ids.get((t["milestone"] or "").lower()),
             )
         )
+    _add_opening_inventory(org_id, user.id, project, plan["inventory"])
     log_action(
         organization_id=org_id,
         actor_id=user.id,
@@ -424,3 +430,11 @@ def delete_project(project_id: int):
     db.session.commit()
     project_delete.remove_files(files)
     return jsonify(deleted=1)
+
+
+def _add_opening_inventory(org_id: int, user_id: int, project: Project, rows: list[dict]) -> None:
+    """Create the new project's inventory items (already validated by plans.validate_inventory)."""
+    from .inventory import create_item_in
+
+    for row in rows:
+        create_item_in(org_id, user_id, {k: v for k, v in row.items() if v is not None}, project)

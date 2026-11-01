@@ -1,8 +1,9 @@
 """Deleting projects for good (owners only). Archiving stays the everyday way to put a project away.
 
 What goes: the project, its expenses and receipt files, tasks, milestones, trips (itinerary, travelers),
-project members, assistant conversations about it, and notifications that link to it.
-What stays: stock history (movements are kept, detached from the project, so quantities still add up)
+its own inventory (items, their stock and history) and warehouses, project members, assistant conversations
+about it, and notifications that link to it.
+What stays: General stock's history (movements issued to the project are kept, detached, so quantities add up)
 and the audit log (entries are detached; a "project.deleted" entry records who deleted what).
 """
 from __future__ import annotations
@@ -17,7 +18,9 @@ from ..models import (
     Attachment,
     AuditLog,
     Expense,
+    InventoryItem,
     InventoryMovement,
+    InventoryStock,
     Milestone,
     Notification,
     Project,
@@ -25,6 +28,7 @@ from ..models import (
     Task,
     Trip,
     TripItem,
+    Warehouse,
     trip_travelers,
 )
 from . import storage
@@ -60,7 +64,10 @@ def summary(projects: list[Project]) -> dict:
         "tasks": Task.query.filter(Task.project_id.in_(ids)).count(),
         "milestones": Milestone.query.filter(Milestone.project_id.in_(ids)).count(),
         "trips": Trip.query.filter(Trip.project_id.in_(ids)).count(),
-        "stock_movements": InventoryMovement.query.filter(InventoryMovement.project_id.in_(ids)).count(),
+        "stock_movements": InventoryMovement.query.join(InventoryItem, InventoryItem.id == InventoryMovement.item_id)
+        .filter(InventoryMovement.project_id.in_(ids), InventoryItem.project_id.is_(None)).count(),
+        "inventory_items": InventoryItem.query.filter(InventoryItem.project_id.in_(ids)).count(),
+        "warehouses": Warehouse.query.filter(Warehouse.project_id.in_(ids)).count(),
     }
 
 
@@ -90,15 +97,30 @@ def delete(projects: list[Project], actor_id: int) -> list[str]:
         AIConversation.query.filter(AIConversation.id.in_(conversation_ids)).delete(**gone)
     ProjectMember.query.filter(ProjectMember.project_id.in_(ids)).delete(**gone)
 
+    # The project's own inventory and warehouses go with it.
+    own_items = [i for (i,) in db.session.query(InventoryItem.id).filter(InventoryItem.project_id.in_(ids))]
+    own_warehouses = [w for (w,) in db.session.query(Warehouse.id).filter(Warehouse.project_id.in_(ids))]
+    if own_items:
+        InventoryStock.query.filter(InventoryStock.item_id.in_(own_items)).delete(**gone)
+        InventoryMovement.query.filter(InventoryMovement.item_id.in_(own_items)).delete(**gone)
+        InventoryItem.query.filter(InventoryItem.id.in_(own_items)).delete(**gone)
+    if own_warehouses:
+        InventoryStock.query.filter(InventoryStock.warehouse_id.in_(own_warehouses)).delete(**gone)
+        for col in (InventoryMovement.warehouse_id, InventoryMovement.to_warehouse_id):
+            InventoryMovement.query.filter(col.in_(own_warehouses)).update({col: None}, **gone)
+        Warehouse.query.filter(Warehouse.id.in_(own_warehouses)).delete(**gone)
+
     # Stock history stays; the movement just no longer points at a project.
     for m in InventoryMovement.query.filter(InventoryMovement.project_id.in_(ids)):
         m.note = ((m.note + " · ") if m.note else "") + f"Issued to deleted project {names[m.project_id]}"
         m.note = m.note[:500]
         m.project_id = None
 
-    links = [Notification.link == f"/app/projects/{i}" for i in ids] + [
-        Notification.link.like(f"/app/projects/{i}/%") for i in ids
-    ]
+    links = (
+        [Notification.link == f"/app/projects/{i}" for i in ids]
+        + [Notification.link.like(f"/app/projects/{i}/%") for i in ids]
+        + [Notification.link == f"/app/inventory?scope={i}" for i in ids]
+    )
     Notification.query.filter(or_(*links)).delete(**gone)
     AuditLog.query.filter(AuditLog.project_id.in_(ids)).update({AuditLog.project_id: None}, **gone)
 

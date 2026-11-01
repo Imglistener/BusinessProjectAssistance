@@ -284,6 +284,24 @@ class MovementKind(str, enum.Enum):
     ISSUE = "issue"  # stock out (used, optionally on a project)
     ADJUST = "adjust"  # manual correction (damage, loss, found)
     COUNT = "count"  # stock count: sets the quantity to what was counted
+    TRANSFER = "transfer"  # between warehouses of the same inventory; the total doesn't change
+    MOVE_OUT = "move_out"  # to another inventory (General stock <-> a project): leaves this item...
+    MOVE_IN = "move_in"  # ...and arrives in the matching item of the other inventory
+
+
+class Warehouse(db.Model):
+    """A place where stock is kept: belongs to a project, or to General stock (project_id empty)."""
+
+    __tablename__ = "warehouses"
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), index=True)
+    name = db.Column(db.String(120), nullable=False)
+    address = db.Column(db.String(300))
+    lat = db.Column(db.Float)
+    lng = db.Column(db.Float)
+    notes = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
 class InventoryItem(db.Model):
@@ -292,6 +310,8 @@ class InventoryItem(db.Model):
     __tablename__ = "inventory_items"
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    # The project whose inventory this item is in; empty for General stock (the organization's own).
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), index=True)
     name = db.Column(db.String(200), nullable=False)
     sku = db.Column(db.String(60))
     unit = db.Column(db.String(20), nullable=False, default="pcs")
@@ -302,6 +322,17 @@ class InventoryItem(db.Model):
     description = db.Column(db.Text)
     archived = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class InventoryStock(db.Model):
+    """How much of an item is in one warehouse. What isn't in any warehouse is quantity_on_hand minus these."""
+
+    __tablename__ = "inventory_stock"
+    __table_args__ = (db.UniqueConstraint("item_id", "warehouse_id", name="uq_inventory_stock_item_warehouse"),)
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"), nullable=False, index=True)
+    quantity = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
 
 class InventoryMovement(db.Model):
@@ -315,6 +346,9 @@ class InventoryMovement(db.Model):
     quantity_delta = db.Column(db.Numeric(12, 2), nullable=False)
     quantity_after = db.Column(db.Numeric(12, 2), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), index=True)
+    # Where the stock went in or out (transfers: from here...), and for transfers where it went to.
+    warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"))
+    to_warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id"))
     note = db.Column(db.String(500))
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)

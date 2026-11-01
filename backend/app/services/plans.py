@@ -2,7 +2,7 @@
 
 A plan is only data until a person confirms it: the assistant's `propose_project` tool validates and
 returns it, and `POST /organizations/:id/projects/from-plan` validates it again (never trusting the
-draft) before creating the project, its milestones and tasks in one transaction.
+draft) before creating the project, its milestones, tasks and opening inventory in one transaction.
 """
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from typing import Any
 
 MAX_MILESTONES = 20
 MAX_TASKS = 50
+MAX_INVENTORY = 50
+MAX_QUANTITY = Decimal("9999999999.99")
 MAX_YEARS = 5
 PRIORITIES = ("low", "medium", "high")
 
@@ -116,6 +118,7 @@ def validate_plan(data: Any, *, default_currency: str, today: date) -> dict:
             }
         )
     return {
+        "inventory": validate_inventory(data.get("inventory")),
         "name": name,
         "description": description,
         "currency": currency,
@@ -125,6 +128,54 @@ def validate_plan(data: Any, *, default_currency: str, today: date) -> dict:
         "milestones": milestones,
         "tasks": tasks,
     }
+
+
+def _quantity(value: Any, label: str) -> Decimal | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise PlanError(f"{label} must be a number.", "inventory")
+    try:
+        d = Decimal(str(value).strip().replace(",", "."))
+    except (InvalidOperation, ValueError):
+        raise PlanError(f"{label} must be a number.", "inventory")
+    if not d.is_finite() or d < 0 or d > MAX_QUANTITY:
+        raise PlanError(f"{label} must be zero or more.", "inventory")
+    return d.quantize(Decimal("0.01"))
+
+
+def validate_inventory(raw: Any) -> list[dict]:
+    """A new project's opening inventory: [{name, unit, quantity, unit_cost, reorder_level}]."""
+    try:
+        return _inventory(raw)
+    except PlanError as e:
+        raise PlanError(str(e), "inventory")  # errors point at the inventory list, not a project field
+
+
+def _inventory(raw: Any) -> list[dict]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_INVENTORY:
+        raise PlanError(f"At most {MAX_INVENTORY} inventory items.", "inventory")
+    items, seen = [], set()
+    for row in raw:
+        if not isinstance(row, dict):
+            raise PlanError("Each inventory item needs a name.", "inventory")
+        name = _text(row, "name", required=True, max_len=200, label="Item name")
+        if name.lower() in seen:
+            raise PlanError(f"Two inventory items are called '{name}'.", "inventory")
+        seen.add(name.lower())
+        quantity = _quantity(row.get("quantity"), "Quantity")
+        unit_cost = _quantity(row.get("unit_cost"), "Unit cost")
+        reorder = _quantity(row.get("reorder_level"), "Reorder level")
+        items.append({
+            "name": name,
+            "unit": _text(row, "unit", required=False, max_len=20, label="Unit") or "pcs",
+            "quantity": None if quantity is None else f"{quantity:.2f}",
+            "unit_cost": None if unit_cost is None else f"{unit_cost:.2f}",
+            "reorder_level": None if reorder is None else f"{reorder:.2f}",
+        })
+    return items
 
 
 def _iso(d: date | None) -> str | None:

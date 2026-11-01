@@ -14,11 +14,11 @@ from typing import Callable, Optional
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User
+from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User, Warehouse
 from . import metrics, travel
 from .calculator import CalculationError, calculate as _calculate
 from .plans import PlanError, validate_plan
-from . import stock_plans
+from . import stock, stock_plans
 from .permissions import get_membership
 from . import projects as svc
 
@@ -369,17 +369,69 @@ def get_inventory_status(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+def _inventory_arg(ctx: ToolContext, args: dict):
+    """("all" | None for General stock | project ID, label) from the optional `inventory` argument."""
+    name = args.get("inventory")
+    if not isinstance(name, str) or not name.strip():
+        return "all", "all inventories"
+    if stock_plans.is_general(name):
+        return None, stock_plans.GENERAL
+    projects = Project.query.filter(Project.organization_id == ctx.organization_id).all()
+    project, candidates = stock_plans._match(projects, name)
+    if project is None:
+        raise ToolError(f"Several projects match: {', '.join(candidates)}." if candidates else f"No project called {name}.")
+    return project.id, project.name
+
+
 def find_inventory_items(ctx: ToolContext, args: dict) -> dict:
     query = args.get("query") if isinstance(args.get("query"), str) else None
-    items = stock_plans.find_items(ctx.organization_id, query, limit=MAX_LIST)
+    scope, label = _inventory_arg(ctx, args)
+    items = stock_plans.find_items(ctx.organization_id, query, limit=MAX_LIST, project_id=scope)
+    names = {p.id: p.name for p in Project.query.filter(Project.id.in_({i.project_id for i in items if i.project_id}))} if items else {}
+    per_item = stock.stock_by_item([i.id for i in items])
     return {
+        "inventory": label,
         "items": [
-            {"name": i.name, "sku": i.sku, "on_hand": _m(i.quantity_on_hand), "unit": i.unit,
-             "unit_cost": _m(i.unit_cost), "reorder_level": _m(i.reorder_level), "location": i.location,
-             "low_stock": metrics.is_low_stock(i.quantity_on_hand, i.reorder_level)}
+            {"name": i.name, "inventory": names.get(i.project_id, stock_plans.GENERAL), "sku": i.sku,
+             "on_hand": _m(i.quantity_on_hand), "unit": i.unit, "unit_cost": _m(i.unit_cost),
+             "reorder_level": _m(i.reorder_level),
+             "low_stock": metrics.is_low_stock(i.quantity_on_hand, i.reorder_level),
+             "by_warehouse": {s["warehouse"]: s["quantity"] for s in per_item.get(i.id, [])},
+             "not_in_a_warehouse": _m(i.quantity_on_hand - sum((Decimal(s["quantity"]) for s in per_item.get(i.id, [])), Decimal("0")))}
             for i in items
         ],
-        "note": "Matches by name, SKU or location; archived items are left out." if query else "All active items.",
+        "note": "Each project has its own inventory; General stock is the organization's own. "
+        "Matches by name, SKU or location; archived items are left out.",
+    }
+
+
+def list_warehouses(ctx: ToolContext, args: dict) -> dict:
+    scope, label = _inventory_arg(ctx, args)
+    q = Warehouse.query.filter_by(organization_id=ctx.organization_id)
+    if scope != "all":
+        q = q.filter(Warehouse.project_id.is_(None) if scope is None else Warehouse.project_id == scope)
+    rows = q.order_by(Warehouse.name).limit(MAX_LIST).all()
+    names = {p.id: p.name for p in Project.query.filter(Project.id.in_({w.project_id for w in rows if w.project_id}))} if rows else {}
+    contents = stock.warehouse_contents([w.id for w in rows])
+    held: dict[int, list] = {}
+    if rows:
+        from ..models import InventoryStock
+        for s, item in (
+            db.session.query(InventoryStock, InventoryItem)
+            .join(InventoryItem, InventoryItem.id == InventoryStock.item_id)
+            .filter(InventoryStock.warehouse_id.in_([w.id for w in rows]), InventoryStock.quantity != 0)
+        ):
+            held.setdefault(s.warehouse_id, []).append(f"{item.name}: {_m(s.quantity)} {item.unit}")
+    return {
+        "inventory": label,
+        "warehouses": [
+            {"name": w.name, "inventory": names.get(w.project_id, stock_plans.GENERAL), "address": w.address,
+             "has_map_position": w.lat is not None, "items": held.get(w.id, [])[:MAX_LIST],
+             "stock_value": contents.get(w.id, {}).get("value")}
+            for w in rows
+        ],
+        "note": "To reorganize, draft transfer lines with propose_stock_changes. Warehouses themselves are added and "
+        "placed on the map by the user on the Stock page.",
     }
 
 
@@ -598,23 +650,40 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
     ),
     "find_inventory_items": (
         find_inventory_items,
-        "Look up stock items by name, SKU or location: quantity on hand, unit, unit cost, reorder level. "
-        "Leave query empty to list all items.",
-        {"type": "object", "properties": {"query": {"type": "string"}}},
+        "Look up stock items by name, SKU or location: inventory, quantity on hand and per warehouse, unit, unit "
+        "cost, reorder level. Each project has its own inventory; 'General stock' is the organization's own. "
+        "Leave query empty to list all items; leave inventory empty to search every inventory.",
+        {"type": "object", "properties": {
+            "query": {"type": "string"},
+            "inventory": {"type": "string", "description": "A project name, or 'General stock'."},
+        }},
+    ),
+    "list_warehouses": (
+        list_warehouses,
+        "Warehouses with their inventory, address and what each holds. Leave inventory empty for all.",
+        {"type": "object", "properties": {
+            "inventory": {"type": "string", "description": "A project name, or 'General stock'."},
+        }},
     ),
     "propose_stock_changes": (
         propose_stock_changes,
-        "Draft stock changes for the user to confirm (saves nothing): receive (stock arrived), issue (stock used, "
-        "optionally for a project), adjust (signed correction with a reason, e.g. -2 damaged), create (new item with "
-        "optional opening quantity). Use the item names the user gave; one line per item.",
+        "Draft stock changes for the user to confirm (saves nothing): receive (stock arrived), issue (stock used), "
+        "adjust (signed correction with a reason, e.g. -2 damaged), create (new item, optional opening quantity), "
+        "transfer (between warehouses of the same inventory), move (to another inventory, e.g. General stock to a "
+        "project), delete (remove an item for good). Every line is in an inventory: a project name, or omit for "
+        "General stock. Use exact stored names from find_inventory_items / list_warehouses; one line per item.",
         {
             "type": "object",
             "properties": {
                 "changes": {"type": "array", "items": {"type": "object", "properties": {
                     "kind": {"type": "string", "enum": list(stock_plans.KINDS)},
+                    "inventory": {"type": "string", "description": "Project whose inventory this is; omit for General stock."},
                     "item": {"type": "string", "description": "Item name or SKU (the new item's name for create)."},
+                    "warehouse": {"type": "string", "description": "Where stock arrives, leaves or is counted; for transfer and move, where it's taken from."},
+                    "to_warehouse": {"type": "string", "description": "transfer/move: destination warehouse (omit = not in a warehouse)."},
+                    "to_inventory": {"type": "string", "description": "move: destination project name, or 'General stock'."},
                     "quantity": {"type": "number", "description": "Positive; signed for adjust; opening stock for create."},
-                    "project": {"type": "string", "description": "Project name, for issue."},
+                    "project": {"type": "string", "description": "issue from General stock: the project it was used for."},
                     "note": {"type": "string", "description": "Reason (required for adjust) or short note, in the user's language."},
                     "unit": {"type": "string", "description": "create only, e.g. pcs, box, kg."},
                     "unit_cost": {"type": "number", "description": "create only."},
@@ -680,6 +749,10 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
                 "end_date": {"type": "string"},
                 "milestones": {"type": "array", "items": {"type": "object", "properties": {
                     "title": {"type": "string"}, "due_date": {"type": "string"}}, "required": ["title"]}},
+                "inventory": {"type": "array", "description": "Optional opening stock for the project's own inventory.",
+                              "items": {"type": "object", "properties": {
+                                  "name": {"type": "string"}, "unit": {"type": "string"}, "quantity": {"type": "number"},
+                                  "unit_cost": {"type": "number"}}, "required": ["name"]}},
                 "tasks": {"type": "array", "items": {"type": "object", "properties": {
                     "title": {"type": "string"}, "description": {"type": "string"},
                     "priority": {"type": "string", "enum": ["low", "medium", "high"]},
