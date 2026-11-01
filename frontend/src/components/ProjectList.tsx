@@ -1,11 +1,13 @@
 import { AlertTriangle, CalendarDays, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Project } from "../api/models";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
 import { isRtl, t } from "../i18n";
 import { tx } from "../i18n/rich";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 /** Over budget beats overdue work; everything else is on track. */
@@ -74,7 +76,13 @@ function BudgetBar({ project }: { project: Project }) {
   );
 }
 
-export function ProjectList({ projects }: { projects: Project[] }) {
+/** While selecting, rows toggle a checkbox instead of opening the project. */
+export interface ProjectSelection {
+  selected: Set<number>;
+  toggle(id: number): void;
+}
+
+export function ProjectList({ projects, selection }: { projects: Project[]; selection?: ProjectSelection }) {
   return (
     <ul className="divide-y">
       {projects.map((p, i) => {
@@ -87,10 +95,7 @@ export function ProjectList({ projects }: { projects: Project[] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: Math.min(i, 8) * 0.03 }}
           >
-            <Link
-              to={`/app/projects/${p.id}`}
-              className="group relative grid gap-4 py-4 ps-4 pe-2 transition-colors hover:bg-muted/50 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] sm:items-center"
-            >
+            <RowFrame project={p} selection={selection}>
               <span
                 aria-hidden="true"
                 className={cn(
@@ -117,16 +122,58 @@ export function ProjectList({ projects }: { projects: Project[] }) {
                 </div>
               </div>
               <BudgetBar project={p} />
-              <ChevronRight
-                className={cn(
-                  "hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block",
-                  isRtl() && "rotate-180 group-hover:-translate-x-0.5",
-                )}
-              />
-            </Link>
+              {!selection && (
+                <ChevronRight
+                  className={cn(
+                    "hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block",
+                    isRtl() && "rotate-180 group-hover:-translate-x-0.5",
+                  )}
+                />
+              )}
+            </RowFrame>
           </motion.li>
         );
       })}
     </ul>
+  );
+}
+
+const ROW =
+  "group relative grid gap-4 py-4 ps-4 pe-2 transition-colors hover:bg-muted/50 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] sm:items-center";
+
+/** A link to the project, or, while selecting, a checkbox row. */
+function RowFrame({
+  project,
+  selection,
+  children,
+}: {
+  project: Project;
+  selection?: ProjectSelection;
+  children: ReactNode;
+}) {
+  if (!selection) {
+    return (
+      <Link to={`/app/projects/${project.id}`} className={ROW}>
+        {children}
+      </Link>
+    );
+  }
+  const checked = selection.selected.has(project.id);
+  return (
+    <label
+      className={cn(
+        ROW,
+        "cursor-pointer ps-12 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]",
+        checked && "bg-primary/5 hover:bg-primary/10",
+      )}
+    >
+      <Checkbox
+        checked={checked}
+        onCheckedChange={() => selection.toggle(project.id)}
+        aria-label={t("Select {name}", { name: project.name })}
+        className="absolute start-5 top-1/2 -translate-y-1/2 rtl:translate-y-[-50%]"
+      />
+      {children}
+    </label>
   );
 }

@@ -137,6 +137,9 @@ MESSAGES: dict[str, str] = {
     "Several projects match: {names}. Say which one.": "عدة مشاريع مطابقة: {names}. حدّد أيها تقصد.",
     "No item called {name}. Create it first.": "لا يوجد صنف باسم {name}. أنشئه أولًا.",
     "No active project called {name}.": "لا يوجد مشروع نشط باسم {name}.",
+    # Deleting projects
+    "Choose at least one project.": "اختر مشروعًا واحدًا على الأقل.",
+    "Delete at most {MAX_AT_ONCE} projects at a time.": "احذف {MAX_AT_ONCE} مشروعًا كحد أقصى في كل مرة.",
     # Field names used in validation messages
     "Project name": "اسم المشروع",
     "First name": "الاسم الشخصي",

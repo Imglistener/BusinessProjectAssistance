@@ -58,6 +58,14 @@ en pause, terminé). Les propriétaires et chefs de projet peuvent **Modifier le
 projets archivés sont en lecture seule et masqués du tableau de bord ; ouvrez-en un via le filtre de statut
 et sélectionnez **Restaurer le projet**.
 
+Les propriétaires de l'organisation peuvent aussi **supprimer** définitivement des projets, par exemple des projets
+de test ou créés par erreur. Sur un projet, sélectionnez **Supprimer le projet**. Pour en supprimer plusieurs,
+sélectionnez **Sélectionner** au-dessus de la liste, cochez les projets (la case à côté de « Projets » les
+sélectionne tous), puis **Supprimer**. Réglez d'abord le filtre de statut sur « Archivé » pour faire le ménage
+dans les projets archivés. La confirmation liste ce qui disparaîtra (dépenses, justificatifs, tâches, jalons,
+déplacements) et vous demande de taper « supprimer ». C'est définitif. L'historique du stock est conservé : le
+stock sorti pour un projet supprimé reste dans l'historique de l'article, avec le nom du projet.
+
 ![La page d'un projet : budget, dépensé, reste, puis jalons et tâches](images/fr-project.jpg)
 
 ### Budget et dépenses

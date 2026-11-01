@@ -54,6 +54,13 @@ Open a project from the dashboard. A project has a budget, dates and a status (p
 completed). Owners and project managers can **Edit project** or **Archive** it. Archived projects are
 read-only and hidden from the dashboard; open one through the status filter and select **Restore project**.
 
+Organization owners can also **delete** projects for good, for example test projects or ones created by mistake.
+On a project, select **Delete project**. To delete several at once, select **Select** above the project list,
+tick the projects (the checkbox next to "Projects" selects all of them), then **Delete**. Set the status filter
+to "Archived" first to clear out archived projects. The confirmation lists what will go (expenses, receipts,
+tasks, milestones, trips) and asks you to type "delete". It can't be undone. Stock history is kept: stock
+issued to a deleted project stays in the item's history, marked with the project's name.
+
 ![A project page: budget, spent, remaining, then milestones and tasks](images/en-project.jpg)
 
 ### Budget and expenses

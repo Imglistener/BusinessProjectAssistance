@@ -1,5 +1,5 @@
-import { AlertTriangle, CircleDollarSign, Clock, FolderPlus, Plus, Search, X } from "lucide-react";
-import { motion } from "motion/react";
+import { AlertTriangle, CheckSquare, CircleDollarSign, Clock, FolderPlus, Plus, Search, Trash2, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ApiError, api } from "../api/client";
 import {
@@ -17,6 +17,7 @@ import { Agenda } from "../components/Agenda";
 import { AnimatedMoney } from "../components/AnimatedMoney";
 import { FormAlert, SimpleSelect, TextField } from "../components/form";
 import { LogoMark } from "../components/Logo";
+import { DeleteProjectsDialog } from "../components/DeleteProjectsDialog";
 import { ProjectFormDialog } from "../components/ProjectForm";
 import { ProjectList } from "../components/ProjectList";
 import { AppShell } from "../components/AppShell";
@@ -138,6 +139,12 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = canManageProjects(org.role);
+  // Deleting is for owners; they pick projects with "Select", then delete them together.
+  const canDelete = org.role === "owner";
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [deletedCount, setDeletedCount] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState("newest");
@@ -176,6 +183,26 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
     loadSummary();
     loadProjects();
     setRefreshKey((k) => k + 1);
+  };
+
+  // Only projects still on screen stay selected when the filters change.
+  useEffect(() => {
+    if (!projects) return;
+    const visible = new Set(projects.map((p) => p.id));
+    setSelected((s) => new Set([...s].filter((id) => visible.has(id))));
+  }, [projects]);
+
+  const toggle = (id: number) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allSelected = !!projects && projects.length > 0 && projects.every((p) => selected.has(p.id));
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
   };
 
   const clearFilters = () => {
@@ -253,13 +280,45 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
           <Card className="gap-0 py-0">
             <CardHeader className="gap-4 border-b py-5">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle id="projects-heading" className="text-base">
-                  {t("Projects")}
-                  {projects && projects.length > 0 && (
-                    <span className="tabular ms-2 text-sm font-normal text-muted-foreground">{projects.length}</span>
+                <CardTitle id="projects-heading" className="flex items-center gap-3 text-base">
+                  {selecting && projects && projects.length > 0 && (
+                    <Checkbox
+                      checked={allSelected ? true : selected.size > 0 ? "indeterminate" : false}
+                      onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(projects.map((p) => p.id)))}
+                      aria-label={t("Select all")}
+                    />
                   )}
+                  <span>
+                    {t("Projects")}
+                    {projects && projects.length > 0 && (
+                      <span className="tabular ms-2 text-sm font-normal text-muted-foreground">{projects.length}</span>
+                    )}
+                  </span>
                 </CardTitle>
+                {canDelete && !empty && (
+                  <Button
+                    variant={selecting ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                  >
+                    {selecting ? <X className="size-4" /> : <CheckSquare className="size-4" />}
+                    {selecting ? t("Done") : t("Select")}
+                  </Button>
+                )}
               </div>
+              <AnimatePresence>
+                {deletedCount !== null && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    role="status"
+                    className="text-sm text-emerald-700 dark:text-emerald-400"
+                  >
+                    {t("{count} projects deleted.", { count: deletedCount })}
+                  </motion.p>
+                )}
+              </AnimatePresence>
               {!empty && (
                 <div role="search" aria-label={t("Filter projects")} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
                   <div className="relative">
@@ -302,7 +361,9 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
               {noMatches && (
                 <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t("No projects match these filters.")}</p>
               )}
-              {projects && projects.length > 0 && <ProjectList projects={projects} />}
+              {projects && projects.length > 0 && (
+                <ProjectList projects={projects} selection={selecting ? { selected, toggle } : undefined} />
+              )}
               {empty && (
                 <div className="grid justify-items-center gap-3 px-6 py-14 text-center">
                   <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -330,6 +391,42 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
           <Agenda orgId={org.id} refreshKey={refreshKey} />
         </motion.aside>
       </div>
+
+      <AnimatePresence>
+        {selecting && selected.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-x-0 bottom-6 z-30 flex justify-center px-4"
+          >
+            <div className="flex items-center gap-3 rounded-full border bg-popover py-2 ps-5 pe-2 text-sm shadow-lg">
+              <span className="tabular font-medium">{t("{count} selected", { count: selected.size })}</span>
+              <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setSelected(new Set())}>
+                {t("Clear")}
+              </Button>
+              <Button variant="destructive" size="sm" className="rounded-full" onClick={() => setDeleting(true)}>
+                <Trash2 className="size-4" />
+                {t("Delete")}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <DeleteProjectsDialog
+        orgId={org.id}
+        projectIds={[...selected]}
+        open={deleting}
+        onOpenChange={setDeleting}
+        onDeleted={(count) => {
+          stopSelecting();
+          setDeletedCount(count);
+          window.setTimeout(() => setDeletedCount(null), 5000);
+          reload();
+        }}
+      />
 
       <ProjectFormDialog
         open={creating}

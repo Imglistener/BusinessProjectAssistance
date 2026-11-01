@@ -133,6 +133,9 @@ MESSAGES: dict[str, str] = {
     "Several projects match: {names}. Say which one.": "Plusieurs projets correspondent : {names}. Précisez lequel.",
     "No item called {name}. Create it first.": "Aucun article nommé {name}. Créez-le d'abord.",
     "No active project called {name}.": "Aucun projet actif nommé {name}.",
+    # Deleting projects
+    "Choose at least one project.": "Choisissez au moins un projet.",
+    "Delete at most {MAX_AT_ONCE} projects at a time.": "Supprimez au plus {MAX_AT_ONCE} projets à la fois.",
     # Field names used in validation messages
     "Project name": "Nom du projet",
     "First name": "Prénom",

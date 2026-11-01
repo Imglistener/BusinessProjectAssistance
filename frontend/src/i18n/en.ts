@@ -2,6 +2,14 @@
 import type { Dictionary } from ".";
 
 const en: Dictionary = {
+  "{count} expenses": { one: "{count} expense", other: "{count} expenses" },
+  "{count} receipts": { one: "{count} receipt", other: "{count} receipts" },
+  "{count} tasks": { one: "{count} task", other: "{count} tasks" },
+  "{count} milestones": { one: "{count} milestone", other: "{count} milestones" },
+  "{count} trips": { one: "{count} trip", other: "{count} trips" },
+  "Delete {count} projects?": { one: "Delete this project?", other: "Delete {count} projects?" },
+  "Delete {count} projects": { one: "Delete project", other: "Delete {count} projects" },
+  "{count} projects deleted.": { one: "{count} project deleted.", other: "{count} projects deleted." },
   "Stock updated: {count} changes saved.": { one: "Stock updated: {count} change saved.", other: "Stock updated: {count} changes saved." },
   "Confirm {count} changes": { one: "Confirm {count} change", other: "Confirm {count} changes" },
   "{count} days late": { one: "{count} day late", other: "{count} days late" },

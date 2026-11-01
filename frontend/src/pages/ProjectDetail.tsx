@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type Milestone, type Project, type Trip } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
@@ -9,6 +9,7 @@ import { ExpenseSection } from "../components/ExpenseSection";
 import { FormError } from "../components/AuthLayout";
 import { MilestoneSection } from "../components/MilestoneSection";
 import { MaterialsSection } from "../components/MaterialsSection";
+import { DeleteProjectsDialog } from "../components/DeleteProjectsDialog";
 import { ProjectForm } from "../components/ProjectForm";
 import { TaskSection } from "../components/TaskSection";
 import { TripSection } from "../components/TripSection";
@@ -108,7 +109,11 @@ function ProjectActions({ project, onProjectChange }: { project: Project; onProj
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
   const archived = project.status === "archived";
+  // Deleting for good is for organization owners (the server checks too).
+  const canDelete = project.my_role === "owner";
 
   const run = async (path: string, options: { method: string; body?: unknown }) => {
     setBusy(true);
@@ -175,6 +180,20 @@ function ProjectActions({ project, onProjectChange }: { project: Project; onProj
             </button>
           )}
         </>
+      )}
+      {canDelete && (
+        <button type="button" className="link-btn link-btn--danger" onClick={() => setDeleting(true)}>
+          {t("Delete project")}
+        </button>
+      )}
+      {canDelete && (
+        <DeleteProjectsDialog
+          orgId={project.organization_id}
+          projectIds={[project.id]}
+          open={deleting}
+          onOpenChange={setDeleting}
+          onDeleted={() => navigate("/app", { replace: true })}
+        />
       )}
     </div>
   );

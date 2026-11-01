@@ -154,6 +154,13 @@
   real test email on 2026-10-31. A generic SMTP option exists for other providers.
 - Later, with a domain: switch EMAIL_PROVIDER to resend (sender already built).
 
+## Deleting projects (implemented, my defaults)
+- Owners only. One project (project page) or several (Select on the dashboard), all or nothing. The confirmation
+  shows exact counts from POST /organizations/:id/projects/delete-preview and asks to type "delete".
+- Removed: the project, expenses and receipt files, tasks, milestones, trips, assistant conversations and links in
+  notifications. Kept: stock movements (detached, noted "Issued to deleted project X") and the audit log, plus a
+  "project.deleted" entry with who deleted what. Archiving remains the everyday option.
+
 ## Assistant drafts stock changes (implemented)
 - propose_stock_changes drafts receive / issue / adjust / new-item lines from plain language and previews the
   quantity before and after; find_inventory_items looks up any item. Nothing is saved until the user confirms.

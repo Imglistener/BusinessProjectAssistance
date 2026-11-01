@@ -9,7 +9,8 @@ from flask_jwt_extended import jwt_required
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Milestone, Organization, Project, ProjectStatus, Task, TaskPriority, TaskStatus
+from ..models import Milestone, Organization, Project, ProjectStatus, Role, Task, TaskPriority, TaskStatus
+from ..services import project_delete
 from ..services import projects as svc
 from ..services.plans import PlanError, validate_plan
 from ..services.audit import log_action
@@ -382,3 +383,44 @@ def archive_project(project_id: int):
         )
         db.session.commit()
     return jsonify(project=_one_project_dict(project, org))
+
+
+# ---------- deleting (owners only; archiving is the everyday option) ----------
+
+
+def _deletable(org_id: int, user_id: int, project_ids) -> list[Project]:
+    require_role(get_membership(org_id, user_id), Role.OWNER)
+    return project_delete.load(org_id, project_ids)
+
+
+@api_bp.post("/organizations/<int:org_id>/projects/delete-preview")
+@jwt_required()
+def preview_project_delete(org_id: int):
+    """{project_ids}: what deleting them would remove. Changes nothing."""
+    user = current_user()
+    projects = _deletable(org_id, user.id, get_json_body().get("project_ids"))
+    return jsonify(project_delete.summary(projects))
+
+
+@api_bp.post("/organizations/<int:org_id>/projects/delete")
+@jwt_required()
+def delete_projects(org_id: int):
+    """{project_ids}: delete them all, or none if any ID isn't one of this organization's projects."""
+    user = current_user()
+    projects = _deletable(org_id, user.id, get_json_body().get("project_ids"))
+    files = project_delete.delete(projects, user.id)
+    db.session.commit()
+    project_delete.remove_files(files)
+    return jsonify(deleted=len(projects))
+
+
+@api_bp.delete("/projects/<int:project_id>")
+@jwt_required()
+def delete_project(project_id: int):
+    user = current_user()
+    project, _ = svc.get_project_for_user(project_id, user.id)
+    projects = _deletable(project.organization_id, user.id, [project.id])
+    files = project_delete.delete(projects, user.id)
+    db.session.commit()
+    project_delete.remove_files(files)
+    return jsonify(deleted=1)
