@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from ..errors import ApiError
 from ..extensions import db
@@ -435,11 +435,27 @@ def list_warehouses(ctx: ToolContext, args: dict) -> dict:
     }
 
 
+# Stored data (notes, names) can be in another language; models drift into it when summarising a draft.
+SAME_LANGUAGE = "Reply in the language of the user's latest message, not the language of the stored data."
+
+
+def _nullable(props: dict) -> dict:
+    """Optional fields also accept null: the provider rejects the whole call when a model sends one."""
+    return {k: v if k in ("kind", "item") else {**v, "type": [v["type"], "null"]} for k, v in props.items()}
+
+
+def _without_nulls(changes: Any) -> Any:
+    """Models often send `"warehouse": null` for "not in one"; that means the same as leaving it out."""
+    if not isinstance(changes, list):
+        return changes
+    return [{k: v for k, v in c.items() if v is not None} if isinstance(c, dict) else c for c in changes]
+
+
 def propose_stock_changes(ctx: ToolContext, args: dict) -> dict:
     """Preview stock changes. Nothing is saved: the user reviews them and confirms in the app."""
     role = get_membership(ctx.organization_id, ctx.user_id).role
     try:
-        draft = stock_plans.draft_changes(ctx.organization_id, role, args.get("changes"))
+        draft = stock_plans.draft_changes(ctx.organization_id, role, _without_nulls(args.get("changes")))
     except ValueError as e:
         raise ToolError(str(e))
     problems = [f"{line['name'] or '?'}: {line['error']}" for line in draft["lines"] if line["error"]]
@@ -451,7 +467,7 @@ def propose_stock_changes(ctx: ToolContext, args: dict) -> dict:
         "needs_manager": not_allowed,
         "next_step": "Tell the user the changes are shown below your message with a 'Confirm' button and nothing "
         "has changed yet. Mention any problems (e.g. an unknown item to create first) and lines only an owner or "
-        "project manager can confirm.",
+        "project manager can confirm. " + SAME_LANGUAGE,
     }
 
 
@@ -585,7 +601,7 @@ def propose_project(ctx: ToolContext, args: dict) -> dict:
         "proposal": plan,
         "status": "draft_not_saved",
         "next_step": "Tell the user the draft is shown below their message with a 'Create project' button; "
-        "they can adjust it first. Summarise the plan briefly; don't repeat every task.",
+        "they can adjust it first. Summarise the plan briefly; don't repeat every task. " + SAME_LANGUAGE,
     }
 
 
@@ -675,9 +691,9 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
         {
             "type": "object",
             "properties": {
-                "changes": {"type": "array", "items": {"type": "object", "properties": {
+                "changes": {"type": "array", "items": {"type": "object", "properties": _nullable({
                     "kind": {"type": "string", "enum": list(stock_plans.KINDS)},
-                    "inventory": {"type": "string", "description": "Project whose inventory this is; omit for General stock."},
+                    "inventory": {"type": "string", "description": "Project whose inventory the item is in now (for move: where it comes from); omit for General stock."},
                     "item": {"type": "string", "description": "Item name or SKU (the new item's name for create)."},
                     "warehouse": {"type": "string", "description": "Where stock arrives, leaves or is counted; for transfer and move, where it's taken from."},
                     "to_warehouse": {"type": "string", "description": "transfer/move: destination warehouse (omit = not in a warehouse)."},
@@ -690,7 +706,7 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
                     "reorder_level": {"type": "number", "description": "create only."},
                     "location": {"type": "string", "description": "create only."},
                     "sku": {"type": "string", "description": "create only."},
-                }, "required": ["kind", "item"]}},
+                }), "required": ["kind", "item"]}},
             },
             "required": ["changes"],
         },

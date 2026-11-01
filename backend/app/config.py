@@ -51,7 +51,7 @@ class Config:
     # USD per million tokens, used for the monthly cap. Check the provider's current price list.
     AI_INPUT_PRICE_PER_MTOK_USD = Decimal(os.getenv("AI_INPUT_PRICE_PER_MTOK_USD", "0.15"))
     AI_OUTPUT_PRICE_PER_MTOK_USD = Decimal(os.getenv("AI_OUTPUT_PRICE_PER_MTOK_USD", "0.75"))
-    AI_MAX_TOOL_ROUNDS = int(os.getenv("AI_MAX_TOOL_ROUNDS", "5"))
+    AI_MAX_TOOL_ROUNDS = int(os.getenv("AI_MAX_TOOL_ROUNDS", "8"))
     AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE", "10"))
 
 

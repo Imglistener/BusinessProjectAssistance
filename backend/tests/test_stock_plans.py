@@ -303,6 +303,17 @@ def test_lookup_tools_know_inventories_and_warehouses(client):
     assert [i["name"] for i in ai_tools.find_inventory_items(c, {"inventory": "General stock"})["items"]] == [
         "Office chair", "Printer paper A4",
     ]
+    # Models send null for "not in a warehouse"; it means the same as leaving the field out.
+    schema = ai_tools.TOOLS["propose_stock_changes"][2]["properties"]["changes"]["items"]["properties"]
+    assert schema["warehouse"]["type"] == ["string", "null"] and schema["kind"]["type"] == "string"
+    r = ai_tools.propose_stock_changes(c, {"changes": [
+        {"kind": "transfer", "inventory": "Office move inventory", "item": "Desk", "quantity": 4,
+         "warehouse": "Casablanca depot", "to_warehouse": "Tangier store", "note": None},
+        {"kind": "receive", "item": "Printer paper A4", "quantity": 1, "warehouse": None},
+    ]})
+    assert r["problems"] == []
+    # People (and models) say "the X inventory"; the trailing word is ignored when nothing else matches.
+    assert ai_tools.find_inventory_items(c, {"inventory": "Office move inventory"})["inventory"] == "Office move to Casablanca"
     w = ai_tools.list_warehouses(c, {"inventory": "office move"})
     assert [(x["name"], x["items"]) for x in w["warehouses"]] == [
         ("Casablanca depot", ["Desk: 10.00 pcs"]), ("Tangier store", []),

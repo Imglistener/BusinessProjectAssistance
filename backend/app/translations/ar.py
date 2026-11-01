@@ -269,4 +269,5 @@ MESSAGES: dict[str, str] = {
     "Join {organization}": "الانضمام إلى {organization}",
     "Accept the invite": "قبول الدعوة",
     "{who} invited you to {organization}": "دعوة من {who} للانضمام إلى {organization}",
+    "The draft is below. Check it, then confirm. Nothing has changed yet.": "المقترح أدناه. راجعه ثم أكّده. لم يتغيّر شيء بعد.",
 }

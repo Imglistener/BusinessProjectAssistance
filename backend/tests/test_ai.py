@@ -118,6 +118,7 @@ def test_last_round_forces_an_answer_without_tools(client, fake, app):
     p = fake(call("list_projects"), call("list_projects"), say("Done"))
     assert ask(client, h, org_id).get_json()["answer"] == "Done"
     assert [c["tools"] is None for c in p.calls] == [False, False, True]
+    assert p.calls[-1]["messages"][-1] == {"role": "system", "content": ai_chat.FINAL_ROUND}
 
 
 def test_empty_answer_gets_a_fallback(client, fake):
@@ -388,4 +389,18 @@ def test_provider_rate_limit_gives_busy_message(client, fake):
     fake(ProviderRateLimited("429"))
     r = ask(client, h, org_id)
     assert r.status_code == 503 and r.get_json()["error"]["code"] == "ai_busy"
+    assert AIUsage.query.one().status == "busy"
+
+
+def test_a_draft_made_before_the_provider_fails_is_still_shown(client, fake):
+    from app.services.ai_provider import ProviderRateLimited
+
+    h, org_id, _ = setup(client)
+    client.post(f"/api/organizations/{org_id}/inventory", headers=h, json={"name": "Paper", "unit": "box"})
+    fake(call("propose_stock_changes", changes=[{"kind": "receive", "item": "Paper", "quantity": 3}]), ProviderRateLimited("429"))
+    r = ask(client, h, org_id, message="We got 3 boxes of paper")
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["answer"] == ai_chat.DRAFT_READY
+    assert [line["name"] for line in body["stock_proposals"][0]["lines"]] == ["Paper"]
     assert AIUsage.query.one().status == "busy"

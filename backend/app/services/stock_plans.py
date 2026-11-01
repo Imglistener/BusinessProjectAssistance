@@ -12,6 +12,7 @@ inventory), move (to another inventory) and delete (remove an item for good).
 """
 from __future__ import annotations
 
+import re
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
@@ -78,7 +79,15 @@ def _match(rows: list, name: str, *, label=lambda r: r.name, extra=lambda r: ())
     partial = exact or [r for r in rows if wanted in label(r).lower()]
     if len(partial) == 1:
         return partial[0], []
+    if not partial:
+        # "the Office move inventory", "Maarif warehouse": try again without the trailing kind of place.
+        trimmed = _SUFFIX.sub("", wanted).strip()
+        if trimmed and trimmed != wanted:
+            return _match(rows, trimmed, label=label, extra=extra)
     return None, [label(r) for r in partial[:5]]
+
+
+_SUFFIX = re.compile(r"\s+(inventory|stock|project|warehouse|store|storage)$")
 
 
 def is_general(name: Any) -> bool:

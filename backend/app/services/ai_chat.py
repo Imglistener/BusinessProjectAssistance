@@ -25,6 +25,13 @@ MAX_HISTORY_TURNS = 12
 MAX_HISTORY_CHARS = 4000
 MILLION = Decimal(1_000_000)
 
+# Without this, models sometimes still try to call a tool, which the provider rejects.
+FINAL_ROUND = (
+    "You can't call any more tools. Answer now in plain text with what you found. If you meant to draft "
+    "something, say what you found and ask the user to send a shorter request."
+)
+# When the provider fails after a draft was made, the draft is still worth showing.
+DRAFT_READY = "The draft is below. Check it, then confirm. Nothing has changed yet."
 UNAVAILABLE = "The assistant isn't available right now. Try again in a moment; the rest of the app still works."
 BUSY = "The assistant is busy right now (the AI provider's usage limit). Try again in a minute."
 
@@ -193,7 +200,10 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
     try:
         for round_no in range(rounds + 1):
             # Last round: no tools, so the model has to answer with what it has.
-            resp = provider.chat(messages, tools if round_no < rounds else None)
+            last = round_no == rounds
+            if last:
+                messages.append({"role": "system", "content": FINAL_ROUND})
+            resp = provider.chat(messages, None if last else tools)
             prompt_tokens += resp.prompt_tokens
             completion_tokens += resp.completion_tokens
             if not resp.tool_calls:
@@ -234,11 +244,13 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
         )
         db.session.commit()
 
-    if status == "busy":
+    if status in ("busy", "error") and (proposals or stock_proposals):
+        answer = translate(DRAFT_READY, request_lang())
+    elif status == "busy":
         raise ApiError("ai_busy", BUSY, 503)
-    if status == "error":
+    elif status == "error":
         raise ApiError("ai_unavailable", UNAVAILABLE, 503)
-    if status == "capped":
+    elif status == "capped":
         raise ApiError(
             "ai_limit_reached",
             "The assistant has reached its monthly usage limit. Everything else in the app still works.",
