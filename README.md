@@ -54,6 +54,16 @@ npx playwright install chromium-headless-shell   # first time only
 npm run e2e                                      # or E2E_BASE_URL=http://host:port npm run e2e
 ```
 
+## Windows development launcher
+
+From the repository root, run:
+
+```powershell
+.\run-app.ps1
+```
+
+The script upgrades the database, restarts the Flask API and Vite frontend, and checks that both are ready. By default, it uses a local SQLite database under `%LOCALAPPDATA%\BusinessProjectAssistance`. To use the database configured in `.env` instead (for example, PostgreSQL), start that database first and run `.\run-app.ps1 -UseConfiguredDatabase`. Service logs are written under `%LOCALAPPDATA%\BusinessProjectAssistance\logs`.
+
 ## Run with Docker
 
 The whole app (database, API and web server) in containers:
