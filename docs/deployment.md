@@ -8,7 +8,7 @@ Local development is covered in the README.
 | Part | What it is | Notes |
 | --- | --- | --- |
 | Frontend | Static files from `frontend/dist` (`npm run build`) | Any static host or the reverse proxy. Set `VITE_API_BASE_URL` at build time if the API is on another origin. |
-| Backend | Flask app `backend/wsgi.py:app` | Run with a WSGI server, e.g. `gunicorn -w 1 -b 127.0.0.1:5000 wsgi:app` (Linux) or `waitress-serve --port=5000 wsgi:app` (Windows). |
+| Backend | Flask app `backend/wsgi.py:app` (or the `backend` image) | Run with a WSGI server, e.g. `gunicorn -w 1 -b 127.0.0.1:5000 wsgi:app` (Linux) or `waitress-serve --port=5000 wsgi:app` (Windows). |
 | Database | PostgreSQL 16 | Managed service or the `docker-compose.yml` container. |
 | Reverse proxy | nginx, Caddy or the host's load balancer | Terminates HTTPS, serves the frontend, forwards `/api` to the backend. |
 
@@ -32,6 +32,22 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
 | `AI_PROVIDER`, `GROQ_API_KEY` or `GEMINI_API_KEY`, `AI_*` | AI provider (`groq` or `gemini`), its key and limits. The key stays on the server. |
+
+## Docker
+
+`docker compose up -d --build` runs the whole stack: `db` (PostgreSQL 16), `backend` (gunicorn, one process,
+migrations on start) and `web` (nginx with the built frontend, forwarding `/api` to the backend). See the README
+for everyday commands.
+
+- **HTTPS:** the containers serve plain HTTP on `WEB_PORT`. Put a TLS proxy in front (Caddy, Traefik, the
+  host's load balancer) and set `PROXY_FIX_X_FOR_DOCKER=2` (that proxy plus nginx), so rate limits see
+  the real client IP. Set `PUBLIC_URL` to the HTTPS address.
+- **Secrets:** set `SECRET_KEY`, `JWT_SECRET_KEY` and `POSTGRES_PASSWORD` in `.env` before the first start.
+  Postgres only reads `POSTGRES_PASSWORD` when it creates the database; to change it later, use `ALTER USER`.
+- **Data:** the `pgdata` volume (database) and `uploads` volume (receipts). Back up both (below). With
+  Docker: `docker compose exec -T db pg_dump -U bpa --format=custom bpa > bpa.dump`.
+- **Logs:** neither nginx nor the backend logs the invitation or password-reset paths, which carry tokens.
+- **Updates:** `git pull && docker compose up -d --build`; migrations run when the backend starts.
 
 ## First deployment
 

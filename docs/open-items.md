@@ -177,7 +177,7 @@
 - Assistant: find_inventory_items and list_warehouses read any inventory; propose_stock_changes drafts receive /
   issue / adjust / create / transfer / move / delete lines. It can't create warehouses (they need a map position);
   "organize" means proposing transfers.
-- Not yet checked on Postgres: the migration adds enum values with ALTER TYPE (Docker wasn't running).
+- Checked on Postgres 2026-11-02 (Docker): the migration adds enum values with ALTER TYPE; upgrade, downgrade and `db check` pass.
 
 ## Test pass 2026-11-01
 - Backend 344 tests, frontend type-check and build, smoke test (15 steps), `ai-eval` on Gemini Flash-Lite 11/11,
@@ -193,7 +193,8 @@
   language); it sometimes left out the warehouse of a new item or guessed one that doesn't exist (tool
   descriptions now say so, and the model is told to correct guessed names itself). Model answers still vary:
   check the draft card before confirming.
-- Still not checked: the Postgres migration (Docker Desktop wasn't running).
+- Postgres migration checked 2026-11-02 in Docker: every migration applies on PostgreSQL 16, the inventory
+  migration downgrades and upgrades again, and `flask db check` finds no difference.
 
 ## Deleting projects (implemented, my defaults)
 - Owners only. One project (project page) or several (Select on the dashboard), all or nothing. The confirmation

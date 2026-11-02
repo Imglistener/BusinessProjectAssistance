@@ -1,14 +1,53 @@
+# The whole app: `docker compose up -d --build`, then open http://localhost:8080.
+# Development only needs the database: `docker compose up -d db`.
+# Settings come from .env (see .env.example); the values below override the ones meant for local development.
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: bpa
-      POSTGRES_PASSWORD: bpa
-      POSTGRES_DB: bpa
+      POSTGRES_USER: ${POSTGRES_USER:-bpa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bpa}
+      POSTGRES_DB: ${POSTGRES_DB:-bpa}
+    # Reachable from this computer only (for local development and backups).
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-bpa}:${POSTGRES_PASSWORD:-bpa}@db:5432/${POSTGRES_DB:-bpa}
+      UPLOAD_DIR: /data/uploads
+      # The web container is the one proxy in front; emailed links and CORS use the public address.
+      PROXY_FIX_X_FOR: ${PROXY_FIX_X_FOR_DOCKER:-1}
+      APP_BASE_URL: ${PUBLIC_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${PUBLIC_URL:-http://localhost:8080}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  uploads:

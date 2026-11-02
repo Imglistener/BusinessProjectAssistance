@@ -54,6 +54,32 @@ npx playwright install chromium-headless-shell   # first time only
 npm run e2e                                      # or E2E_BASE_URL=http://host:port npm run e2e
 ```
 
+## Run with Docker
+
+The whole app (database, API and web server) in containers:
+
+```bash
+cp .env.example .env      # then set the secrets, email and AI keys
+docker compose up -d --build
+```
+
+Open http://localhost:8080. The backend applies database migrations each time it starts. Useful commands:
+
+```bash
+docker compose exec backend flask demo-data --yes        # sample organization (empty database only)
+docker compose exec backend flask fuel-prices-sync       # refresh fuel prices (run daily)
+docker compose logs -f backend                           # backend log
+docker compose down                                      # stop; data stays in the pgdata and uploads volumes
+```
+
+- `web` (nginx) serves the app and forwards `/api` to `backend` (gunicorn, one process). Only `web` is
+  published, on `WEB_PORT` (8080). The database listens on `127.0.0.1:DB_PORT` (5432) for local tools.
+- `.env` is passed to the backend, but the database address, upload folder, `APP_BASE_URL` and
+  `CORS_ORIGINS` are set by `docker-compose.yml`. Set `PUBLIC_URL` to the address people use (it goes into
+  emailed links), and `POSTGRES_PASSWORD` before the first start (it only applies to a new database).
+- The containers speak plain HTTP. In production, put an HTTPS proxy in front and set
+  `PROXY_FIX_X_FOR_DOCKER=2`; see docs/deployment.md.
+
 ## Demo data
 
 To see the app with realistic data, run once (after `db upgrade`):
