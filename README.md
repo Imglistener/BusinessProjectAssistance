@@ -80,6 +80,26 @@ docker compose down                                      # stop; data stays in t
 - The containers speak plain HTTP. In production, put an HTTPS proxy in front and set
   `PROXY_FIX_X_FOR_DOCKER=2`; see docs/deployment.md.
 
+## Moving to another PC (encrypted settings)
+
+`.env` holds the secrets and stays out of git. An encrypted copy, `.env.enc`, can be committed instead, so a
+new PC only needs the code and one passphrase:
+
+```powershell
+.\secrets.ps1 lock       # after changing .env: writes .env.enc (asks for the passphrase twice); commit it
+.\secrets.ps1 unlock     # on the new PC: writes .env from .env.enc
+```
+
+On Linux or macOS use `./secrets.sh lock` / `./secrets.sh unlock`. The scripts use Node if it's installed,
+otherwise Docker, so a fresh PC needs nothing besides Docker. Unlocking over a different `.env` keeps the old one
+as `.env.bak`.
+
+- The passphrase is the only thing protecting the secrets in `.env.enc`: use a long one (four or five random
+  words), keep it in a password manager, and never commit or send it with the repository.
+- Forgotten passphrase: the file can't be recovered; make a new `.env` from `.env.example` and lock it again.
+- Someone who had the passphrase still has the old secrets: if you stop trusting them, change the keys
+  themselves (Gemini key, Gmail app password, `SECRET_KEY`...), not only the passphrase.
+
 ## Demo data
 
 To see the app with realistic data, run once (after `db upgrade`):
