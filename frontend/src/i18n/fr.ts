@@ -852,6 +852,7 @@ const fr: Dictionary = {
   "This project is archived, so its inventory is read-only.": "Ce projet est archivé : son inventaire est en lecture seule.",
   "Stock by warehouse": "Stock par entrepôt",
   "More actions for {name}": "Plus d'actions pour {name}",
+  "Tick the box to confirm you're not a robot.": "Cochez la case pour confirmer que vous n'êtes pas un robot.",
 };
 
 export default fr;

@@ -59,6 +59,17 @@ class Config:
     AI_MAX_TOOL_ROUNDS = int(os.getenv("AI_MAX_TOOL_ROUNDS", "8"))
     AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE", "10"))
 
+    # Captcha on login and signup (ALTCHA proof-of-work, self-hosted). The key defaults to one derived from
+    # SECRET_KEY. Cost: PBKDF2 iterations per attempt; 5000 takes a browser about a second or two.
+    CAPTCHA_ENABLED = os.getenv("CAPTCHA_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off")
+    CAPTCHA_HMAC_KEY = os.getenv("CAPTCHA_HMAC_KEY", "")
+    CAPTCHA_COST = int(os.getenv("CAPTCHA_COST", "5000"))
+
+    # Re-read automatically saved fuel prices when they're this old (checked at start-up, then hourly).
+    FUEL_AUTO_SYNC = os.getenv("FUEL_AUTO_SYNC", "true").strip().lower() not in ("0", "false", "no", "off")
+    FUEL_AUTO_SYNC_HOURS = int(os.getenv("FUEL_AUTO_SYNC_HOURS", "24"))
+    FUEL_AUTO_SYNC_RETRY_HOURS = int(os.getenv("FUEL_AUTO_SYNC_RETRY_HOURS", "3"))
+
 
 class TestConfig(Config):
     TESTING = True
@@ -72,3 +83,6 @@ class TestConfig(Config):
     GOOGLE_APP_PASSWORD = ""
     SMTP_PASSWORD = ""
     UPLOAD_DIR = ""  # set per test to a temporary folder
+    CAPTCHA_ENABLED = False  # tests that need it turn it on
+    CAPTCHA_COST = 50
+    FUEL_AUTO_SYNC = False

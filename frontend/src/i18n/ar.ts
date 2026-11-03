@@ -852,6 +852,7 @@ const ar: Dictionary = {
   "This project is archived, so its inventory is read-only.": "هذا المشروع مؤرشف، لذا فمخزونه للقراءة فقط.",
   "Stock by warehouse": "المخزون حسب المستودع",
   "More actions for {name}": "إجراءات أخرى لـ{name}",
+  "Tick the box to confirm you're not a robot.": "حدّد المربع لتأكيد أنك لست روبوتًا.",
 };
 
 export default ar;

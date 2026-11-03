@@ -141,10 +141,11 @@ def clear_cache() -> None:
     _cache = None
 
 
-def apply(organization_id: int, user_id: int, snapshot: Snapshot, today) -> int:
+def apply(organization_id: int, user_id: int, snapshot: Snapshot, today, keep_manual: bool = False) -> int:
     """Write the snapshot into the organization's price table (source "teraedge"). Returns rows written.
 
     The caller commits. Only for organizations whose default currency is MAD (the source's currency).
+    keep_manual: leave prices someone typed in alone (the automatic daily update uses this).
     """
     org = db.session.get(Organization, organization_id)
     if org.default_currency != "MAD":
@@ -156,6 +157,8 @@ def apply(organization_id: int, user_id: int, snapshot: Snapshot, today) -> int:
             if value is None:
                 continue
             row = existing.get((cp.city.lower(), fuel))
+            if keep_manual and row is not None and row.source != SOURCE:
+                continue
             if row is None:
                 row = FuelPrice(organization_id=organization_id, city=cp.city, fuel_type=fuel)
                 db.session.add(row)

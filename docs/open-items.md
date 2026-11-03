@@ -179,6 +179,24 @@
   "organize" means proposing transfers.
 - Checked on Postgres 2026-11-02 (Docker): the migration adds enum values with ALTER TYPE; upgrade, downgrade and `db check` pass.
 
+## Fuel price source, captcha, daily update (2026-11-03)
+- **Requested source not used: mazoutiapp.com.** Its pages sit behind Anubis, a proof-of-work wall meant to
+  keep automated clients out; requests from the app get HTTP 406 or an empty page, and there's no public API.
+  Getting around that wall isn't something the app should do. Options: ask Mazouti for permission or an API
+  key (the parser can then be written against their data), or pick another source.
+- **Current source broken: prix-gasoil-maroc.teraedge.ma** became a JavaScript app; the page no longer
+  contains the prices (they're loaded from an undocumented endpoint), so "Update from website" and the daily
+  update fail with "page layout changed". Manual prices still work.
+- **Daily update (built):** checked when the server starts, then hourly; re-reads automatically saved prices
+  older than 24 h, only for organizations that already use the website prices, never overwriting typed-in
+  prices; a failure is logged and retried after 3 h. Verified: starting the server ran the check and logged the
+  current source failure.
+- **Captcha (built, my default): ALTCHA**, self-hosted proof-of-work (MIT), on login and signup. No account, no
+  third-party requests, no cookies. Each solution works once and expires after 10 minutes; checked after the
+  per-IP rate limit and before the password (login) or the "email taken" answer (signup). Turnstile or
+  reCAPTCHA would need an account and keys; ALTCHA can be swapped later behind the same /auth/captcha check.
+  Not added to "forgot password" (already rate-limited and silent about which emails exist).
+
 ## Test pass 2026-11-01
 - Backend 344 tests, frontend type-check and build, smoke test (15 steps), `ai-eval` on Gemini Flash-Lite 11/11,
   and screenshots in English, French and Arabic, light and dark, desktop and phone width.

@@ -266,4 +266,5 @@ MESSAGES: dict[str, str] = {
     "Accept the invite": "Accepter l'invitation",
     "{who} invited you to {organization}": "{who} vous invite à rejoindre {organization}",
     "The draft is below. Check it, then confirm. Nothing has changed yet.": "La proposition est ci-dessous. Vérifiez-la, puis confirmez. Rien n'a encore changé.",
+    "Confirm that you're not a robot, then try again.": "Confirmez que vous n'êtes pas un robot, puis réessayez.",
 }

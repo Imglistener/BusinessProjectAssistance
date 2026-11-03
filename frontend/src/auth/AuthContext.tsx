@@ -27,8 +27,9 @@ interface AuthState {
   loading: boolean;
   /** The last session ended because the login expired (not a manual log out). */
   expired: boolean;
-  login(email: string, password: string): Promise<void>;
-  register(input: { first_name: string; last_name: string; email: string; password: string }): Promise<void>;
+  /** `captcha`: the solved challenge from the login form ("" when the server has the captcha off). */
+  login(email: string, password: string, captcha?: string): Promise<void>;
+  register(input: { first_name: string; last_name: string; email: string; password: string; captcha?: string }): Promise<void>;
   logout(): void;
 }
 
@@ -62,8 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const r = await api<AuthResponse>("/auth/login", { body: { email, password } });
+  const login = useCallback(async (email: string, password: string, captcha?: string) => {
+    const r = await api<AuthResponse>("/auth/login", { body: { email, password, captcha } });
     tokenStore.set(r.access_token);
     setUser(r.user);
     syncLocale(r.user);

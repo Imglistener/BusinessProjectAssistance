@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useSubmit } from "../components/AuthLayout";
+import { Captcha, type CaptchaHandle } from "../components/Captcha";
 import { AuthLayout, AuthSwitch, Notice, PasswordField, SubmitButton } from "../components/auth";
 import { FormAlert, TextField } from "../components/form";
 import { safeNext } from "../lib/format";
@@ -16,14 +17,23 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaBox = useRef<CaptchaHandle>(null);
 
   const { busy, submit } = useSubmit(
     async () => {
       setError(null);
-      await login(email.trim(), password);
+      if (captcha === null) {
+        setError(t("Tick the box to confirm you're not a robot."));
+        return;
+      }
+      await login(email.trim(), password, captcha);
       navigate(next, { replace: true });
     },
-    (e) => setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again.")),
+    (e) => {
+      captchaBox.current?.reset(); // the solution was used; tick again
+      setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again."));
+    },
   );
 
   if (user) return <Navigate to={next} replace />;
@@ -56,6 +66,7 @@ export default function Login() {
             </Link>
           }
         />
+        <Captcha ref={captchaBox} onChange={setCaptcha} />
         <SubmitButton busy={busy} busyLabel={t("Logging in…")}>
           {t("Log in")}
         </SubmitButton>

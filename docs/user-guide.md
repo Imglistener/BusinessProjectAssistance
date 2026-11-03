@@ -5,7 +5,9 @@ and has an assistant that answers questions about them. This guide explains how 
 
 ## Getting started
 
-1. **Create an account** with your name, email and a password (at least 8 characters).
+1. **Create an account** with your name, email and a password (at least 8 characters). Tick
+   **I'm not a robot** before you continue; your browser checks it in a second or two. The same box appears
+   when you log in.
 2. **Name your organization.** Everything lives inside an organization: projects, people, stock. You become
    its owner. Amounts are in Moroccan dirham (MAD) unless you choose another currency for a project.
 3. **Invite your team** from **Members** (see below), then **create your first project** from the dashboard.
@@ -116,6 +118,8 @@ estimate.
 Fuel prices come from **Settings → Fuel prices**. Select **Update from website** to load today's average
 pump prices (national and main cities) from prix-gasoil-maroc.teraedge.ma, or enter a price yourself for a
 city or as the default for any city. Prices are community-reported averages; the pump price is what counts.
+Once you've used **Update from website**, the app refreshes those prices by itself every day. Prices you typed
+in yourself are never replaced.
 
 ### Activity
 

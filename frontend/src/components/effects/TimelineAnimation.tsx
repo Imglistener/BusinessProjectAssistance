@@ -2,7 +2,10 @@ import type { Variants } from 'motion/react';
 import { type HTMLMotionProps, motion, useInView } from 'motion/react';
 import type React from 'react';
 
-type TimelineContentProps<T extends keyof HTMLElementTagNameMap> = {
+// Standard HTML tags only: motion has no component for custom elements (the captcha adds "altcha-widget").
+type Tag = Exclude<keyof HTMLElementTagNameMap, 'altcha-widget'>;
+
+type TimelineContentProps<T extends Tag> = {
   children?: React.ReactNode;
   animationNum: number;
   className?: string;
@@ -12,7 +15,7 @@ type TimelineContentProps<T extends keyof HTMLElementTagNameMap> = {
   once?: boolean;
 } & HTMLMotionProps<T>;
 
-export const TimelineAnimation = <T extends keyof HTMLElementTagNameMap = 'div'>({
+export const TimelineAnimation = <T extends Tag = 'div'>({
   children,
   animationNum,
   timelineRef,

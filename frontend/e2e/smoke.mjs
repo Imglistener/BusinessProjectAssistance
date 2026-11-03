@@ -44,10 +44,22 @@ await step("public page explains the product and links to sign-up", async () => 
   if (!(await page.locator("a[href='/signup']").count())) throw new Error("no sign-up link");
 });
 
-await step("log in as the demo owner", async () => {
+await step("log in as the demo owner (captcha first, when it's on)", async () => {
   await page.goto(`${BASE}/login`);
   await page.fill("#email", "demo@example.com");
   await page.fill("#password", "demo-password");
+  // Wait for the captcha check; no widget means the server has it turned off.
+  await page.waitForFunction(() => !document.querySelector("[aria-hidden=true].border-dashed"));
+  if (await page.locator("altcha-widget").count()) {
+    // Not ticked yet: the browser blocks the submit (the box is a required field).
+    await page.click("button[type=submit]");
+    await page.waitForTimeout(300);
+    if (!page.url().endsWith("/login")) throw new Error("logged in without the captcha");
+    await page.locator("altcha-widget label").first().click();
+    await page.waitForFunction(() => document.querySelector("altcha-widget")?.getState?.() === "verified", null, {
+      timeout: 30000,
+    });
+  }
   await page.click("button[type=submit]");
   await page.waitForURL("**/app");
 });

@@ -5,7 +5,9 @@ endroit, avec un assistant qui répond à vos questions à leur sujet. Ce guide 
 
 ## Premiers pas
 
-1. **Créez un compte** avec votre nom, votre e-mail et un mot de passe (au moins 8 caractères).
+1. **Créez un compte** avec votre nom, votre e-mail et un mot de passe (au moins 8 caractères). Cochez
+   **Je ne suis pas un robot** avant de continuer ; votre navigateur fait la vérification en une ou deux
+   secondes. La même case apparaît à la connexion.
 2. **Nommez votre organisation.** Tout se trouve dans une organisation : projets, personnes, stock. Vous en
    devenez le propriétaire. Les montants sont en dirhams marocains (MAD), sauf si vous choisissez une autre
    devise pour un projet.
@@ -125,7 +127,9 @@ date de plus de 30 jours ou que la distance est estimée.
 Les prix du carburant viennent de **Paramètres → Prix du carburant**. Sélectionnez **Mettre à jour depuis le
 site** pour charger les prix moyens du jour à la pompe (national et grandes villes) depuis
 prix-gasoil-maroc.teraedge.ma, ou saisissez vous-même un prix pour une ville ou par défaut pour toutes les
-villes. Ce sont des moyennes communautaires : seul le prix à la pompe fait foi.
+villes. Ce sont des moyennes communautaires : seul le prix à la pompe fait foi. Une fois **Mettre à jour
+depuis le site** utilisé, l'application actualise ces prix d'elle-même chaque jour. Les prix que vous avez
+saisis vous-même ne sont jamais remplacés.
 
 ### Activité
 

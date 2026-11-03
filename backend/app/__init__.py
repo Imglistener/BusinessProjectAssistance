@@ -40,6 +40,13 @@ def create_app(config_object=Config):
     jwt.invalid_token_loader(lambda reason: _jwt_error("invalid_token", "Invalid token."))
     jwt.expired_token_loader(lambda header, payload: _jwt_error("token_expired", "Token expired."))
 
+    # The web server's first request starts the hourly fuel price check (CLI commands never do).
+    from .services import fuel_schedule
+
+    @app.before_request
+    def _start_background_jobs():
+        fuel_schedule.start(app)
+
     @app.errorhandler(404)
     def not_found(_e):
         return jsonify(error={"code": "not_found", "message": translate("Resource not found.", request_lang())}), 404

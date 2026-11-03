@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useSubmit } from "../components/AuthLayout";
+import { Captcha, type CaptchaHandle } from "../components/Captcha";
 import { AuthLayout, AuthSwitch, PasswordField, PasswordRule, SubmitButton } from "../components/auth";
 import { FormAlert, TextField } from "../components/form";
 import { safeNext } from "../lib/format";
@@ -19,6 +20,8 @@ export default function Signup() {
   const [form, setForm] = useState({ first_name: "", last_name: "", email: params.get("email") ?? "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaBox = useRef<CaptchaHandle>(null);
 
   const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -30,13 +33,19 @@ export default function Signup() {
         setFieldErrors({ password: t("Use at least {count} characters.", { count: MIN_PASSWORD }) });
         return;
       }
-      await register({ ...form, email: form.email.trim() });
+      if (captcha === null) {
+        setError(t("Tick the box to confirm you're not a robot."));
+        return;
+      }
+      await register({ ...form, email: form.email.trim(), captcha });
       navigate(next, { replace: true });
     },
     (e) => {
+      // A field error comes before the captcha check, so the solution is still good; anything else used it.
+      if (!(e instanceof ApiError && e.field && e.field !== "captcha")) captchaBox.current?.reset();
       if (e instanceof ApiError && e.code === "email_taken") {
         setFieldErrors({ email: t("An account with this email already exists. Log in instead.") });
-      } else if (e instanceof ApiError && e.field) {
+      } else if (e instanceof ApiError && e.field && e.field !== "captcha") {
         setFieldErrors({ [e.field]: e.message });
       } else {
         setError(e instanceof ApiError ? e.message : t("Something went wrong. Try again."));
@@ -98,6 +107,7 @@ export default function Signup() {
           required
           maxLength={128}
         />
+        <Captcha ref={captchaBox} onChange={setCaptcha} />
         <SubmitButton busy={busy} busyLabel={t("Creating account…")}>
           {t("Create account")}
         </SubmitButton>

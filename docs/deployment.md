@@ -107,9 +107,15 @@ in `frontend/src/components/TripRoute.tsx`.
 
 ## Fuel price sync
 
-`flask --app wsgi fuel-prices-sync` reads average pump prices from prix-gasoil-maroc.teraedge.ma for every
-MAD organization. Run it once a day (cron or the host's scheduler); it reads six pages, one second apart, and
-caches for six hours. If the site changes its layout the command fails without touching saved prices.
+Automatic: when the backend starts, and every hour after that, it re-reads the prices of organizations that
+use **Update from website** once their saved prices are a day old (`FUEL_AUTO_SYNC_HOURS`). Prices typed in by
+hand stay. A failed read is logged and retried after `FUEL_AUTO_SYNC_RETRY_HOURS`. No cron job is needed.
+
+`flask --app wsgi fuel-prices-sync` still updates every MAD organization on demand. It reads six pages, one
+second apart, and caches for six hours. If the site changes its layout, nothing saved is touched.
+
+Source status (2026-11-03): prix-gasoil-maroc.teraedge.ma changed its site and no longer publishes prices in
+the page itself, so updates currently fail; see docs/open-items.md.
 
 ## Logs
 

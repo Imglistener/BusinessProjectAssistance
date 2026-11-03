@@ -1,6 +1,8 @@
 import { getLang, t } from "../i18n";
 
 const BASE: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
+/** For requests that don't go through api(), such as the captcha widget's challenge. */
+export const API_BASE = BASE;
 const TOKEN_KEY = "bpa.token";
 /** Fired when the server rejects the stored token (expired or invalid); AuthContext logs the user out. */
 export const SESSION_EXPIRED_EVENT = "bpa:session-expired";

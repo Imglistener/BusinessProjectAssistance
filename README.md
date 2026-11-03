@@ -110,6 +110,16 @@ as `.env.bak`.
 - Someone who had the passphrase still has the old secrets: if you stop trusting them, change the keys
   themselves (Gemini key, Gmail app password, `SECRET_KEY`...), not only the passphrase.
 
+## Captcha and automatic fuel prices
+
+- **Captcha:** login and signup show an "I'm not a robot" box (ALTCHA: the browser solves a small
+  proof-of-work puzzle; self-hosted, no third party, no cookies). Settings: `CAPTCHA_ENABLED` (turn off for
+  scripted tests), `CAPTCHA_COST` (difficulty) and `CAPTCHA_HMAC_KEY` (defaults to one derived from `SECRET_KEY`).
+- **Fuel prices:** the backend re-reads automatically saved prices when they're a day old: checked when the
+  server starts, then every hour, for organizations that use **Update from website**. Prices typed in by hand
+  are never overwritten. `FUEL_AUTO_SYNC=false` turns it off; `flask --app wsgi fuel-prices-sync` still
+  updates on demand.
+
 ## Demo data
 
 To see the app with realistic data, run once (after `db upgrade`):

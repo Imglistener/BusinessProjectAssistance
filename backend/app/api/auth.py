@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..extensions import db
 from ..i18n import LANGS, normalize, request_lang, translate
 from ..models import OrganizationMember, PasswordResetToken, User, utcnow
+from ..services import captcha
 from ..services.audit import log_action
 from ..services.email import app_link, password_reset_email, send_email
 from ..services.ratelimit import client_ip, enforce, limiter, too_many
@@ -48,6 +49,14 @@ def current_user() -> User:
     return user
 
 
+@api_bp.get("/auth/captcha")
+def captcha_challenge():
+    """A fresh proof-of-work challenge for the login and signup forms; `enabled` false means skip it."""
+    if not captcha.enabled():
+        return jsonify(enabled=False)
+    return jsonify(captcha.new_challenge())
+
+
 @api_bp.post("/auth/register")
 def register():
     enforce(f"signup:ip:{client_ip()}", *SIGNUPS_PER_IP)
@@ -59,6 +68,8 @@ def register():
 
     if not EMAIL_RE.match(email):
         raise ApiError("validation_error", "Invalid email address.", 400, {"field": "email"})
+    # After the field checks (fixing a typo doesn't need a new captcha), before the "email taken" answer.
+    captcha.check(data.get("captcha"))
     if User.query.filter_by(email=email).first():
         raise ApiError("email_taken", "An account with this email already exists.", 409)
 
@@ -82,6 +93,7 @@ def login():
     data = get_json_body()
     email = require_str(data, "email").lower()
     password = data.get("password")
+    captcha.check(data.get("captcha"))
 
     # Checked before the password, so a locked account can't be probed with more guesses.
     # Applies to any email string, so it doesn't reveal which accounts exist.
