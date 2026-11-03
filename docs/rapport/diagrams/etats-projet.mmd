@@ -1,0 +1,20 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Planifié
+  Planifié --> Actif
+  Actif --> EnPause : mettre en pause
+  EnPause --> Actif : reprendre
+  Actif --> Terminé
+  Planifié --> Archivé : archiver
+  Actif --> Archivé : archiver
+  EnPause --> Archivé : archiver
+  Terminé --> Archivé : archiver
+  Archivé --> Actif : restaurer
+  Archivé --> [*] : supprimer
+  state "En pause" as EnPause
+  note right of Archivé
+    Lecture seule : dépenses, tâches
+    et stock du projet figés.
+    Le propriétaire peut supprimer
+    un projet depuis tout état.
+  end note

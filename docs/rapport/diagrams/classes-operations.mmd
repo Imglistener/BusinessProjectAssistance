@@ -1,0 +1,78 @@
+classDiagram
+  direction LR
+  class Project {
+    +str name
+  }
+  class Trip {
+    +str title
+    +str destination
+    +date start_date
+    +date end_date
+    +TripStatus status
+    +Decimal budget
+    +Decimal distance_km
+    +str distance_source
+    +str vehicle_type
+    +bool round_trip
+  }
+  class TripItem {
+    +TripItemKind kind
+    +str title
+    +date date
+    +Decimal estimated_cost
+  }
+  class FuelPrice {
+    +str city
+    +FuelType fuel_type
+    +Decimal price_per_litre
+    +date as_of
+    +str source
+  }
+  class Warehouse {
+    +str name
+    +str address
+    +float lat
+    +float lng
+  }
+  class InventoryItem {
+    +str name
+    +str unit
+    +Decimal unit_cost
+    +Decimal quantity_on_hand
+    +Decimal reorder_level
+    +bool archived
+  }
+  class InventoryStock {
+    +Decimal quantity
+  }
+  class InventoryMovement {
+    +MovementKind kind
+    +Decimal quantity_delta
+    +Decimal quantity_after
+    +str note
+    +datetime created_at
+  }
+  class MovementKind {
+    <<enumeration>>
+    RECEIVE
+    ISSUE
+    ADJUST
+    COUNT
+    TRANSFER
+    MOVE_OUT
+    MOVE_IN
+  }
+  class Expense {
+    +Decimal amount
+  }
+
+  Project "1" *-- "0..*" Trip
+  Trip "1" *-- "0..*" TripItem
+  Trip "0..1" -- "0..*" Expense : dépenses du déplacement
+  Project "0..1" -- "0..*" Warehouse : inventaire du projet
+  Project "0..1" -- "0..*" InventoryItem : vide = stock général
+  InventoryItem "1" *-- "0..*" InventoryStock
+  Warehouse "1" -- "0..*" InventoryStock
+  InventoryItem "1" *-- "0..*" InventoryMovement : historique
+  InventoryMovement ..> MovementKind
+  Trip ..> FuelPrice : estimation carburant

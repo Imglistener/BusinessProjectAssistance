@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" id="d-cas-utilisation" font-family="Instrument, sans-serif">
+  <!-- Dessiné à la main (la mise en page automatique de Mermaid ne convient pas à ce diagramme). -->
+  <style>
+    #d-cas-utilisation .uc { fill: #eef0fb; stroke: #2b3ccf; stroke-width: 1.4; }
+    #d-cas-utilisation .uct { font-size: 14.5px; fill: #14183a; text-anchor: middle; dominant-baseline: middle; }
+    #d-cas-utilisation .act { stroke: #151c57; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+    #d-cas-utilisation .actn { font-size: 15px; font-weight: 700; fill: #151c57; text-anchor: middle; }
+    #d-cas-utilisation .band { fill: #f7f8fc; }
+    #d-cas-utilisation .band2 { fill: #ffffff; }
+    #d-cas-utilisation .sys { fill: none; stroke: #9aa0c8; stroke-width: 1.4; }
+    #d-cas-utilisation .syst { font-size: 15px; font-weight: 700; fill: #151c57; text-anchor: middle; }
+    #d-cas-utilisation .assoc { stroke: #565c80; stroke-width: 1.4; fill: none; }
+    #d-cas-utilisation .ext { fill: #fdf3dd; stroke: #f2b33d; stroke-width: 1.4; }
+    #d-cas-utilisation .extt { font-size: 14px; fill: #14183a; text-anchor: middle; dominant-baseline: middle; }
+    #d-cas-utilisation .dash { stroke: #c08a1a; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+    #d-cas-utilisation .gen { stroke: #151c57; stroke-width: 1.4; fill: none; }
+    #d-cas-utilisation .lbl { font-size: 12.5px; fill: #565c80; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="uc-tri" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto">
+      <path d="M1,1 L11,6 L1,11 z" fill="#ffffff" stroke="#151c57" stroke-width="1.3"/>
+    </marker>
+  </defs>
+
+  <!-- Limite du système et bandes par rôle -->
+  <rect x="200" y="20" width="600" height="600" rx="12" class="band2"/>
+  <rect x="200" y="50" width="600" height="96" class="band"/>
+  <rect x="200" y="290" width="600" height="146" class="band"/>
+  <rect x="200" y="20" width="600" height="600" rx="12" class="sys"/>
+  <text x="500" y="40" class="syst">Business Project Assistance</text>
+
+  <!-- Acteurs : figure, nom, accolade vers leur bande -->
+  <g transform="translate(95,78)">
+    <circle cx="0" cy="-16" r="9" class="act"/><path d="M0,-7 V14 M-14,0 H14 M0,14 L-11,30 M0,14 L11,30" class="act"/>
+    <text x="0" y="50" class="actn">Propriétaire</text>
+  </g>
+  <g transform="translate(95,198)">
+    <circle cx="0" cy="-16" r="9" class="act"/><path d="M0,-7 V14 M-14,0 H14 M0,14 L-11,30 M0,14 L11,30" class="act"/>
+    <text x="0" y="50" class="actn">Chef de projet</text>
+  </g>
+  <g transform="translate(95,343)">
+    <circle cx="0" cy="-16" r="9" class="act"/><path d="M0,-7 V14 M-14,0 H14 M0,14 L-11,30 M0,14 L11,30" class="act"/>
+    <text x="0" y="50" class="actn">Contributeur</text>
+  </g>
+  <g transform="translate(95,500)">
+    <circle cx="0" cy="-16" r="9" class="act"/><path d="M0,-7 V14 M-14,0 H14 M0,14 L-11,30 M0,14 L11,30" class="act"/>
+    <text x="0" y="50" class="actn">Lecteur</text>
+  </g>
+
+  <!-- Généralisation : chaque rôle hérite du rôle en dessous -->
+  <path d="M95,134 V160" class="gen" marker-end="url(#uc-tri)"/>
+  <text x="104" y="152" class="lbl">hérite</text>
+  <path d="M95,254 V305" class="gen" marker-end="url(#uc-tri)"/>
+  <text x="104" y="284" class="lbl">hérite</text>
+  <path d="M95,399 V462" class="gen" marker-end="url(#uc-tri)"/>
+  <text x="104" y="434" class="lbl">hérite</text>
+
+  <!-- Associations : de l'acteur à sa bande -->
+  <path d="M118,82 H160 M160,62 V134 M160,62 H200 M160,134 H200" class="assoc"/>
+  <path d="M118,202 H160 M160,158 V278 M160,158 H200 M160,278 H200" class="assoc"/>
+  <path d="M118,347 H160 M160,302 V424 M160,302 H200 M160,424 H200" class="assoc"/>
+  <path d="M118,504 H160 M160,448 V608 M160,448 H200 M160,608 H200" class="assoc"/>
+
+  <!-- Propriétaire -->
+  <ellipse cx="320" cy="98" rx="104" ry="27" class="uc"/><text x="320" y="98" class="uct">Gérer membres et invitations</text>
+  <ellipse cx="540" cy="98" rx="90" ry="27" class="uc"/><text x="540" y="98" class="uct">Supprimer des projets</text>
+
+  <!-- Chef de projet -->
+  <ellipse cx="320" cy="185" rx="104" ry="27" class="uc"/><text x="320" y="178" class="uct">Créer, modifier,</text><text x="320" y="195" class="uct">archiver un projet</text>
+  <ellipse cx="540" cy="185" rx="104" ry="27" class="uc"/><text x="540" y="178" class="uct">Gérer jalons et</text><text x="540" y="195" class="uct">articles de stock</text>
+  <ellipse cx="430" cy="250" rx="104" ry="27" class="uc"/><text x="430" y="243" class="uct">Confirmer un brouillon</text><text x="430" y="260" class="uct">de l'assistant</text>
+  <ellipse cx="690" cy="250" rx="98" ry="27" class="uc"/><text x="690" y="243" class="uct">Mettre à jour les</text><text x="690" y="260" class="uct">prix du carburant</text>
+
+  <!-- Contributeur -->
+  <ellipse cx="320" cy="330" rx="104" ry="27" class="uc"/><text x="320" y="330" class="uct">Ajouter tâches et dépenses</text>
+  <ellipse cx="540" cy="330" rx="98" ry="27" class="uc"/><text x="540" y="330" class="uct">Joindre un justificatif</text>
+  <ellipse cx="320" cy="396" rx="104" ry="27" class="uc"/><text x="320" y="396" class="uct">Planifier un déplacement</text>
+  <ellipse cx="560" cy="396" rx="118" ry="27" class="uc"/><text x="560" y="389" class="uct">Entrées, sorties, transferts,</text><text x="560" y="406" class="uct">inventaires de stock</text>
+
+  <!-- Lecteur -->
+  <ellipse cx="320" cy="478" rx="104" ry="27" class="uc"/><text x="320" y="471" class="uct">Consulter projets,</text><text x="320" y="488" class="uct">rapports, activité</text>
+  <ellipse cx="520" cy="478" rx="88" ry="27" class="uc"/><text x="520" y="471" class="uct">Consulter le stock</text><text x="520" y="488" class="uct">et les entrepôts</text>
+  <ellipse cx="700" cy="478" rx="86" ry="27" class="uc"/><text x="700" y="471" class="uct">S'authentifier</text><text x="700" y="488" class="uct">(captcha)</text>
+  <ellipse cx="320" cy="572" rx="104" ry="27" class="uc"/><text x="320" y="565" class="uct">Gérer notifications</text><text x="320" y="582" class="uct">et langue</text>
+  <ellipse cx="660" cy="572" rx="100" ry="27" class="uc"/><text x="660" y="572" class="uct">Interroger l'assistant IA</text>
+
+  <!-- Systèmes externes -->
+  <rect x="840" y="225" width="148" height="50" rx="6" class="ext"/><text x="914" y="250" class="extt">OpenVan.camp</text>
+  <rect x="840" y="453" width="148" height="50" rx="6" class="ext"/><text x="914" y="478" class="extt">Service e-mail</text>
+  <rect x="840" y="547" width="148" height="50" rx="6" class="ext"/><text x="914" y="564" class="extt">Fournisseur IA</text><text x="914" y="582" class="extt">(Gemini / Groq)</text>
+  <path d="M788,250 H840" class="dash"/>
+  <path d="M786,478 H840" class="dash"/>
+  <path d="M760,572 H840" class="dash"/>
+</svg>

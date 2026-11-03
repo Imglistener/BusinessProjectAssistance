@@ -1,0 +1,28 @@
+sequenceDiagram
+  autonumber
+  participant U as Utilisateur
+  participant F as Page Assistant
+  participant A as API /ai/chat
+  participant P as Modèle IA
+  participant T as Outils
+  participant D as Base
+
+  U->>F: question
+  F->>A: POST message
+  A->>A: droits, limites, langue
+  loop au plus 8 tours
+    A->>P: messages + 17 outils
+    P-->>A: appels d'outils
+    A->>T: exécuter chaque outil
+    T->>D: lecture (organisation)
+    T-->>A: chiffres du serveur
+  end
+  A->>P: dernier tour sans outils
+  P-->>A: réponse rédigée
+  A->>D: AIUsage (sans texte)
+  A-->>F: réponse + brouillons
+  F-->>U: carte de brouillon
+  U->>F: « Confirmer »
+  F->>A: POST …/inventory/changes
+  A->>D: mouvements (tout ou rien)
+  A-->>F: 200

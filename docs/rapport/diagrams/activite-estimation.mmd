@@ -1,0 +1,14 @@
+flowchart TD
+  S((Début)) --> D{"Distance connue ?"}
+  D -- "itinéraire sur la carte (OSRM)" --> DR["distance routière"]
+  D -- "deux villes connues" --> DL["ligne droite × 1,3<br/>(avertissement)"]
+  D -- "saisie" --> DM["distance saisie"]
+  DR & DL & DM --> V["Profil du véhicule :<br/>consommation min–max (L/100 km)"]
+  V --> P{"Prix pour la ville<br/>de départ ?"}
+  P -- oui --> PC["prix de la ville"]
+  P -- non --> PD["prix par défaut<br/>de l'organisation"]
+  PC & PD --> AGE{"Prix de plus<br/>de 30 jours ?"}
+  AGE -- oui --> WARN["ajouter un avertissement"]
+  AGE -- non --> CALC
+  WARN --> CALC["bas = conso min × distance × prix × 0,97<br/>haut = conso max × (distance + détours) × prix × 1,03<br/>× allers-retours × nombre de véhicules"]
+  CALC --> OUT(["Fourchette, valeur attendue,<br/>hypothèses et avertissements"])

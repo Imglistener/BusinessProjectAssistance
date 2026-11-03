@@ -1,0 +1,19 @@
+flowchart TD
+  S((Démarrage du serveur)) --> T1["Première requête :<br/>lancer le fil horaire (une seule fois)"]
+  T1 --> W{"Échec il y a<br/>moins de 3 h ?"}
+  W -- non --> AGE{"Prix automatiques<br/>vieux de 24 h et plus,<br/>et utilisés ?"}
+  AGE -- oui --> GET["GET openvan.camp/api/fuel/prices"]
+  GET --> OK{"Réponse valide ?<br/>(MAD, litre, 5–40)"}
+  OK -- oui --> EACH["Pour chaque organisation :<br/>écrire la moyenne nationale,<br/>garder les prix saisis à la main"]
+  EACH --> COMMIT["Enregistrer<br/>(une transaction)"]
+  OK -- non --> FAIL["Journaliser l'échec,<br/>noter l'heure"]
+  W -- oui --> Z["Attendre 1 heure"]
+  AGE -- non --> Z
+  COMMIT --> Z
+  FAIL --> Z
+  Z --> W
+
+  classDef ok fill:#e8f6ef,stroke:#2e8b57,color:#14183a
+  classDef bad fill:#fde8e8,stroke:#c0392b,color:#14183a
+  class COMMIT ok
+  class FAIL bad

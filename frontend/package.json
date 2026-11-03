@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "e2e": "node e2e/smoke.mjs",
-    "docs:pdf": "node scripts/build-user-guide.mjs"
+    "docs:pdf": "node scripts/build-user-guide.mjs",
+    "docs:report": "node scripts/build-report.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.1.0",

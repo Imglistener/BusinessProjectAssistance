@@ -1,0 +1,78 @@
+classDiagram
+  direction LR
+  class User {
+    +str first_name
+    +str last_name
+    +str email «unique»
+    +str password_hash
+    +str locale
+    +str status
+  }
+  class Organization {
+    +str name
+    +str default_currency
+    +str timezone
+  }
+  class OrganizationMember {
+    +Role role
+    +str status
+    +datetime joined_at
+  }
+  class OrganizationInvitation {
+    +str email
+    +Role role
+    +str token_hash
+    +str status
+    +datetime expires_at
+  }
+  class Project {
+    +str name
+    +ProjectStatus status
+    +Decimal budget
+    +str currency
+    +date start_date
+    +date end_date
+  }
+  class Milestone {
+    +str title
+    +date due_date
+    +str status
+  }
+  class Task {
+    +str title
+    +TaskStatus status
+    +TaskPriority priority
+    +date due_date
+  }
+  class Expense {
+    +str category
+    +Decimal amount
+    +date expense_date
+    +ExpenseStatus status
+  }
+  class Attachment {
+    +str filename
+    +str stored_name
+    +str content_type
+    +int size
+  }
+  class Role {
+    <<enumeration>>
+    OWNER
+    PROJECT_MANAGER
+    CONTRIBUTOR
+    VIEWER
+  }
+
+  Organization "1" *-- "0..*" OrganizationMember
+  User "1" -- "0..*" OrganizationMember
+  Organization "1" *-- "0..*" OrganizationInvitation
+  Organization "1" *-- "0..*" Project
+  User "1" -- "0..*" Project : propriétaire
+  Project "1" *-- "0..*" Milestone
+  Project "1" *-- "0..*" Task
+  Milestone "0..1" -- "0..*" Task
+  User "0..1" -- "0..*" Task : assignée à
+  Project "1" *-- "0..*" Expense
+  Expense "1" *-- "0..*" Attachment
+  OrganizationMember ..> Role

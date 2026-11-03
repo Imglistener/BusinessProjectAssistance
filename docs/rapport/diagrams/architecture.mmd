@@ -1,0 +1,31 @@
+flowchart LR
+  U["Navigateur<br/>(application React)"]:::client
+
+  subgraph DOCKER["docker compose"]
+    direction LR
+    WEB["web<br/>nginx : fichiers de l'application,<br/>proxy /api"]
+    API["backend<br/>Flask + gunicorn<br/>(1 processus, 8 fils)"]
+    DB[("db<br/>PostgreSQL 16")]
+    VOL[("volume uploads<br/>justificatifs")]
+    WEB -- "/api" --> API
+    API --> DB
+    API --> VOL
+  end
+
+  U -- "HTTPS (proxy TLS en production)" --> WEB
+
+  subgraph EXT["Services externes"]
+    direction TB
+    LLM["Gemini / Groq<br/>(assistant IA)"]:::ext
+    OV["OpenVan.camp<br/>(prix du carburant)"]:::ext
+    SMTP["Gmail SMTP / Resend<br/>(e-mails)"]:::ext
+    OSM["OpenStreetMap, Nominatim, OSRM<br/>(cartes, adresses, itinéraires)"]:::ext
+  end
+
+  API --> LLM
+  API --> OV
+  API --> SMTP
+  U --> OSM
+
+  classDef client fill:#151c57,stroke:#151c57,color:#ffffff
+  classDef ext fill:#fdf3dd,stroke:#f2b33d,color:#14183a

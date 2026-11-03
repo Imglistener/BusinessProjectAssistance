@@ -1,0 +1,21 @@
+flowchart TB
+  REQ["Requête HTTP /api/…"] --> MW["ProxyFix · CORS · JWT (flask-jwt-extended)"]
+  MW --> BP
+
+  subgraph BP["Couche API : blueprint /api (16 modules, 83 routes)"]
+    direction LR
+    A1["auth"] ~~~ A2["projects"] ~~~ A3["expenses"] ~~~ A4["inventory"] ~~~ A5["trips"] ~~~ A6["ai"] ~~~ A7["…"]
+  end
+
+  BP --> CHK["Contrôles communs :<br/>get_membership (404 si non membre)<br/>require_role (403) · validation · limiteur de débit"]
+  CHK --> SV
+
+  subgraph SV["Couche services (règles métier)"]
+    direction LR
+    S1["metrics<br/>calculs Decimal"] ~~~ S2["stock / stock_plans<br/>registre des mouvements"] ~~~ S3["travel<br/>estimations carburant"] ~~~ S4["ai_chat / ai_tools<br/>assistant"] ~~~ S5["notifications · audit<br/>email · storage"]
+  end
+
+  SV --> M["Couche modèles : SQLAlchemy (24 tables)<br/>migrations Alembic"]
+  M --> DBX[("PostgreSQL / SQLite")]
+  SV -.-> I18N["i18n : messages traduits<br/>(en, fr, ar) selon Accept-Language"]
+  BP -.-> ERR["Erreurs JSON uniformes<br/>{error: {code, message, details}}"]

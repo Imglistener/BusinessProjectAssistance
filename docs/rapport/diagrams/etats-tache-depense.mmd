@@ -1,0 +1,20 @@
+stateDiagram-v2
+  direction LR
+  state "Tâche" as T {
+    [*] --> AFaire
+    AFaire --> EnCours
+    EnCours --> Bloquée
+    Bloquée --> EnCours
+    EnCours --> Terminée
+    AFaire --> Annulée
+    EnCours --> Annulée
+    Terminée --> EnCours : rouvrir
+    state "À faire" as AFaire
+    state "En cours" as EnCours
+  }
+  state "Dépense" as E {
+    [*] --> Valide
+    Valide --> Annulée2 : annuler (« Void »)
+    Valide --> Remboursée
+    state "Annulée" as Annulée2
+  }

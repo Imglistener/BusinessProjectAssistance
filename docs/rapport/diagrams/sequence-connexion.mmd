@@ -1,0 +1,36 @@
+sequenceDiagram
+  autonumber
+  participant U as Utilisateur
+  participant F as Interface React
+  participant A as API (/api/auth)
+  participant L as Limiteur
+  participant C as Captcha
+  participant D as Base
+
+  F->>A: GET /auth/captcha
+  A-->>F: défi signé (10 min)
+  U->>F: coche la case
+  F->>F: preuve de travail
+  U->>F: e-mail + mot de passe
+  F->>A: POST /auth/login
+  A->>L: tentatives par IP
+  alt trop de tentatives
+    A-->>F: 429
+  end
+  A->>C: signature, expiration, usage unique
+  alt captcha invalide
+    A-->>F: 400 captcha_failed
+  end
+  A->>L: échecs pour cet e-mail
+  A->>D: rechercher l'utilisateur
+  A->>A: check_password_hash
+  alt identifiants incorrects
+    A->>L: enregistrer l'échec
+    A-->>F: 401
+  else succès
+    A->>A: jeton JWT (12 h)
+    A-->>F: 200 {access_token, user}
+    F->>A: GET /auth/me (Bearer)
+    A-->>F: profil et organisations
+    F-->>U: tableau de bord
+  end
