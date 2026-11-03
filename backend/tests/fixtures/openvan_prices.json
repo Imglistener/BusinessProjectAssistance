@@ -1,0 +1,129 @@
+{
+ "success": true,
+ "data": {
+  "MA": {
+   "country_code": "MA",
+   "country_name": "Morocco",
+   "region": "africa",
+   "currency": "MAD",
+   "local_currency": "MAD",
+   "unit": "liter",
+   "units": {
+    "diesel": "liter",
+    "gasoline": "liter"
+   },
+   "currencies": {
+    "diesel": "MAD",
+    "gasoline": "MAD"
+   },
+   "prices": {
+    "gasoline_regular": null,
+    "gasoline": 15.5694,
+    "gasoline_premium": null,
+    "gasoline_super": null,
+    "diesel_regular": null,
+    "diesel": 15.8771,
+    "diesel_premium": null,
+    "lpg": null,
+    "cng": null,
+    "e85": null,
+    "kerosene": null,
+    "premium": null
+   },
+   "price_changes": {
+    "gasoline_regular": null,
+    "gasoline": 0,
+    "gasoline_premium": null,
+    "gasoline_super": null,
+    "diesel_regular": null,
+    "diesel": 0,
+    "diesel_premium": null,
+    "lpg": null,
+    "cng": null,
+    "e85": null,
+    "kerosene": null,
+    "premium": null
+   },
+   "fetched_at": "2026-10-31T11:35:40+03:00",
+   "sources": [
+    "AutoTrends Morocco",
+    "Lebrief Morocco",
+    "OilPricez.com"
+   ],
+   "sources_count": 2,
+   "is_excluded": false
+  },
+  "FR": {
+   "country_code": "FR",
+   "country_name": "France",
+   "region": "europe",
+   "currency": "EUR",
+   "local_currency": "EUR",
+   "unit": "liter",
+   "units": {
+    "diesel": "liter",
+    "diesel_premium": "liter",
+    "e85": "liter",
+    "gasoline": "liter",
+    "gasoline_premium": "liter",
+    "lpg": "liter",
+    "premium": "liter"
+   },
+   "currencies": {
+    "diesel": "EUR",
+    "diesel_premium": "EUR",
+    "e85": "EUR",
+    "gasoline": "EUR",
+    "gasoline_premium": "EUR",
+    "lpg": "EUR",
+    "premium": "EUR"
+   },
+   "prices": {
+    "gasoline_regular": null,
+    "gasoline": 2.1509,
+    "gasoline_premium": 2.2269,
+    "gasoline_super": null,
+    "diesel_regular": null,
+    "diesel": 2.3881,
+    "diesel_premium": 2.361,
+    "lpg": 1.0725,
+    "cng": null,
+    "e85": 0.9021,
+    "kerosene": null,
+    "premium": 2.2269
+   },
+   "price_changes": {
+    "gasoline_regular": null,
+    "gasoline": -0.0058,
+    "gasoline_premium": -0.0024,
+    "gasoline_super": null,
+    "diesel_regular": null,
+    "diesel": 0.027,
+    "diesel_premium": 0.047,
+    "lpg": 0.016,
+    "cng": null,
+    "e85": -0.0057,
+    "kerosene": null,
+    "premium": null
+   },
+   "fetched_at": "2026-10-31T11:35:40+03:00",
+   "sources": [
+    "Fuelo.net",
+    "EU Weekly Oil Bulletin",
+    "France Prix Carburants (Gouvernement)",
+    "OpenVan Stations (median)",
+    "Zagaz (France)",
+    "Carbu.com France",
+    "gas-tankstellen.de (LPG crowd reports)",
+    "Cargopedia.net"
+   ],
+   "sources_count": 5,
+   "is_excluded": false
+  }
+ },
+ "meta": {
+  "total_countries": 175,
+  "updated_at": "2026-10-31 11:35:40",
+  "cache_ttl_hours": 6
+ }
+}

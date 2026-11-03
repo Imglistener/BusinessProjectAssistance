@@ -36,14 +36,14 @@ function FuelPrices({ org }: { org: Organization }) {
   const [staleDays, setStaleDays] = useState(30);
   const [cities, setCities] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [sync, setSync] = useState<{ source: string; url: string; available: boolean } | null>(null);
+  const [sync, setSync] = useState<PriceList["sync"] | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState<string | null>(null);
 
   type PriceList = {
     prices: FuelPrice[];
     stale_after_days: number;
-    sync: { source: string; url: string; available: boolean };
+    sync: { source: string; url: string; license: string; available: boolean };
   };
   const show = (r: PriceList) => {
     setPrices(r.prices);
@@ -107,12 +107,17 @@ function FuelPrices({ org }: { org: Organization }) {
       {sync?.available && (
         <p className="muted">
           {tx(
-            "{button} loads today's average prices (national and main cities) from {source}, a community price service. They're averages: the pump price is what counts.",
+            "{button} loads Morocco's national average pump prices from {source} ({license}), updated weekly and then every day by the app. They're averages: the pump price is what counts, so enter a city's own price where you need it.",
             {
               button: <strong>{t("Update from website")}</strong>,
               source: (
                 <a href={sync.url} target="_blank" rel="noreferrer">
                   {sync.source}
+                </a>
+              ),
+              license: (
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+                  {sync.license}
                 </a>
               ),
             },
@@ -153,7 +158,7 @@ function FuelPrices({ org }: { org: Organization }) {
                   {formatDate(p.as_of)}
                   {p.stale ? ` (${t("out of date")})` : ""}
                 </td>
-                <td>{p.source === "teraedge" ? t("Website average") : <span className="muted">{t("Entered")}</span>}</td>
+                <td>{p.source !== "manual" ? t("Website average") : <span className="muted">{t("Entered")}</span>}</td>
                 {canEdit && (
                   <td className="num">
                     <button type="button" className="link-btn" onClick={() => remove(p)}>

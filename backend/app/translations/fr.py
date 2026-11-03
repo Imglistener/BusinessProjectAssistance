@@ -267,4 +267,8 @@ MESSAGES: dict[str, str] = {
     "{who} invited you to {organization}": "{who} vous invite à rejoindre {organization}",
     "The draft is below. Check it, then confirm. Nothing has changed yet.": "La proposition est ci-dessous. Vérifiez-la, puis confirmez. Rien n'a encore changé.",
     "Confirm that you're not a robot, then try again.": "Confirmez que vous n'êtes pas un robot, puis réessayez.",
+    "Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, national average from OpenVan.camp, CC BY 4.0), +/-3% for station differences.": "Carburant : {fuel} à {price}/L ({price_city}, au {as_of}, moyenne nationale d'OpenVan.camp, CC BY 4.0), +/-3 % selon la station.",
+    "Couldn't reach OpenVan.camp. Try again later or enter prices by hand.": "Impossible de joindre OpenVan.camp. Réessayez plus tard ou saisissez les prix vous-même.",
+    "OpenVan.camp didn't return usable prices for Morocco. Try again later or enter prices by hand.": "OpenVan.camp n'a pas renvoyé de prix utilisables pour le Maroc. Réessayez plus tard ou saisissez les prix vous-même.",
+    "OpenVan.camp publishes prices in MAD; this organization uses {currency}.": "OpenVan.camp publie les prix en MAD ; cette organisation utilise {currency}.",
 }

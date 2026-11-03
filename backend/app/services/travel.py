@@ -157,9 +157,12 @@ def estimate_fuel(
         if l_per_100km
         else f"Vehicle: {profile.label}, {low}-{high} L/100 km (typical range).",
         "1 vehicle." if vehicle_count == 1 else f"{vehicle_count} vehicles.",
-        f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, average from prix-gasoil-maroc.teraedge.ma), "
+        f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, national average from OpenVan.camp, CC BY 4.0), "
         "+/-3% for station differences."
-        if lookup.price.source == "teraedge"
+        if lookup.price.source == "openvan"
+        else f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, average from prix-gasoil-maroc.teraedge.ma), "
+        "+/-3% for station differences."
+        if lookup.price.source == "teraedge"  # rows from the previous source, until the next update
         else f"Fuel: {fuel} at {price}/L ({price_city}, as of {as_of}, entered by your team), +/-3% for station differences.",
         f"Up to {distance_variance_pct}% extra distance for detours and traffic in the high estimate.",
     ]

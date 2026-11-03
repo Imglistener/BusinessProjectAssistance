@@ -111,11 +111,12 @@ Automatic: when the backend starts, and every hour after that, it re-reads the p
 use **Update from website** once their saved prices are a day old (`FUEL_AUTO_SYNC_HOURS`). Prices typed in by
 hand stay. A failed read is logged and retried after `FUEL_AUTO_SYNC_RETRY_HOURS`. No cron job is needed.
 
-`flask --app wsgi fuel-prices-sync` still updates every MAD organization on demand. It reads six pages, one
-second apart, and caches for six hours. If the site changes its layout, nothing saved is touched.
+`flask --app wsgi fuel-prices-sync` still updates every MAD organization on demand.
 
-Source status (2026-11-03): prix-gasoil-maroc.teraedge.ma changed its site and no longer publishes prices in
-the page itself, so updates currently fail; see docs/open-items.md.
+Source: the [OpenVan.camp fuel price API](https://openvan.camp/en/developers) (free, no key, CC BY 4.0: keep the
+"OpenVan.camp (CC BY 4.0)" credit and link where prices are shown). One request, cached for six hours; the API
+asks for at most one call per 10 minutes. It gives Morocco's national average for diesel and petrol, updated
+weekly. If the API is down or returns nothing usable, nothing saved is touched.
 
 ## Logs
 

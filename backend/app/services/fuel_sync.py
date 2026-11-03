@@ -1,19 +1,18 @@
-"""Average pump prices read from prix-gasoil-maroc.teraedge.ma (Prix Carburant Maroc).
+"""Average pump prices for Morocco from the OpenVan.camp fuel price API.
 
-The site is a free, community-reported price service. Its robots.txt allows general crawlers
-(Content-Signal: ai-train=no, use=reference); we only read the published averages into the
-organization's price table, credit the source wherever prices are shown, never train on them, and
-keep traffic minimal: a handful of pages, one second apart, cached for CACHE_HOURS for every
-organization. Prices are community-reported and indicative; the pump price is what counts.
+https://openvan.camp/en/developers: free, no key, data under CC BY 4.0 (credit "OpenVan.camp" with a link wherever
+the prices are shown). It publishes a national average per fuel, updated weekly; Moroccan prices are revised on
+the 1st and 16th of each month, so right after a revision the average can be a few days behind. Prices are
+averages: the pump price is what counts, and organizations can enter their own (city) prices, which win.
+
+One request returns every country (about 200 KB). The API asks for at most one call per 10 minutes; we cache
+for CACHE_HOURS and the daily update calls it once a day.
 """
 from __future__ import annotations
 
-import re
-import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
-from html import unescape
+from datetime import date, datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Optional
 
 import requests
@@ -22,24 +21,21 @@ from flask import current_app
 from ..extensions import db
 from ..models import FuelPrice, FuelType, Organization
 
-BASE_URL = "https://prix-gasoil-maroc.teraedge.ma"
-SOURCE = "teraedge"
-SOURCE_LABEL = "prix-gasoil-maroc.teraedge.ma"
+API_URL = "https://openvan.camp/api/fuel/prices"
+BASE_URL = "https://openvan.camp/"  # linked wherever the prices are credited (CC BY 4.0)
+SOURCE = "openvan"
+# Rows written by any automatic source we've used; the daily update keeps them current and replaces them.
+AUTO_SOURCES = (SOURCE, "teraedge")
+SOURCE_LABEL = "OpenVan.camp"
+LICENSE = "CC BY 4.0"
+COUNTRY = "MA"
 CACHE_HOURS = 6
-REQUEST_GAP_SECONDS = 1.0
-TIMEOUT_SECONDS = 15
-# Plausible pump prices in MAD per litre; anything outside is treated as a parsing problem.
+TIMEOUT_SECONDS = 20
+# Plausible pump prices in MAD per litre; anything outside is treated as bad data.
 PRICE_RANGE = (Decimal("5"), Decimal("40"))
 
-# Page path -> our city name ("" = national average, used as the default for any city).
-PAGES: dict[str, str] = {
-    "/": "",
-    "/prix-gasoil-casablanca": "Casablanca",
-    "/prix-gasoil-rabat": "Rabat",
-    "/prix-gasoil-marrakech": "Marrakech",
-    "/prix-gasoil-tanger": "Tangier",
-    "/prix-gasoil-agadir": "Agadir",
-}
+UNREACHABLE = "Couldn't reach OpenVan.camp. Try again later or enter prices by hand."
+NO_PRICES = "OpenVan.camp didn't return usable prices for Morocco. Try again later or enter prices by hand."
 
 
 class FuelSyncError(Exception):
@@ -56,83 +52,73 @@ class CityPrices:
 @dataclass
 class Snapshot:
     prices: list[CityPrices]
-    fetched_at: datetime
+    fetched_at: datetime  # when we read it
+    as_of: date  # the date of the source's data
 
 
 _cache: Optional[Snapshot] = None
 
 
-def _text_lines(html: str) -> list[str]:
-    html = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
-    text = re.sub(r"<[^>]+>", "\n", html)
-    return [unescape(line).strip() for line in text.split("\n") if line.strip()]
-
-
-def _price(line: str) -> Optional[Decimal]:
-    m = re.fullmatch(r"(\d{1,2}[.,]\d{1,2})(\s*(DH|MAD)(/L)?)?", line.strip(), flags=re.I)
-    if not m:
-        return None
+def _price(value: object) -> Optional[Decimal]:
     try:
-        value = Decimal(m.group(1).replace(",", "."))
-    except InvalidOperation:
+        price = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
         return None
-    return value if PRICE_RANGE[0] <= value <= PRICE_RANGE[1] else None
+    return price if PRICE_RANGE[0] <= price <= PRICE_RANGE[1] else None
 
 
-def parse_average(html: str) -> tuple[Optional[Decimal], Optional[Decimal]]:
-    """(diesel, petrol) from the "Moyenne ..." block: the first price after "Gazole" and after "Essence"."""
-    lines = _text_lines(html)
-    start = next((i for i, line in enumerate(lines) if line.lower().startswith("moyenne")), None)
-    if start is None:
-        return None, None
-    block = lines[start : start + 20]
+def parse(payload: dict) -> tuple[Optional[Decimal], Optional[Decimal], Optional[date]]:
+    """(diesel, petrol, data date) for Morocco from the API response; None where missing or implausible."""
+    country = (payload.get("data") or {}).get(COUNTRY) if payload.get("success") else None
+    if not isinstance(country, dict) or country.get("is_excluded"):
+        return None, None, None
+    prices = country.get("prices") or {}
+    currencies = country.get("currencies") or {}
+    units = country.get("units") or {}
 
-    def after(label: str) -> Optional[Decimal]:
-        for i, line in enumerate(block):
-            if line.lower() == label:
-                for nxt in block[i + 1 : i + 4]:
-                    price = _price(nxt)
-                    if price is not None:
-                        return price
+    def pick(*keys: str) -> Optional[Decimal]:
+        for key in keys:
+            value = prices.get(key)
+            if value is None:
+                continue
+            if currencies.get(key, country.get("currency")) != "MAD" or units.get(key, country.get("unit")) != "liter":
+                return None
+            return _price(value)
         return None
 
-    return after("gazole"), after("essence")
-
-
-def _get(session: requests.Session, path: str) -> str:
-    r = session.get(f"{BASE_URL}{path}", timeout=TIMEOUT_SECONDS)
-    if r.status_code != 200:
-        raise FuelSyncError(f"{SOURCE_LABEL} returned HTTP {r.status_code} for {path}")
-    return r.text
+    as_of = None
+    for stamp in (country.get("fetched_at"), (payload.get("meta") or {}).get("updated_at")):
+        try:
+            as_of = datetime.fromisoformat(str(stamp).replace(" ", "T")).date()
+            break
+        except ValueError:
+            continue
+    return pick("diesel", "diesel_regular"), pick("gasoline", "gasoline_regular"), as_of
 
 
 def fetch(force: bool = False) -> Snapshot:
-    """Read the averages (cached for CACHE_HOURS). Raises FuelSyncError if even the national page fails."""
+    """Read Morocco's averages (cached for CACHE_HOURS). Raises FuelSyncError when there's nothing usable."""
     global _cache
     now = datetime.now(timezone.utc)
-    if not force and _cache and now - _cache.fetched_at < timedelta(hours=CACHE_HOURS):
+    if not force and _cache and (now - _cache.fetched_at).total_seconds() < CACHE_HOURS * 3600:
         return _cache
-
-    session = requests.Session()
-    session.headers["User-Agent"] = current_app.config.get(
+    user_agent = current_app.config.get(
         "FUEL_SYNC_USER_AGENT", "BusinessProjectAssistance/1.0 (fuel price sync; contact: site owner)"
     )
-    prices: list[CityPrices] = []
-    for n, (path, city) in enumerate(PAGES.items()):
-        if n:
-            time.sleep(REQUEST_GAP_SECONDS)
-        try:
-            diesel, petrol = parse_average(_get(session, path))
-        except (requests.RequestException, FuelSyncError) as e:
-            if city == "":
-                raise FuelSyncError(f"Couldn't read {SOURCE_LABEL}: {type(e).__name__}") from e
-            current_app.logger.warning("Fuel sync: skipped %s (%s)", path, type(e).__name__)
-            continue
-        if city == "" and diesel is None and petrol is None:
-            raise FuelSyncError(f"The {SOURCE_LABEL} page layout changed; no prices found.")
-        if diesel is not None or petrol is not None:
-            prices.append(CityPrices(city, diesel, petrol))
-    _cache = Snapshot(prices, now)
+    try:
+        r = requests.get(API_URL, params={"source": "business-project-assistance"},
+                         headers={"User-Agent": user_agent, "Accept": "application/json"}, timeout=TIMEOUT_SECONDS)
+        if r.status_code != 200:
+            current_app.logger.warning("Fuel sync: %s returned HTTP %s", API_URL, r.status_code)
+            raise FuelSyncError(UNREACHABLE)
+        payload = r.json()
+    except (requests.RequestException, ValueError) as e:
+        current_app.logger.warning("Fuel sync: %s failed (%s)", API_URL, type(e).__name__)
+        raise FuelSyncError(UNREACHABLE) from e
+    diesel, petrol, as_of = parse(payload if isinstance(payload, dict) else {})
+    if diesel is None and petrol is None:
+        raise FuelSyncError(NO_PRICES)
+    _cache = Snapshot([CityPrices("", diesel, petrol)], now, as_of or now.date())
     return _cache
 
 
@@ -141,28 +127,35 @@ def clear_cache() -> None:
     _cache = None
 
 
-def apply(organization_id: int, user_id: int, snapshot: Snapshot, today, keep_manual: bool = False) -> int:
-    """Write the snapshot into the organization's price table (source "teraedge"). Returns rows written.
+def apply(organization_id: int, user_id: int, snapshot: Snapshot, today=None, keep_manual: bool = False) -> int:
+    """Write the snapshot into the organization's price table (source "openvan"). Returns rows written.
 
     The caller commits. Only for organizations whose default currency is MAD (the source's currency).
-    keep_manual: leave prices someone typed in alone (the automatic daily update uses this).
+    Automatic prices for cities the snapshot doesn't cover (from the previous source) are removed, so they
+    can't outrank the fresh average. keep_manual: leave prices someone typed in alone (the daily update).
+    `today` is unused (kept for callers); the price date is the source's own date.
     """
     org = db.session.get(Organization, organization_id)
     if org.default_currency != "MAD":
-        raise FuelSyncError(f"{SOURCE_LABEL} publishes prices in MAD; this organization uses {org.default_currency}.")
-    existing = {(p.city.lower(), p.fuel_type): p for p in FuelPrice.query.filter_by(organization_id=organization_id)}
+        raise FuelSyncError(f"OpenVan.camp publishes prices in MAD; this organization uses {org.default_currency}.")
+    rows = FuelPrice.query.filter_by(organization_id=organization_id).all()
+    existing = {(p.city.lower(), p.fuel_type): p for p in rows}
+    cities = {cp.city.lower() for cp in snapshot.prices}
     written = 0
     for cp in snapshot.prices:
         for fuel, value in ((FuelType.DIESEL, cp.diesel), (FuelType.PETROL, cp.petrol)):
             if value is None:
                 continue
             row = existing.get((cp.city.lower(), fuel))
-            if keep_manual and row is not None and row.source != SOURCE:
+            if keep_manual and row is not None and row.source not in AUTO_SOURCES:
                 continue
             if row is None:
                 row = FuelPrice(organization_id=organization_id, city=cp.city, fuel_type=fuel)
                 db.session.add(row)
-            row.price_per_litre, row.currency, row.as_of = value, "MAD", today
+            row.price_per_litre, row.currency, row.as_of = value, "MAD", snapshot.as_of
             row.updated_by, row.source, row.fetched_at = user_id, SOURCE, snapshot.fetched_at
             written += 1
+    for row in rows:
+        if row.source in AUTO_SOURCES and row.city.lower() not in cities:
+            db.session.delete(row)
     return written

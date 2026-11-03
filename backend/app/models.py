@@ -258,7 +258,7 @@ class FuelPrice(db.Model):
     currency = db.Column(db.String(3), nullable=False)
     as_of = db.Column(db.Date, nullable=False)
     updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    source = db.Column(db.String(20), nullable=False, default="manual")  # manual / teraedge
+    source = db.Column(db.String(20), nullable=False, default="manual")  # manual / openvan (teraedge: earlier)
     fetched_at = db.Column(db.DateTime(timezone=True))  # when an automatic source was read
 
 

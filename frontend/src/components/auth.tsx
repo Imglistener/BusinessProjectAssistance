@@ -45,7 +45,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           </motion.div>
         </main>
         <p className="text-center text-xs text-muted-foreground lg:text-start">
-          {t("Amounts in MAD by default. Fuel prices: averages from prix-gasoil-maroc.teraedge.ma.")}
+          {t("Amounts in MAD by default. Fuel prices: national averages from OpenVan.camp (CC BY 4.0).")}
         </p>
       </div>
       <Showcase />

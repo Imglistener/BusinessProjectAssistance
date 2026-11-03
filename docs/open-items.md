@@ -143,9 +143,8 @@
 - Map picker: Leaflet with OpenStreetMap tiles, Nominatim search (on Enter) and OSRM road distance (public demo
   server; fine for now, not for heavy production use). Built-in Moroccan cities resolve instantly; without a
   route the server uses straight-line distance x 1.3. Google Maps was replaced at the user's request.
-- Fuel prices: "Update from website" / `flask fuel-prices-sync` read averages from prix-gasoil-maroc.teraedge.ma
-  (national + Casablanca, Rabat, Marrakech, Tangier, Agadir; robots.txt allows it, ai-train=no, use=reference;
-  source credited). Currently the site shows the same average for every city. Manual prices still possible. Flagged when older than 30 days. Demo prices are examples, not real current prices.
+- Fuel prices: "Update from website" / `flask fuel-prices-sync` read Morocco's national average from the
+  OpenVan.camp API (since 2026-11-03; before that, prix-gasoil-maroc.teraedge.ma, see below). Manual prices still possible. Flagged when older than 30 days. Demo prices are examples, not real current prices.
 - Vehicle consumption: built-in typical ranges for 10 vehicle classes (L/100 km). Estimate range: lowest
   consumption x planned distance x price -3%, up to highest consumption x (distance + variance) x price +3%.
 - AI tools: calculate (safe Decimal evaluator), vat (default 20%), budget_what_if, estimate_trip_fuel_cost,
@@ -184,9 +183,15 @@
   keep automated clients out; requests from the app get HTTP 406 or an empty page, and there's no public API.
   Getting around that wall isn't something the app should do. Options: ask Mazouti for permission or an API
   key (the parser can then be written against their data), or pick another source.
-- **Current source broken: prix-gasoil-maroc.teraedge.ma** became a JavaScript app; the page no longer
-  contains the prices (they're loaded from an undocumented endpoint), so "Update from website" and the daily
-  update fail with "page layout changed". Manual prices still work.
+- **Old source broken: prix-gasoil-maroc.teraedge.ma** became a JavaScript app; the page no longer contains
+  the prices (they're loaded from an undocumented endpoint).
+- **New source (user's choice): OpenVan.camp API.** Free, documented, CC BY 4.0, no scraping. National average
+  only (no cities), updated weekly from secondary sources (AutoTrends, LeBrief, OilPricez). Compared 2026-11-03:
+  it matched the prices before the 1 November revision (diesel 15.88, petrol 15.57) but not yet the revision
+  itself (diesel 16.40-16.99, petrol 14.99-15.69 at the pump), so it can lag a few days after the 1st and 16th.
+  Old teraedge rows are replaced on the next update (its city rows removed); typed-in prices are kept. The
+  price date is OpenVan's own date. Not added (offered): a "price changed since" warning after the 1st/16th and
+  a wider margin right after a revision.
 - **Daily update (built):** checked when the server starts, then hourly; re-reads automatically saved prices
   older than 24 h, only for organizations that already use the website prices, never overwriting typed-in
   prices; a failure is logged and retried after 3 h. Verified: starting the server ran the check and logged the

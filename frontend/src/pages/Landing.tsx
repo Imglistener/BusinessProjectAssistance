@@ -597,7 +597,7 @@ function Faq() {
     {
       q: t("Where do the fuel prices come from?"),
       a: t(
-        "From daily averages published by prix-gasoil-maroc.teraedge.ma, or from prices your team enters for each city. Estimates always show the price date they used.",
+        "From weekly national averages published by OpenVan.camp (CC BY 4.0), or from prices your team enters for each city. Estimates always show the price date they used.",
       ),
     },
     {
@@ -653,7 +653,7 @@ function Footer() {
     <footer className="border-t">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground md:px-6">
         <Logo compact className="text-foreground" />
-        <p>{t("Amounts in MAD by default. Fuel prices: averages from prix-gasoil-maroc.teraedge.ma.")}</p>
+        <p>{t("Amounts in MAD by default. Fuel prices: national averages from OpenVan.camp (CC BY 4.0).")}</p>
         <Link to="/login" className="font-medium text-foreground hover:underline">
           {t("Log in")}
         </Link>

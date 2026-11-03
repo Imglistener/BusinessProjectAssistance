@@ -31,14 +31,16 @@ _last_failure: Optional[datetime] = None
 
 def last_synced() -> Optional[datetime]:
     """When the automatic source was last read successfully, across organizations."""
-    value = db.session.query(func.max(FuelPrice.fetched_at)).filter(FuelPrice.source == fuel_sync.SOURCE).scalar()
+    value = db.session.query(func.max(FuelPrice.fetched_at)).filter(
+        FuelPrice.source.in_(fuel_sync.AUTO_SOURCES)
+    ).scalar()
     if value is not None and value.tzinfo is None:  # SQLite drops the timezone
         value = value.replace(tzinfo=timezone.utc)
     return value
 
 
 def synced_organizations() -> list[Organization]:
-    ids = {row.organization_id for row in FuelPrice.query.filter_by(source=fuel_sync.SOURCE)}
+    ids = {row.organization_id for row in FuelPrice.query.filter(FuelPrice.source.in_(fuel_sync.AUTO_SOURCES))}
     return Organization.query.filter(Organization.id.in_(ids), Organization.default_currency == "MAD").all() if ids else []
 
 

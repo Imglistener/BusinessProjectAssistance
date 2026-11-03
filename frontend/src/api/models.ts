@@ -253,7 +253,7 @@ export interface FuelPrice {
   currency: string;
   as_of: string;
   stale: boolean;
-  /** "teraedge" when read from prix-gasoil-maroc.teraedge.ma, else "manual" */
+  /** "openvan" when read from OpenVan.camp ("teraedge": the earlier source), else "manual" */
   source: string;
   fetched_at: string | null;
 }

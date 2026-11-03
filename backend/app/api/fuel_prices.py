@@ -44,14 +44,15 @@ def list_fuel_prices(org_id: int):
     return jsonify(
         prices=[price_to_dict(p, today) for p in rows],
         stale_after_days=STALE_PRICE_DAYS,
-        sync={"source": fuel_sync.SOURCE_LABEL, "url": fuel_sync.BASE_URL, "available": org.default_currency == "MAD"},
+        sync={"source": fuel_sync.SOURCE_LABEL, "url": fuel_sync.BASE_URL, "license": fuel_sync.LICENSE,
+              "available": org.default_currency == "MAD"},
     )
 
 
 @api_bp.post("/organizations/<int:org_id>/fuel-prices/sync")
 @jwt_required()
 def sync_fuel_prices(org_id: int):
-    """Update prices from prix-gasoil-maroc.teraedge.ma (national average + main cities). Cached for hours."""
+    """Update prices from OpenVan.camp (Morocco's national average for diesel and petrol). Cached for hours."""
     user = current_user()
     require_role(get_membership(org_id, user.id), *PROJECT_WRITE_ROLES)
     org = db.session.get(Organization, org_id)

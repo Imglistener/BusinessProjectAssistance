@@ -32,7 +32,7 @@ def age_prices(hours):
 
 
 def test_nothing_happens_while_prices_are_fresh(client, app, fake_site):  # noqa: F811
-    _, calls = fake_site
+    calls = fake_site["calls"]
     synced_org(client)
     n = len(calls)
     assert fuel_schedule.run_if_due(app) is None
@@ -40,18 +40,17 @@ def test_nothing_happens_while_prices_are_fresh(client, app, fake_site):  # noqa
 
 
 def test_day_old_prices_are_updated_but_typed_in_prices_stay(client, app, fake_site):  # noqa: F811
-    pages, calls = fake_site
     h, org_id = synced_org(client)
     # Someone typed their own Rabat diesel price.
     r = client.put(f"/api/organizations/{org_id}/fuel-prices", headers=h,
                    json={"city": "Rabat", "fuel_type": "diesel", "price_per_litre": "13.00"})
     assert r.status_code == 200, r.get_json()
     age_prices(25)
-    pages["/"] = pages["/"].replace("14,46", "14,99").replace("14.46", "14.99")
+    fake_site["payload"]["data"]["MA"]["prices"]["diesel"] = 16.49  # the 1 November rise
 
     assert fuel_schedule.run_if_due(app) == 1
     rows = {(p.city, p.fuel_type): p for p in FuelPrice.query.filter_by(organization_id=org_id)}
-    assert rows[("", FuelType.DIESEL)].price_per_litre == Decimal("14.99")
+    assert rows[("", FuelType.DIESEL)].price_per_litre == Decimal("16.49")
     assert rows[("", FuelType.DIESEL)].fetched_at is not None
     assert rows[("Rabat", FuelType.DIESEL)].price_per_litre == Decimal("13.00")
     assert rows[("Rabat", FuelType.DIESEL)].source == "manual"
@@ -59,7 +58,7 @@ def test_day_old_prices_are_updated_but_typed_in_prices_stay(client, app, fake_s
 
 
 def test_organizations_that_never_synced_are_left_alone(client, app, fake_site):  # noqa: F811
-    _, calls = fake_site
+    calls = fake_site["calls"]
     make_org(client)  # MAD, but never used the automatic prices
     assert fuel_schedule.run_if_due(app) is None
     assert calls == []

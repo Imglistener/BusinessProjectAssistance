@@ -115,9 +115,11 @@ estimate.
 
 ![Route and fuel estimate on a trip](images/en-trip-fuel.jpg)
 
-Fuel prices come from **Settings → Fuel prices**. Select **Update from website** to load today's average
-pump prices (national and main cities) from prix-gasoil-maroc.teraedge.ma, or enter a price yourself for a
-city or as the default for any city. Prices are community-reported averages; the pump price is what counts.
+Fuel prices come from **Settings → Fuel prices**. Select **Update from website** to load Morocco's national
+average pump prices for diesel and petrol from [OpenVan.camp](https://openvan.camp/) (data under CC BY 4.0), or
+enter a price yourself for a city or as the default for any city. OpenVan updates its figures weekly, and Moroccan
+prices change on the 1st and 16th of each month, so for a few days after a change the average can be behind: enter
+today's price yourself if it matters. They're averages; the pump price is what counts.
 Once you've used **Update from website**, the app refreshes those prices by itself every day. Prices you typed
 in yourself are never replaced.
 

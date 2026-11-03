@@ -49,7 +49,7 @@ TEAMMATE_EMAIL = "salma.demo@example.com"
 @click.command("fuel-prices-sync")
 @click.option("--force", is_flag=True, help="Ignore the cache and read the site now.")
 def fuel_prices_sync(force: bool) -> None:
-    """Update every MAD organization's fuel prices from prix-gasoil-maroc.teraedge.ma (run daily, e.g. via cron)."""
+    """Update every MAD organization's fuel prices from OpenVan.camp now (the server also does it daily)."""
     try:
         snapshot = fuel_sync.fetch(force=force)
     except fuel_sync.FuelSyncError as e:

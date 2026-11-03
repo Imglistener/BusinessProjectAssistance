@@ -125,9 +125,12 @@ date de plus de 30 jours ou que la distance est estimée.
 ![Itinéraire et estimation du carburant sur un déplacement](images/fr-trip-fuel.jpg)
 
 Les prix du carburant viennent de **Paramètres → Prix du carburant**. Sélectionnez **Mettre à jour depuis le
-site** pour charger les prix moyens du jour à la pompe (national et grandes villes) depuis
-prix-gasoil-maroc.teraedge.ma, ou saisissez vous-même un prix pour une ville ou par défaut pour toutes les
-villes. Ce sont des moyennes communautaires : seul le prix à la pompe fait foi. Une fois **Mettre à jour
+site** pour charger les prix moyens nationaux à la pompe du gasoil et de l'essence au Maroc depuis
+[OpenVan.camp](https://openvan.camp/) (données sous licence CC BY 4.0), ou saisissez vous-même un prix pour une
+ville ou par défaut pour toutes les villes. OpenVan met ses chiffres à jour chaque semaine, et les prix marocains
+changent le 1er et le 16 de chaque mois : quelques jours après un changement, la moyenne peut être en retard ;
+saisissez alors le prix du jour vous-même si c'est important. Ce sont des moyennes : seul le prix à la pompe fait
+foi. Une fois **Mettre à jour
 depuis le site** utilisé, l'application actualise ces prix d'elle-même chaque jour. Les prix que vous avez
 saisis vous-même ne sont jamais remplacés.
 

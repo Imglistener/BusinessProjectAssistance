@@ -853,6 +853,9 @@ const ar: Dictionary = {
   "Stock by warehouse": "المخزون حسب المستودع",
   "More actions for {name}": "إجراءات أخرى لـ{name}",
   "Tick the box to confirm you're not a robot.": "حدّد المربع لتأكيد أنك لست روبوتًا.",
+  "Amounts in MAD by default. Fuel prices: national averages from OpenVan.camp (CC BY 4.0).": "المبالغ بالدرهم افتراضيًا. أسعار الوقود: متوسطات وطنية من OpenVan.camp (CC BY 4.0).",
+  "From weekly national averages published by OpenVan.camp (CC BY 4.0), or from prices your team enters for each city. Estimates always show the price date they used.": "من المتوسطات الوطنية الأسبوعية التي ينشرها OpenVan.camp (CC BY 4.0)، أو من الأسعار التي يُدخلها فريقك لكل مدينة. تُظهر التقديرات دائمًا تاريخ السعر المعتمد.",
+  "{button} loads Morocco's national average pump prices from {source} ({license}), updated weekly and then every day by the app. They're averages: the pump price is what counts, so enter a city's own price where you need it.": "يحمّل {button} متوسط أسعار الوقود الوطنية في المغرب من {source} ({license})، وتُحدَّث أسبوعيًا ثم يوميًا من طرف التطبيق. إنها متوسطات: العبرة بسعر المحطة، لذا أدخل سعر مدينة بعينها حيث تحتاج إليه.",
 };
 
 export default ar;
