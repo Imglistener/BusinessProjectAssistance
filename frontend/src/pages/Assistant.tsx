@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ApiError, api } from "../api/client";
-import type { ChatReply, ProjectPlan, Organization, Project, StockDraft, ToolTraceEntry } from "../api/models";
+import type { ActionDraft, ChatReply, ProjectPlan, Organization, Project, StockDraft, ToolTraceEntry } from "../api/models";
 import { useOrg } from "../auth/OrgContext";
 import { AppShell } from "../components/AppShell";
 import { ProjectProposal } from "../components/ProjectProposal";
+import { ActionProposal } from "../components/ActionProposal";
 import { StockProposal } from "../components/StockProposal";
 import { FormError } from "../components/AuthLayout";
 import { errorMessage } from "../lib/errors";
@@ -32,6 +33,10 @@ const TOOL_LABEL: Record<string, string> = {
   estimate_trip_fuel_cost: t("Trip fuel estimate"),
   estimate_fuel_cost: t("Fuel estimate"),
   propose_project: t("Project draft"),
+  find_tasks: t("Tasks"),
+  find_expenses: t("Expenses"),
+  list_members: t("Members"),
+  propose_actions: t("Changes draft"),
 };
 
 const GENERAL_PROMPTS = [
@@ -60,6 +65,7 @@ interface Message {
   trace?: ToolTraceEntry[];
   proposals?: ProjectPlan[];
   stockProposals?: StockDraft[];
+  actionProposals?: ActionDraft[];
 }
 
 export default function Assistant() {
@@ -160,6 +166,7 @@ function Chat({
           trace: r.tool_trace,
           proposals: r.proposals ?? [],
           stockProposals: r.stock_proposals ?? [],
+          actionProposals: r.action_proposals ?? [],
         },
       ]);
     } catch (e) {
@@ -308,6 +315,9 @@ function AssistantMessage({ message, org }: { message: Message; org: Organizatio
       ))}
       {message.stockProposals?.map((draft, i) => (
         <StockProposal key={i} draft={draft} org={org} />
+      ))}
+      {message.actionProposals?.map((draft, i) => (
+        <ActionProposal key={i} draft={draft} />
       ))}
     </article>
   );

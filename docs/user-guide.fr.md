@@ -212,8 +212,22 @@ courant, par exemple :
 - « Combien coûtera le carburant pour le déplacement Furniture pickup ? » ou « …pour un aller-retour en
   fourgon de Casablanca à Marrakech ? »
 
-L'assistant **lit** vos données. Les seules modifications possibles sont des brouillons que vous confirmez : un
-nouveau projet ou des mouvements de stock (voir Stock). Ses chiffres viennent des mêmes
+L'assistant peut aussi **préparer des modifications**, par exemple « Marque Rédiger l'annonce de lancement comme
+terminée et archive le projet Stand salon professionnel », « Décale le jalon Remise des clés au 20 novembre »,
+« Ajoute une dépense de déménageurs de 1 500 MAD au déménagement » ou « Mets à jour les prix du carburant ». Il ne
+modifie jamais rien de lui-même : les modifications s'affichent dans une carte sous sa réponse, avec pour chaque
+élément la valeur avant et après. Décochez ce que vous ne voulez pas et sélectionnez **Confirmer** ; chaque
+modification est alors enregistrée avec vos propres droits, et la carte indique celles qui l'ont été. Les lignes
+que votre rôle ne permet pas sont grisées. Il peut préparer des modifications de projets (modifier, archiver,
+restaurer), de tâches, de jalons, de dépenses (ajouter, annuler), de déplacements, de prix du carburant et de
+notifications, ainsi que de nouveaux projets et des mouvements de stock (voir Stock). Il ne peut pas supprimer de
+projets ni de déplacements, gérer les membres ni joindre de fichiers : faites-le dans l'application.
+
+L'assistant ne vous aide que pour votre travail dans l'application. À toute autre demande, y compris la simple
+conversation, il répond « Désolé, je ne peux pas répondre à cela. Puis-je vous aider avec autre chose ? » dans la
+langue de votre message.
+
+Ses chiffres viennent des mêmes
 calculs que le reste de l'application (il utilise une calculatrice plutôt que de compter lui-même), et il
 signale les données manquantes. Les réponses sont marquées « Généré par IA » : vérifiez les chiffres
 importants sur la page du projet. Votre question et les chiffres nécessaires pour y répondre sont envoyés à

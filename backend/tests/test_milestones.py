@@ -128,7 +128,7 @@ def test_ai_summary_includes_milestones(client):
     ctx = ai_tools.ToolContext(user_id=1, organization_id=org_id, today=date(2026, 10, 30))
     [m] = ai_tools.get_project_summary(ctx, {"project_id": pid})["milestones"]
     assert m == {
-        "title": "Beta launch", "due_date": "2026-10-01", "status": "open", "overdue": True,
+        "milestone_id": mid, "title": "Beta launch", "due_date": "2026-10-01", "status": "open", "overdue": True,
         "linked_tasks": 1, "task_completion_pct": "100.00",
     }
 

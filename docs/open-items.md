@@ -243,6 +243,17 @@
 - Arabic activity lines and notifications use verbal nouns ("Salma: إنشاء المشروع") because the app doesn't know
   people's gender, which Arabic verbs would need.
 
+## Assistant scope and confirmable changes (implemented, my defaults)
+- Off-topic messages (general knowledge, small talk, jokes, requests to ignore its rules...) get exactly "Sorry, I
+  can't answer that. Can I help you with something else?" in English, French or Arabic, matching the message. The
+  server normalises any reply containing that sentence to the bare sentence and drops tool results with it. A
+  message mixing work with something off-topic gets the work part answered and the sentence for the rest.
+- Changes: `propose_actions` drafts lines (projects, tasks, milestones, expenses, trips, fuel prices,
+  notifications); each line carries the request for an existing API route, and the browser sends the confirmed
+  lines one by one with the user's session, so the API re-checks permissions. The assistant itself never writes.
+- Left out on purpose, even with confirmation: deleting projects or trips for good (irreversible), members, roles
+  and invitations (security-sensitive), and file uploads (the assistant has no files). Easy to add if wanted.
+
 ## Still open
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.

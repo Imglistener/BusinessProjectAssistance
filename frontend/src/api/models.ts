@@ -376,7 +376,44 @@ export interface ChatReply {
   proposals?: ProjectPlan[];
   /** Stock changes the assistant drafted; nothing changes until the user confirms. */
   stock_proposals?: StockDraft[];
+  /** Other changes the assistant drafted (tasks, projects, milestones...); nothing changes until the user confirms. */
+  action_proposals?: ActionDraft[];
   ai_generated: true;
+}
+
+export type ActionKind =
+  | "update_project"
+  | "archive_project"
+  | "restore_project"
+  | "create_task"
+  | "update_task"
+  | "create_milestone"
+  | "update_milestone"
+  | "delete_milestone"
+  | "add_expense"
+  | "void_expense"
+  | "create_trip"
+  | "update_trip"
+  | "refresh_fuel_prices"
+  | "set_fuel_price"
+  | "mark_notifications_read";
+
+/** One drafted change. `request` is the call to the app's own API that "Confirm" sends with the user's session. */
+export interface ActionDraftLine {
+  kind: ActionKind;
+  target: string | null;
+  project_id: number | null;
+  project_name: string | null;
+  changes: { field: string; before: string | null; after: string | null }[];
+  request: { method: string; path: string; body: Record<string, unknown> | null } | null;
+  allowed: boolean;
+  error: string | null;
+  currency: string | null;
+}
+
+export interface ActionDraft {
+  lines: ActionDraftLine[];
+  can_apply: boolean;
 }
 
 export type StockChangeKind = "receive" | "issue" | "adjust" | "create" | "transfer" | "move" | "delete";

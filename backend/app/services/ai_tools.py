@@ -14,11 +14,14 @@ from typing import Any, Callable, Optional
 
 from ..errors import ApiError
 from ..extensions import db
-from ..models import Expense, InventoryItem, Milestone, Organization, Project, ProjectStatus, Task, Trip, User, Warehouse
+from ..models import (
+    Expense, InventoryItem, Milestone, Organization, OrganizationMember, Project, ProjectStatus, Task, Trip, User,
+    Warehouse,
+)
 from . import metrics, travel
 from .calculator import CalculationError, calculate as _calculate
 from .plans import PlanError, validate_plan
-from . import stock, stock_plans
+from . import action_plans, stock, stock_plans
 from .permissions import get_membership
 from . import projects as svc
 
@@ -137,6 +140,7 @@ def _milestones(project: Project, tasks: list, today: date) -> list[dict]:
         linked = [t for t in tasks if t.milestone_id == m.id]
         out.append(
             {
+                "milestone_id": m.id,
                 "title": m.title,
                 "due_date": m.due_date.isoformat() if m.due_date else None,
                 "status": m.status,
@@ -451,6 +455,89 @@ def _without_nulls(changes: Any) -> Any:
     return [{k: v for k, v in c.items() if v is not None} if isinstance(c, dict) else c for c in changes]
 
 
+def _names(user_ids) -> dict:
+    ids = {i for i in user_ids if i}
+    return {u.id: f"{u.first_name} {u.last_name}" for u in User.query.filter(User.id.in_(ids))} if ids else {}
+
+
+def find_tasks(ctx: ToolContext, args: dict) -> dict:
+    project = project_for_context(ctx, args)
+    q = Task.query.filter_by(project_id=project.id)
+    status = args.get("status")
+    if isinstance(status, str) and status.strip():
+        q = q.filter(Task.status == status.strip().lower())
+    query = args.get("query")
+    if isinstance(query, str) and query.strip():
+        q = q.filter(db.func.lower(Task.title).like(f"%{query.strip().lower()}%"))
+    tasks = q.order_by(Task.due_date.is_(None), Task.due_date, Task.id).limit(MAX_LIST).all()
+    names = _names(t.assignee_id for t in tasks)
+    titles = {m.id: m.title for m in Milestone.query.filter_by(project_id=project.id)}
+    return {
+        "project": project.name,
+        "tasks": [
+            {"task_id": t.id, "title": t.title, "status": t.status.value, "priority": t.priority.value,
+             "due_date": t.due_date.isoformat() if t.due_date else None,
+             "overdue": metrics.is_overdue(t, ctx.today), "assignee": names.get(t.assignee_id),
+             "milestone": titles.get(t.milestone_id)}
+            for t in tasks
+        ],
+    }
+
+
+def find_expenses(ctx: ToolContext, args: dict) -> dict:
+    project = project_for_context(ctx, args)
+    q = Expense.query.filter_by(project_id=project.id)
+    if not args.get("include_voided"):
+        q = q.filter(Expense.status == "valid")
+    query = args.get("query")
+    if isinstance(query, str) and query.strip():
+        like = f"%{query.strip().lower()}%"
+        q = q.filter(db.or_(db.func.lower(Expense.category).like(like), db.func.lower(Expense.description).like(like)))
+    rows = q.order_by(Expense.expense_date.desc(), Expense.id.desc()).limit(MAX_LIST).all()
+    names = _names(e.created_by for e in rows)
+    return {
+        "project": project.name,
+        "currency": project.currency,
+        "expenses": [
+            {"expense_id": e.id, "date": e.expense_date.isoformat(), "category": e.category, "amount": _m(e.amount),
+             "status": e.status.value, "description": (e.description or "")[:120] or None,
+             "added_by": names.get(e.created_by), "trip_id": e.trip_id}
+            for e in rows
+        ],
+    }
+
+
+def list_members(ctx: ToolContext, args: dict) -> dict:
+    rows = (
+        OrganizationMember.query.filter_by(organization_id=ctx.organization_id, status="active")
+        .join(User, User.id == OrganizationMember.user_id)
+        .with_entities(User, OrganizationMember.role)
+        .all()
+    )
+    return {"members": [{"name": f"{u.first_name} {u.last_name}", "role": role.value, "is_you": u.id == ctx.user_id}
+                        for u, role in rows]}
+
+
+def propose_actions(ctx: ToolContext, args: dict) -> dict:
+    """Draft changes for the user to confirm. Nothing is saved: the user confirms in the app."""
+    role = get_membership(ctx.organization_id, ctx.user_id).role
+    try:
+        draft = action_plans.draft_actions(ctx.organization_id, ctx.user_id, role, args.get("actions"))
+    except ValueError as e:
+        raise ToolError(str(e))
+    problems = [f"{line['kind']} {line['target'] or ''}: {line['error']}".strip() for line in draft["lines"] if line["error"]]
+    not_allowed = [line["kind"] for line in draft["lines"] if not line["error"] and not line["allowed"]]
+    return {
+        "proposal": draft,
+        "status": "draft_not_saved",
+        "problems": problems,
+        "not_allowed_for_this_user": not_allowed,
+        "next_step": "Tell the user the changes are shown below your message with a 'Confirm' button and that "
+        "nothing has changed yet. Mention any problems and lines their role can't confirm. Never say the changes "
+        "are done. " + SAME_LANGUAGE,
+    }
+
+
 def propose_stock_changes(ctx: ToolContext, args: dict) -> dict:
     """Preview stock changes. Nothing is saved: the user reviews them and confirms in the app."""
     role = get_membership(ctx.organization_id, ctx.user_id).role
@@ -681,6 +768,74 @@ TOOLS: dict[str, tuple[Callable[[ToolContext, dict], dict], str, dict]] = {
         {"type": "object", "properties": {
             "inventory": {"type": "string", "description": "A project name, or 'General stock'."},
         }},
+    ),
+    "find_tasks": (
+        find_tasks,
+        "Tasks of one project with their IDs (task_id), status, priority, due date, assignee and milestone. "
+        "Filter by status (todo, in_progress, blocked, done, cancelled) or a word in the title.",
+        {"type": "object", "properties": {**_PROJECT_ID, "status": {"type": "string"}, "query": {"type": "string"}},
+         "required": ["project_id"]},
+    ),
+    "find_expenses": (
+        find_expenses,
+        "Expenses of one project with their IDs (expense_id), date, category, amount, status and who added them. "
+        "Valid ones only unless include_voided.",
+        {"type": "object", "properties": {**_PROJECT_ID, "query": {"type": "string"},
+                                          "include_voided": {"type": "boolean"}}, "required": ["project_id"]},
+    ),
+    "list_members": (
+        list_members,
+        "Members of the organization with their role (to assign tasks by name).",
+        {"type": "object", "properties": {}},
+    ),
+    "propose_actions": (
+        propose_actions,
+        "Draft changes for the user to confirm (saves nothing; the user clicks Confirm and the app applies them "
+        "with their own permissions). Kinds: update_project (name, description, budget, start_date, end_date, "
+        "status: planned/active/on_hold/completed), archive_project, restore_project, create_task (title, due_date, "
+        "priority low/medium/high, assignee, milestone, description), update_task (task_id + title, status "
+        "todo/in_progress/blocked/done/cancelled, priority, due_date, assignee, milestone), create_milestone (title, "
+        "due_date), update_milestone (milestone_id + title, due_date, status open/done), delete_milestone "
+        "(milestone_id), add_expense (category, amount, expense_date, description, trip_id), void_expense "
+        "(expense_id), create_trip (title, destination, start_date, end_date, purpose, budget), update_trip "
+        "(trip_id + title, destination, dates, status planned/booked/completed/cancelled, budget), "
+        "refresh_fuel_prices, set_fuel_price (fuel_type petrol/diesel, price_per_litre, city or empty for the "
+        "default), mark_notifications_read. Projects by `project` (exact name from list_projects) or project_id; "
+        "tasks, milestones, expenses and trips by the IDs the lookup tools return. Dates YYYY-MM-DD.",
+        {
+            "type": "object",
+            "properties": {
+                "actions": {"type": "array", "items": {"type": "object", "properties": _nullable({
+                    "kind": {"type": "string", "enum": list(action_plans.KINDS)},
+                    "project": {"type": "string", "description": "Project name (or use project_id)."},
+                    "project_id": {"type": "integer"},
+                    "task_id": {"type": "integer"},
+                    "milestone_id": {"type": "integer"},
+                    "expense_id": {"type": "integer"},
+                    "trip_id": {"type": "integer"},
+                    "title": {"type": "string"},
+                    "name": {"type": "string", "description": "update_project: new project name."},
+                    "description": {"type": "string"},
+                    "status": {"type": "string"},
+                    "priority": {"type": "string"},
+                    "due_date": {"type": "string"},
+                    "start_date": {"type": "string"},
+                    "end_date": {"type": "string"},
+                    "expense_date": {"type": "string"},
+                    "assignee": {"type": "string", "description": "Member name from list_members."},
+                    "milestone": {"type": "string", "description": "Milestone title in the same project."},
+                    "budget": {"type": "number"},
+                    "amount": {"type": "number"},
+                    "category": {"type": "string"},
+                    "destination": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "fuel_type": {"type": "string"},
+                    "price_per_litre": {"type": "number"},
+                    "city": {"type": "string"},
+                }), "required": ["kind"]}},
+            },
+            "required": ["actions"],
+        },
     ),
     "propose_stock_changes": (
         propose_stock_changes,

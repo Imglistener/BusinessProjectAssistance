@@ -192,8 +192,19 @@ Select **Assistant** (or **Ask the assistant** on a project) and ask in plain la
 - "How much will fuel cost for the Furniture pickup trip?" or "…to drive a van from Casablanca to Marrakech
   and back?"
 
-The assistant **reads** your data. The only changes it can make are drafts you confirm: a new project, or stock
-changes (see Stock). Its figures come from the same
+The assistant can also **draft changes** for you, for example "Mark Write launch announcement as done and archive
+the Trade fair stand project", "Move the Keys handed over milestone to 20 November", "Add a 1,500 MAD movers
+expense to the office move" or "Refresh the fuel prices". It never changes anything on its own: the changes appear
+in a card below its answer, showing each record with its value before and after. Untick anything you don't want
+and select **Confirm**; each change is then saved with your own permissions, and the card shows which were saved.
+Lines your role can't make are shown greyed out. It can draft changes to projects (edit, archive, restore),
+tasks, milestones, expenses (add, void), trips, fuel prices and notifications, as well as new projects and stock
+changes (see Stock). It can't delete projects or trips, manage members or upload files: do those in the app.
+
+The assistant only helps with your work in the app. To anything else, including small talk, it replies "Sorry, I
+can't answer that. Can I help you with something else?" in the language you wrote in.
+
+Its figures come from the same
 calculations as the rest of the app (it uses a calculator tool rather than doing sums itself), and it says when data is missing. Answers are marked "AI-generated":
 check important figures on the project page. Your question and the figures needed to answer it are sent to
 an external AI provider.

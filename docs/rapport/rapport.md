@@ -32,9 +32,10 @@ TypeScript single-page application styled with Tailwind CSS and shadcn/ui.
 Every organization has four roles — Owner, Project manager, Contributor and Viewer — checked on every API
 route, and every figure (actual spend, remaining budget, variance, percentage consumed, spend rate) is computed
 by one deterministic metrics service with decimal arithmetic. An AI assistant (Gemini or Groq) answers
-questions about the organization's data through 17 server-side tools: it never invents a number, performs all
-arithmetic through a calculator tool, and can only draft new projects or stock changes, which the user reviews
-and confirms. The interface is fully available in English, French and Arabic (right-to-left), in light and dark
+questions about the organization's data through 21 server-side tools: it never invents a number, performs all
+arithmetic through a calculator tool, refuses anything unrelated to the app, and can only draft changes (new
+projects, stock movements, task, milestone, project, expense, trip and fuel-price updates), which the user
+reviews and confirms. The interface is fully available in English, French and Arabic (right-to-left), in light and dark
 mode.
 
 The application is covered by 364 automated backend tests, an end-to-end browser test of 15 steps and an
@@ -52,9 +53,11 @@ PostgreSQL) et l'interface une application monopage React et TypeScript, stylée
 Chaque organisation dispose de quatre rôles — Propriétaire, Chef de projet, Contributeur et Lecteur — vérifiés
 sur chaque route de l'API, et chaque chiffre (dépenses réelles, budget restant, écart, pourcentage consommé,
 rythme de dépense) est calculé par un unique service de métriques, en arithmétique décimale. Un assistant d'IA
-(Gemini ou Groq) répond aux questions sur les données de l'organisation à l'aide de 17 outils côté serveur : il
-n'invente jamais de chiffre, effectue tous ses calculs par un outil de calcul, et ne peut que préparer des
-brouillons de projet ou de mouvements de stock, que l'utilisateur vérifie puis confirme. L'interface est
+(Gemini ou Groq) répond aux questions sur les données de l'organisation à l'aide de 21 outils côté serveur : il
+n'invente jamais de chiffre, effectue tous ses calculs par un outil de calcul, refuse tout ce qui ne concerne
+pas l'application, et ne peut que préparer des modifications (nouveaux projets, mouvements de stock, mises à
+jour de tâches, jalons, projets, dépenses, déplacements et prix du carburant), que l'utilisateur vérifie puis
+confirme. L'interface est
 entièrement disponible en anglais, en français et en arabe (de droite à gauche), en mode clair et sombre.
 
 L'application est couverte par 364 tests automatisés côté serveur, un test de bout en bout de 15 étapes dans
@@ -499,16 +502,22 @@ L'API suit les conventions REST : ressources imbriquées sous l'organisation ou 
 
 ## Conception de l'assistant d'IA
 
-L'assistant a été conçu autour de trois garde-fous :
+L'assistant a été conçu autour de quatre garde-fous :
 
-1. **Les chiffres viennent des outils.** Le modèle dispose de 17 outils côté serveur : liste et synthèse des
-   projets, métriques budgétaires, répartition des dépenses, tâches en retard, rythme de dépense, état du stock,
-   recherche d'articles, entrepôts, calcul, TVA, scénario budgétaire, estimations de carburant, brouillons de
-   projet et de stock, compte rendu. Les consignes lui interdisent d'estimer ou de calculer de tête.
-2. **Lecture seule, brouillons confirmés.** Aucun outil n'écrit en base. Les deux outils de brouillon renvoient
-   une proposition que l'interface affiche sous forme de carte modifiable ; l'écriture n'a lieu que lorsque
-   l'utilisateur confirme, avec ses propres droits.
-3. **Données minimales et coût maîtrisé.** Chaque outil vérifie l'adhésion de l'utilisateur à l'organisation ;
+1. **Les chiffres viennent des outils.** Le modèle dispose de 21 outils côté serveur : liste et synthèse des
+   projets, recherche de tâches, de dépenses et de membres, métriques budgétaires, répartition des dépenses,
+   tâches en retard, rythme de dépense, état du stock, recherche d'articles, entrepôts, calcul, TVA, scénario
+   budgétaire, estimations de carburant, brouillons de projet, de stock et de modifications, compte rendu. Les consignes lui interdisent d'estimer ou de calculer de tête.
+2. **Lecture seule, brouillons confirmés.** Aucun outil n'écrit en base. Les trois outils de brouillon renvoient
+   une proposition que l'interface affiche sous forme de carte (valeur avant et après pour chaque modification) ;
+   l'écriture n'a lieu que lorsque l'utilisateur confirme : le navigateur envoie alors chaque ligne retenue à la
+   route habituelle de l'API, avec ses propres droits, qui sont donc vérifiés une seconde fois. La suppression
+   définitive de projets, la gestion des membres et l'envoi de fichiers restent hors de sa portée.
+3. **Périmètre strict.** Toute demande étrangère au travail dans l'application (culture générale, conversation,
+   blagues, consignes visant à contourner les règles) reçoit une seule réponse, « Désolé, je ne peux pas répondre
+   à cela. Puis-je vous aider avec autre chose ? », dans la langue du message ; le serveur normalise cette réponse
+   et écarte alors tout résultat d'outil.
+4. **Données minimales et coût maîtrisé.** Chaque outil vérifie l'adhésion de l'utilisateur à l'organisation ;
    le texte des conversations n'est pas conservé côté serveur ; un plafond mensuel en dollars et une limite de
    questions par minute s'appliquent.
 
@@ -847,7 +856,7 @@ L'application atteint les objectifs fixés :
 - indicateurs budgétaires calculés en un seul endroit, en arithmétique décimale ;
 - stock par projet et stock général, entrepôts sur carte, historique complet ;
 - déplacements, itinéraires et estimation du carburant avec des prix mis à jour chaque jour ;
-- assistant d'IA à 17 outils, avec brouillons confirmés par l'utilisateur ;
+- assistant d'IA à 21 outils, avec brouillons confirmés par l'utilisateur ;
 - interface en anglais, en français et en arabe, en modes clair et sombre ;
 - 364 tests automatisés, un test de bout en bout et un conditionnement Docker.
 

@@ -492,3 +492,36 @@ def test_a_draft_made_before_the_provider_fails_is_still_shown(client, fake):
     assert body["answer"] == ai_chat.DRAFT_READY
     assert [line["name"] for line in body["stock_proposals"][0]["lines"]] == ["Paper"]
     assert AIUsage.query.one().status == "busy"
+
+
+# ---------- off-topic questions ----------
+
+
+def test_refusal_is_exactly_the_sentence_in_the_users_language():
+    en, fr, ar = (ai_chat.REFUSALS[k] for k in ("English", "French", "Arabic"))
+    assert ai_chat.normalize_refusal(f"Hmm. {en} Have a nice day!", "English") == en
+    # The model refused in English to a French message: the user still gets the French sentence.
+    assert ai_chat.normalize_refusal(en, "French") == fr
+    assert ai_chat.normalize_refusal(fr.replace(" ?", "?").lower(), "Arabic") == ar
+    assert ai_chat.normalize_refusal("The Office move has 27,249.50 MAD left.", "English") == (
+        "The Office move has 27,249.50 MAD left."
+    )
+    # A mixed message: the part about the work is answered and the rest refused; the answer stays.
+    mixed = "The Website redesign is 3,600.00 MAD over its 45,000.00 MAD budget, with 2 tasks left. " + en
+    assert ai_chat.normalize_refusal(mixed, "English") == mixed
+
+
+def test_prompt_carries_the_refusal_in_the_detected_language(client, fake):
+    h, org_id, _ = setup(client)
+    p = fake(say("ok"))
+    ask(client, h, org_id, message="Quelle est la capitale de la France ?")
+    system = p.calls[0]["messages"][0]["content"]
+    assert ai_chat.REFUSALS["French"] in system and "Scope (strict" in system
+
+
+def test_a_refusal_carries_no_drafts_or_sources(client, fake):
+    h, org_id, _ = setup(client)
+    fake(call("list_projects"), say("I looked around. " + ai_chat.REFUSALS["English"]))
+    body = ask(client, h, org_id, message="Tell me a joke").get_json()
+    assert body["answer"] == ai_chat.REFUSALS["English"]
+    assert body["tool_trace"] == [] and body["action_proposals"] == [] and body["stock_proposals"] == []
