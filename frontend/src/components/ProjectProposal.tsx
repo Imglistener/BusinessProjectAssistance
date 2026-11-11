@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type Organization, type Project, type ProjectPlan } from "../api/models";
 import { errorMessage } from "../lib/errors";

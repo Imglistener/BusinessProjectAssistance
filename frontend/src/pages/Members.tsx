@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { ApiError, api } from "../api/client";
 import { canManageMembers, type Invitation, type Member, type Organization, type Role } from "../api/models";
 import { useAuth } from "../auth/AuthContext";

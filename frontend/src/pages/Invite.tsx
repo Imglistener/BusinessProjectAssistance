@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { InvitationPreview, Organization } from "../api/models";
 import { useAuth } from "../auth/AuthContext";

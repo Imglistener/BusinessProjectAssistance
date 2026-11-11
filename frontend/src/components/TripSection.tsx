@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import { canContribute, type Project, type Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";

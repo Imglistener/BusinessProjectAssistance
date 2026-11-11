@@ -1,7 +1,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { FuelEstimate, TravelReference, Trip } from "../api/models";
 import { errorMessage } from "../lib/errors";

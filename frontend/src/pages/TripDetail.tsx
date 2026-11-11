@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { Member, Trip, TripItem, TripItemKind, TripStatus } from "../api/models";
 import { AppShell } from "../components/AppShell";

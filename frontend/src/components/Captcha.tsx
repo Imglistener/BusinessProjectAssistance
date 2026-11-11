@@ -1,5 +1,5 @@
 import type {} from "altcha/types/react";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from "react";
 import { API_BASE } from "../api/client";
 import { getLang } from "../i18n";
 
@@ -38,10 +38,7 @@ const WIDGET_LANGUAGE: Record<string, string> = { en: "en", fr: "fr-fr", ar: "ar
  * Calls onChange with the solution once ticked, and with null when it expires or is reset. When the server has
  * the captcha turned off, it renders nothing and reports "" (nothing to send).
  */
-export const Captcha = forwardRef<CaptchaHandle, { onChange(payload: string | null): void }>(function Captcha(
-  { onChange },
-  ref,
-) {
+export function Captcha({ onChange, ref }: { onChange(payload: string | null): void; ref?: Ref<CaptchaHandle> }) {
   const [status, setStatus] = useState<Status>("loading");
   const widget = useRef<HTMLElement & { reset?: () => void }>(null);
   const changed = useRef(onChange);
@@ -100,4 +97,4 @@ export const Captcha = forwardRef<CaptchaHandle, { onChange(payload: string | nu
       data-testid="captcha"
     />
   );
-});
+}

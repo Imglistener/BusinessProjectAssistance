@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { ChatReply, ProjectPlan, Organization, Project, StockDraft, ToolTraceEntry } from "../api/models";
 import { useOrg } from "../auth/OrgContext";

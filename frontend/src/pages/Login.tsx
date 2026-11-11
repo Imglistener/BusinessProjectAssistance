@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useSubmit } from "../components/AuthLayout";

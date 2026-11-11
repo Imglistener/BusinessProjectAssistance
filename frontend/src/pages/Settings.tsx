@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type FuelPrice, type Organization, type TravelReference } from "../api/models";
 import { useOrg } from "../auth/OrgContext";

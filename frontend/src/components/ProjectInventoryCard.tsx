@@ -1,7 +1,7 @@
 import { ArrowRight, Boxes, Warehouse as WarehouseIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api } from "../api/client";
 import type { InventorySummary } from "../api/models";
 import { formatMoney } from "../lib/format";

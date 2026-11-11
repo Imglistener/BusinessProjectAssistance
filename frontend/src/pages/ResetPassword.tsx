@@ -1,6 +1,6 @@
 import { CircleCheck } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { ApiError, api } from "../api/client";
 import { useSubmit } from "../components/AuthLayout";
 import { AuthLayout, AuthSwitch, PasswordField, PasswordRule, SubmitButton } from "../components/auth";

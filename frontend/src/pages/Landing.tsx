@@ -13,7 +13,7 @@ import {
 import { motion } from "motion/react";
 import { useReduceMotion } from "../hooks/use-reduce-motion";
 import { useRef, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useAuth } from "../auth/AuthContext";
 import { LanguagePicker } from "../components/LanguagePicker";
 import { Logo } from "../components/Logo";

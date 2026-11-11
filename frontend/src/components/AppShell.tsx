@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";

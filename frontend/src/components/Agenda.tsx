@@ -1,6 +1,6 @@
 import { Flag, Plane } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { api } from "../api/client";
 import type { DeadlineItem, Deadlines } from "../api/models";
 import { getLocale, t } from "../i18n";

@@ -2,7 +2,7 @@ import { Check, Eye, EyeOff, Info, Loader2, Plane, TriangleAlert } from "lucide-
 import { motion } from "motion/react";
 import { useReduceMotion } from "../hooks/use-reduce-motion";
 import { useState, type ComponentProps, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import DotGrid from "./effects/DotGrid";
 import { LanguagePicker } from "./LanguagePicker";
 import { Logo } from "./Logo";

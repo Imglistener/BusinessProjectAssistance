@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowRight, Boxes, CircleCheck, Loader2, Lock } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ApiError, api } from "../api/client";
 import type { Organization, StockChangeKind, StockDraft, StockDraftLine } from "../api/models";
 import { errorMessage } from "../lib/errors";

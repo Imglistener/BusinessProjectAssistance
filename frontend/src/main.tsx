@@ -8,7 +8,7 @@ import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
 import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { OrgProvider } from "./auth/OrgContext";

@@ -1,7 +1,7 @@
 import { AlertTriangle, CalendarDays, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { Project } from "../api/models";
 import { STATUS_LABEL, formatDateRange, formatMoney, formatPct } from "../lib/format";
 import { isRtl, t } from "../i18n";

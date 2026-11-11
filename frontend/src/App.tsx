@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./auth/AuthContext";
 import Assistant from "./pages/Assistant";
 import Inventory from "./pages/Inventory";
