@@ -361,14 +361,97 @@ def test_groq_parses_tool_calls(monkeypatch):
     [lambda: FakeHttp(500, {}), lambda: FakeHttp(200, {"choices": []}), requests.Timeout],
 )
 def test_groq_failures_raise_provider_error(monkeypatch, behaviour):
+    import app.services.ai_provider as prov
+
     def post(*a, **k):
         if isinstance(behaviour, type):
             raise behaviour()
         return behaviour()
 
     monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(prov.time, "sleep", lambda s: None)
     with pytest.raises(ProviderError):
         groq().chat([], None)
+
+
+@pytest.mark.parametrize("first", [lambda: FakeHttp(503, {}), requests.Timeout, requests.ConnectionError])
+def test_transient_failure_is_retried_once(monkeypatch, first):
+    import app.services.ai_provider as prov
+
+    calls = []
+
+    def post(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            if isinstance(first, type):
+                raise first()
+            return first()
+        return FakeHttp(200, {"choices": [{"message": {"content": "ok"}}], "usage": {}})
+
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(prov.time, "sleep", lambda s: calls.append(("slept", s)))
+    assert groq().chat([], None).content == "ok"
+    assert calls == [1, ("slept", 2), 1]
+
+
+def gemini_429(quota_id="GenerateRequestsPerMinutePerProjectPerModel-FreeTier", delay="24s"):
+    """The shape Gemini's OpenAI endpoint sends: a list, no Retry-After header, the wait in RetryInfo."""
+    return [{"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+        {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [{"quotaId": quota_id}]},
+        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": delay},
+    ]}}]
+
+
+def test_gemini_per_minute_limit_waits_for_retry_delay_from_body(monkeypatch):
+    import app.services.ai_provider as prov
+
+    calls = []
+
+    class Http(FakeHttp):
+        headers = {}
+
+    def post(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            return Http(429, gemini_429())
+        return Http(200, {"choices": [{"message": {"content": "ok"}}], "usage": {}})
+
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(prov.time, "sleep", lambda s: calls.append(("slept", s)))
+    assert gemini().chat([], None).content == "ok"
+    assert ("slept", 24.5) in calls
+
+
+def test_gemini_daily_quota_fails_fast(monkeypatch):
+    import app.services.ai_provider as prov
+    from app.services.ai_provider import ProviderRateLimited
+
+    class Http(FakeHttp):
+        headers = {}
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: Http(429, gemini_429("GenerateRequestsPerDayPerProjectPerModel-FreeTier", "5s")))
+    monkeypatch.setattr(prov.time, "sleep", lambda s: pytest.fail("should not wait for a daily quota"))
+    with pytest.raises(ProviderRateLimited) as e:
+        gemini().chat([], None)
+    assert e.value.daily
+
+
+def test_retry_waits_are_capped_per_question(monkeypatch):
+    import app.services.ai_provider as prov
+    from app.services.ai_provider import ProviderRateLimited
+
+    class Http(FakeHttp):
+        headers = {}
+
+    slept = []
+    monkeypatch.setattr(requests, "post", lambda *a, **k: Http(429, gemini_429(delay="40s")))
+    monkeypatch.setattr(prov.time, "sleep", slept.append)
+    p = gemini()
+    with pytest.raises(ProviderRateLimited):
+        p.chat([], None)
+    with pytest.raises(ProviderRateLimited):
+        p.chat([], None)
+    assert sum(slept) <= prov.MAX_TOTAL_WAIT_SECONDS
 
 
 def test_groq_waits_once_for_short_retry_after(monkeypatch):
@@ -390,14 +473,14 @@ def test_groq_waits_once_for_short_retry_after(monkeypatch):
     monkeypatch.setattr(requests, "post", post)
     monkeypatch.setattr(prov.time, "sleep", lambda s: calls.append(("slept", s)))
     assert groq().chat([], None).content == "ok"
-    assert ("slept", 2.0) in calls
+    assert ("slept", 2.5) in calls  # the provider's delay plus a half-second margin
 
 
 def test_groq_long_retry_after_is_rate_limited_error(monkeypatch):
     from app.services.ai_provider import ProviderRateLimited
 
     class Http(FakeHttp):
-        headers = {"retry-after": "60"}
+        headers = {"retry-after": "120"}
 
     monkeypatch.setattr(requests, "post", lambda *a, **k: Http(429, {}))
     with pytest.raises(ProviderRateLimited):
@@ -478,6 +561,15 @@ def test_provider_rate_limit_gives_busy_message(client, fake):
     r = ask(client, h, org_id)
     assert r.status_code == 503 and r.get_json()["error"]["code"] == "ai_busy"
     assert AIUsage.query.one().status == "busy"
+
+
+def test_daily_quota_says_try_tomorrow(client, fake):
+    from app.services.ai_provider import ProviderRateLimited
+
+    h, org_id, _ = setup(client)
+    fake(ProviderRateLimited("429", daily=True))
+    r = ask(client, h, org_id)
+    assert r.status_code == 503 and "tomorrow" in r.get_json()["error"]["message"]
 
 
 def test_a_draft_made_before_the_provider_fails_is_still_shown(client, fake):

@@ -16,11 +16,22 @@ class ProviderError(Exception):
 
 
 class ProviderRateLimited(ProviderError):
-    """The provider's own usage limit (requests or tokens per minute) was hit."""
+    """The provider's own usage limit (requests or tokens per minute, or per day) was hit."""
+
+    def __init__(self, message: str, daily: bool = False):
+        super().__init__(message)
+        self.daily = daily
 
 
-# Wait for the provider's Retry-After once, if it's this short; longer waits fail fast with a clear message.
-MAX_RETRY_WAIT_SECONDS = 10
+# Per-minute limits: wait for the provider's retry delay if it's this short (Gemini free tier asks for 20-60s);
+# longer waits fail fast with a clear message. One question makes several calls, so the waits of one
+# provider object are capped in total too.
+MAX_RETRY_WAIT_SECONDS = 60
+MAX_TOTAL_WAIT_SECONDS = 90
+# Server errors (500/502/503/504: "model overloaded"), timeouts and dropped connections are often momentary.
+TRANSIENT_STATUSES = {500, 502, 503, 504}
+TRANSIENT_RETRY_DELAY_SECONDS = 2
+MAX_ATTEMPTS = 3
 
 
 class ProviderNotConfigured(Exception):
@@ -60,6 +71,15 @@ class OpenAICompatibleProvider:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.waited = 0.0  # seconds spent waiting on retries, across this question's calls
+
+    def _sleep(self, seconds: float) -> bool:
+        """Wait before a retry if the question's wait budget allows it."""
+        if self.waited + seconds > MAX_TOTAL_WAIT_SECONDS:
+            return False
+        self.waited += seconds
+        time.sleep(seconds)
+        return True
 
     def _body(self, messages: list[dict], tools: Optional[list[dict]]) -> dict:
         body: dict = {"model": self.model, "messages": messages, "temperature": 0.2}
@@ -70,7 +90,9 @@ class OpenAICompatibleProvider:
 
     def chat(self, messages: list[dict], tools: Optional[list[dict]]) -> ProviderResponse:
         body = self._body(messages, tools)
-        for attempt in (1, 2):
+        transient_retried = False
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            last = attempt == MAX_ATTEMPTS
             try:
                 r = requests.post(
                     f"{self.base_url}/chat/completions",
@@ -78,14 +100,25 @@ class OpenAICompatibleProvider:
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.timeout,
                 )
+            except (requests.Timeout, requests.ConnectionError) as e:
+                if last or transient_retried or not self._sleep(TRANSIENT_RETRY_DELAY_SECONDS):
+                    raise ProviderError(f"request failed: {type(e).__name__}") from e
+                transient_retried = True
+                continue
             except requests.RequestException as e:
                 raise ProviderError(f"request failed: {type(e).__name__}") from e
-            if r.status_code != 429:
-                break
-            wait = _retry_after(r)
-            if attempt == 2 or wait is None or wait > MAX_RETRY_WAIT_SECONDS:
-                raise ProviderRateLimited("provider returned HTTP 429")
-            time.sleep(wait)
+            if r.status_code == 429:
+                if _is_daily_quota(r):
+                    raise ProviderRateLimited("provider daily quota used up (HTTP 429)", daily=True)
+                wait = _retry_after(r)
+                if last or wait is None or wait > MAX_RETRY_WAIT_SECONDS or not self._sleep(wait + 0.5):
+                    raise ProviderRateLimited("provider returned HTTP 429")
+                continue
+            if r.status_code in TRANSIENT_STATUSES and not (last or transient_retried):
+                if self._sleep(TRANSIENT_RETRY_DELAY_SECONDS):
+                    transient_retried = True
+                    continue
+            break
         if r.status_code != 200:
             # Status only: provider error bodies can echo the prompt back.
             raise ProviderError(f"provider returned HTTP {r.status_code}")
@@ -167,11 +200,42 @@ def _gemini_schema(schema: Any) -> Any:
     return out
 
 
-def _retry_after(r) -> Optional[float]:
+def _error_details(r) -> list:
+    """Google-style error details ([{"error": {...}}] or {"error": {...}}); [] for anything else."""
     try:
-        return float(r.headers.get("retry-after"))
+        data = r.json()
+    except ValueError:
+        return []
+    if isinstance(data, list):
+        data = data[0] if data else {}
+    error = data.get("error") if isinstance(data, dict) else None
+    details = error.get("details") if isinstance(error, dict) else None
+    return [d for d in details if isinstance(d, dict)] if isinstance(details, list) else []
+
+
+def _retry_after(r) -> Optional[float]:
+    """Seconds to wait: the Retry-After header (Groq), else Gemini's RetryInfo ("24s") in the error body."""
+    try:
+        return float((getattr(r, "headers", None) or {}).get("retry-after"))
     except (TypeError, ValueError):
-        return None
+        pass
+    for d in _error_details(r):
+        delay = d.get("retryDelay")
+        if isinstance(delay, str) and delay.endswith("s"):
+            try:
+                return float(delay[:-1])
+            except ValueError:
+                pass
+    return None
+
+
+def _is_daily_quota(r) -> bool:
+    """Gemini names the quota that ran out; a per-day one won't come back by waiting a minute."""
+    for d in _error_details(r):
+        for v in d.get("violations") or []:
+            if isinstance(v, dict) and "perday" in str(v.get("quotaId", "")).lower():
+                return True
+    return False
 
 
 def get_provider() -> AIProvider:

@@ -35,6 +35,7 @@ FINAL_ROUND = (
 DRAFT_READY = "The draft is below. Check it, then confirm. Nothing has changed yet."
 UNAVAILABLE = "The assistant isn't available right now. Try again in a moment; the rest of the app still works."
 BUSY = "The assistant is busy right now (the AI provider's usage limit). Try again in a minute."
+DAILY_QUOTA = "The assistant has used today's quota from the AI provider. Try again tomorrow; the rest of the app still works."
 
 SYSTEM_PROMPT = """You are the assistant inside a business project management app.
 Organization: {org_name}. Today is {today} ({timezone}). Default currency: {currency}.
@@ -274,6 +275,7 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
     prompt_tokens = completion_tokens = 0
     answer = None
     status = "ok"
+    daily_quota = False
 
     try:
         for round_no in range(rounds + 1):
@@ -304,6 +306,7 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
     except ProviderRateLimited as e:
         status = "busy"
+        daily_quota = e.daily
         current_app.logger.warning("AI provider rate limit: %s", e)
     except ProviderError as e:
         status = "error"
@@ -327,7 +330,7 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
     if status in ("busy", "error") and (proposals or stock_proposals or action_proposals):
         answer = translate(DRAFT_READY, request_lang())
     elif status == "busy":
-        raise ApiError("ai_busy", BUSY, 503)
+        raise ApiError("ai_busy", DAILY_QUOTA if daily_quota else BUSY, 503)
     elif status == "error":
         raise ApiError("ai_unavailable", UNAVAILABLE, 503)
     elif status == "capped":
