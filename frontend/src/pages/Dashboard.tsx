@@ -238,15 +238,15 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
 
       {/* Container queries here and below: the assistant panel takes width the window's size doesn't show. */}
       <div className="@container">
-      <section aria-label={t("Overview")} className="grid gap-4 @lg:grid-cols-3">
+      <section aria-label={t("Overview")} className="grid gap-4 @2xl:grid-cols-3">
         {summary === null ? (
           <>
-            <Skeleton className="h-44 @lg:col-span-2" />
+            <Skeleton className="h-44 @2xl:col-span-2" />
             <Skeleton className="h-44" />
           </>
         ) : (
           <>
-            <motion.div {...rise(1)} className="grid gap-4 @lg:col-span-2">
+            <motion.div {...rise(1)} className="grid gap-4 @2xl:col-span-2">
               {totals.length === 0 ? (
                 <Card className="h-full justify-center">
                   <CardContent className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -324,8 +324,8 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
                 )}
               </AnimatePresence>
               {!empty && (
-                <div role="search" aria-label={t("Filter projects")} className="grid gap-3 @lg:grid-cols-[minmax(0,1fr)_11rem_10rem]">
-                  <div className="relative">
+                <div role="search" aria-label={t("Filter projects")} className="grid gap-3 @md:grid-cols-2 @2xl:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+                  <div className="relative @md:col-span-2 @2xl:col-span-1">
                     <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="search"
@@ -339,7 +339,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
                   </div>
                   <SimpleSelect ariaLabel={t("Status")} value={status} onChange={setStatus} options={STATUS_FILTERS} />
                   <SimpleSelect ariaLabel={t("Sort by")} value={sort} onChange={setSort} options={SORT_OPTIONS} />
-                  <div className="flex items-center gap-2 @lg:col-span-3">
+                  <div className="flex items-center gap-2 @md:col-span-2 @2xl:col-span-3">
                     <Checkbox id="over-budget" checked={overBudget} onCheckedChange={(v) => setOverBudget(v === true)} />
                     <Label htmlFor="over-budget" className="text-sm font-normal text-muted-foreground">
                       {t("Only over budget")}

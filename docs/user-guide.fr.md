@@ -198,10 +198,10 @@ projet.
 
 Sélectionnez **Assistant** dans le menu ou **Demander à l'assistant** en haut de n'importe quelle page. Il s'ouvre
 dans un panneau à côté de la page et reste ouvert quand vous changez de page ; sur téléphone, il occupe tout
-l'écran. Posez votre question en langage courant, par exemple :
+l'écran. Sous **Sujet**, choisissez un projet ou gardez-les tous, puis posez votre question en langage courant, par
+exemple :
 
-![L'assistant, avec des suggestions de questions](images/fr-assistant.jpg)
-
+![L'assistant à côté du tableau de bord, avec des suggestions de questions](images/fr-assistant.jpg)
 
 - « Quels projets demandent de l'attention en ce moment ? »
 - « Sur quoi dépensons-nous le plus pour le déménagement ? »
@@ -228,20 +228,22 @@ Le menu à côté de **Demander** choisit l'IA qui répond : Gemini ou Groq. Qua
 elle est grisée avec l'heure de son retour, et l'autre répond en attendant ; votre choix revient de lui-même. Il en
 va de même, pour une question, si l'IA choisie ne répond pas. Chaque réponse indique l'IA qui l'a rédigée.
 
+![Une réponse, et le menu qui choisit l'IA](images/fr-assistant-answer.jpg)
+
 Vos conversations sont enregistrées et vous seul pouvez les voir. Sélectionnez l'icône d'horloge en haut du panneau
 pour les rouvrir ou les supprimer, ou **+** pour en commencer une nouvelle. Chacune est supprimée 90 jours après son
-dernier message (votre administrateur peut changer ce délai). Les brouillons non confirmés ne sont pas conservés
+dernier message (votre administrateur peut changer ce délai), ou lorsque vous quittez l'organisation ou que le projet
+concerné est supprimé. Les brouillons non confirmés ne sont pas conservés
 lorsque la page est rechargée : redemandez-les.
 
 L'assistant ne vous aide que pour votre travail dans l'application. À toute autre demande, y compris la simple
 conversation, il répond « Désolé, je ne peux pas répondre à cela. Puis-je vous aider avec autre chose ? » dans la
 langue de votre message.
 
-Ses chiffres viennent des mêmes
-calculs que le reste de l'application (il utilise une calculatrice plutôt que de compter lui-même), et il
-signale les données manquantes. Les réponses sont marquées « Généré par IA » : vérifiez les chiffres
-importants sur la page du projet. Votre question et les chiffres nécessaires pour y répondre sont envoyés à
-un fournisseur d'IA externe. Il répond dans la langue de votre question.
+Ses chiffres viennent des mêmes calculs que le reste de l'application (il utilise une calculatrice plutôt que de
+compter lui-même), et il signale les données manquantes. Les réponses sont marquées « Généré par IA » : vérifiez les
+chiffres importants sur la page du projet. Votre question et les chiffres nécessaires pour y répondre sont envoyés à
+l'IA qui répond, Gemini (Google) ou Groq. Il répond dans la langue de votre question.
 
 ## Notifications
 
@@ -270,8 +272,8 @@ Les propriétaires gèrent les personnes sous **Membres** :
 ## Langue
 
 L'application est disponible en français, en anglais et en arabe (les pages en arabe se lisent de droite à
-gauche). Choisissez la langue avec le menu à globe en bas du menu de gauche (ou en haut des pages de
-connexion et d'inscription). Votre choix est mémorisé sur cet appareil et sur votre compte : les e-mails de
+gauche). Choisissez la langue avec le menu des langues en haut de n'importe quelle page, à côté du
+bouton clair/sombre. Votre choix est mémorisé sur cet appareil et sur votre compte : les e-mails de
 réinitialisation et les notifications arrivent dans la même langue.
 
 ## Bon à savoir

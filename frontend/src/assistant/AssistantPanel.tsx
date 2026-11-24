@@ -184,7 +184,7 @@ function Chat({ org, visible }: { org: Organization; visible: boolean }) {
 
   useEffect(() => {
     const log = logRef.current;
-    if (log && visible) log.scrollTop = log.scrollHeight;
+    if (log && visible) log.scrollTop = a.messages.length > 0 ? log.scrollHeight : 0; // suggestions start at the top
   }, [a.messages, a.busy, visible]);
 
   useEffect(() => {

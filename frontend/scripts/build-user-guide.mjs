@@ -96,6 +96,7 @@ h4 { font-size: 11pt; font-weight: 700; margin: 5mm 0 1.5mm; }
 p { margin: 0 0 3mm; }
 ul, ol { margin: 0 0 3.5mm; padding-left: 6mm; }
 li { margin-bottom: 1.2mm; }
+p, li { orphans: 3; widows: 3; }
 li::marker { color: var(--blue); font-weight: 700; }
 strong { font-weight: 650; color: var(--indigo); }
 a { color: var(--blue); text-decoration: none; }
@@ -106,8 +107,10 @@ td { padding: 1.8mm 1.5mm; border-bottom: 0.25mm solid var(--line); text-align: 
 td:not(:first-child) { color: var(--blue); font-weight: 700; }
 tr:nth-child(even) td { background: #fafbfe; }
 figure { margin: 4mm 0 6mm; break-inside: avoid; }
-figure img { display: block; width: 100%; border: 0.3mm solid var(--line); border-radius: 2.5mm; box-shadow: 0 1mm 3mm rgba(21, 28, 87, 0.08); }
-figcaption { margin-top: 1.8mm; font-size: 8.5pt; color: var(--muted); }
+figure img { display: block; max-width: 100%; max-height: 125mm; margin: 0 auto; border: 0.3mm solid var(--line); border-radius: 2.5mm; }
+/* Screenshots of the assistant panel are tall. */
+figure img[src*="-answer"] { max-height: 92mm; }
+figcaption { margin-top: 1.8mm; text-align: center; font-size: 8.5pt; color: var(--muted); }
 
 /* Cover */
 .cover { height: 257mm; display: flex; flex-direction: column; justify-content: space-between; padding: 16mm 14mm; border-radius: 5mm; color: #fff;

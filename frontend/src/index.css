@@ -3602,3 +3602,8 @@ button.model-picker:disabled {
   color: var(--muted-foreground);
   font-size: 0.8rem;
 }
+
+/* Tailwind's reset removes list markers; answers need them. */
+.rich ul {
+  list-style: disc;
+}

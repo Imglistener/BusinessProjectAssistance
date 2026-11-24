@@ -179,10 +179,10 @@ inventories and deleting items, and managing warehouses, need an owner or projec
 ## The assistant
 
 Select **Assistant** in the menu or **Ask the assistant** at the top of any page. It opens in a panel beside the
-page and stays open while you move around; on a phone it fills the screen. Ask in plain language, for example:
+page and stays open while you move around; on a phone it fills the screen. Under **About**, choose a project or keep
+all of them. Then ask in plain language, for example:
 
-![The assistant, with suggested questions](images/en-assistant.jpg)
-
+![The assistant beside the dashboard, with suggested questions](images/en-assistant.jpg)
 
 - "Which projects need attention right now?"
 - "What are we spending the most on in the office move?"
@@ -200,23 +200,24 @@ in a card below its answer, showing each record with its value before and after.
 and select **Confirm**; each change is then saved with your own permissions, and the card shows which were saved.
 Lines your role can't make are shown greyed out. It can draft changes to projects (edit, archive, restore),
 tasks, milestones, expenses (add, void), trips, fuel prices and notifications, as well as new projects and stock
-changes (see Stock). It can't delete projects or trips, manage members or upload files: do those in the app.
+changes (see Inventory). It can't delete projects or trips, manage members or upload files: do those in the app.
 
 The menu beside **Ask** chooses the AI that answers: Gemini or Groq. When one reaches its usage limit it is greyed out
 with the time it's back, and the other answers meanwhile; your choice returns by itself. The same happens, for one
 question, if the chosen AI doesn't respond. Each answer shows which AI wrote it.
 
+![An answer, and the menu that chooses the AI](images/en-assistant-answer.jpg)
+
 Your conversations are saved, and only you can see them. Select the clock icon at the top of the panel to reopen or
 delete them, or **+** to start a new one. Each is deleted 90 days after its last message (your administrator can
-change this). Drafts you haven't confirmed aren't kept when the page is reloaded: ask again.
+change this), or when you leave the organization or its project is deleted. Drafts you haven't confirmed aren't kept when the page is reloaded: ask again.
 
 The assistant only helps with your work in the app. To anything else, including small talk, it replies "Sorry, I
 can't answer that. Can I help you with something else?" in the language you wrote in.
 
-Its figures come from the same
-calculations as the rest of the app (it uses a calculator tool rather than doing sums itself), and it says when data is missing. Answers are marked "AI-generated":
-check important figures on the project page. Your question and the figures needed to answer it are sent to
-an external AI provider.
+Its figures come from the same calculations as the rest of the app (it uses a calculator tool rather than doing sums
+itself), and it says when data is missing. Answers are marked "AI-generated": check important figures on the project
+page. Your question and the figures needed to answer it are sent to the AI that answers, Gemini (Google) or Groq.
 
 ## Notifications
 
@@ -242,8 +243,8 @@ Owners manage people under **Members**:
 
 ## Language
 
-The app is available in English, French and Arabic (Arabic pages read right to left). Pick a language with the globe menu at the bottom of the sidebar
-(or at the top of the login and sign-up pages). Your choice is remembered on this device and on your account,
+The app is available in English, French and Arabic (Arabic pages read right to left). Pick a language with the
+language menu at the top of any page, next to the light/dark switch. Your choice is remembered on this device and on your account,
 so password-reset emails and notifications arrive in the same language. The assistant answers in the language
 you write in.
 
