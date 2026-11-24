@@ -178,7 +178,8 @@ inventories and deleting items, and managing warehouses, need an owner or projec
 
 ## The assistant
 
-Select **Assistant** (or **Ask the assistant** on a project) and ask in plain language, for example:
+Select **Assistant** in the menu or **Ask the assistant** at the top of any page. It opens in a panel beside the
+page and stays open while you move around; on a phone it fills the screen. Ask in plain language, for example:
 
 ![The assistant, with suggested questions](images/en-assistant.jpg)
 
@@ -200,6 +201,10 @@ and select **Confirm**; each change is then saved with your own permissions, and
 Lines your role can't make are shown greyed out. It can draft changes to projects (edit, archive, restore),
 tasks, milestones, expenses (add, void), trips, fuel prices and notifications, as well as new projects and stock
 changes (see Stock). It can't delete projects or trips, manage members or upload files: do those in the app.
+
+Your conversations are saved, and only you can see them. Select the clock icon at the top of the panel to reopen or
+delete them, or **+** to start a new one. Each is deleted 90 days after its last message (your administrator can
+change this). Drafts you haven't confirmed aren't kept when the page is reloaded: ask again.
 
 The assistant only helps with your work in the app. To anything else, including small talk, it replies "Sorry, I
 can't answer that. Can I help you with something else?" in the language you wrote in.

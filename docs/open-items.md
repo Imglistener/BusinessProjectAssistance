@@ -10,7 +10,7 @@
 ## Differences between the diagram and the DOCX spec (to confirm)
 - Diagram has Resource / ProjectResource (resource allocation); the DOCX has none. Included as models, not exposed in the API yet.
 - Diagram has ProjectMember; the DOCX relies on organization roles plus project owner. Included.
-- Diagram stores AIConversation/AIMessage; the DOCX has AISuggestion and says to avoid storing sensitive prompts unnecessarily. Conversation models included, retention policy to decide.
+- Diagram stores AIConversation/AIMessage; the DOCX has AISuggestion and says to avoid storing sensitive prompts unnecessarily. Conversations are saved since 2026-11-24 (see "Saved conversations and side panel").
 - Diagram Expense has receipt_url; the DOCX lists attachments as "Could / later". Field kept nullable.
 - Diagram: "budget divided into categories/allocations". Not in the DOCX; deferred (see BudgetAllocation idea).
 - Diagram Project has a `type` field; not in the DOCX. Kept nullable.
@@ -38,8 +38,8 @@
   the prompt; unclear messages fall back to the app's language.
 - Cost cap: per-request cost = tokens x configured price per million tokens
   (defaults 0.15 in / 0.75 out USD; verify against Groq's pricing page). The cap is app-wide, not per organization.
-- Conversations are not stored server-side: the browser keeps the conversation and sends the last
-  12 turns with each question. `ai_conversations`/`ai_messages` stay unused until a retention policy is chosen.
+- Conversations were not stored server-side at first; the user asked for saved history on 2026-11-21 (see
+  "Saved conversations and side panel"). The last 12 messages are sent to the provider with each question.
 - Data sent to the provider: project names, figures, task titles and assignee names. No emails, no expense descriptions.
 - Added a seventh read-only tool, `list_projects`, so the assistant can find project IDs.
 - Rate limit: 10 questions per user per minute (configurable).
@@ -257,3 +257,20 @@
 ## Still open
 - A domain for sending email (needed before switching EMAIL_PROVIDER to resend).
 - Hosting choice; confirm the backup proposal in docs/deployment.md.
+
+## Saved conversations and side panel (implemented, to confirm)
+- The assistant is a side panel over every signed-in page; `/app/assistant` links open it. It stays mounted while
+  moving around, so a question in progress and draft cards aren't lost.
+- Questions and answers are saved per person and organization, visible only to their author. **To confirm:** kept
+  90 days after the last message (`AI_CONVERSATION_RETENTION_DAYS`), removed hourly by the server or with
+  `flask --app wsgi ai-purge-conversations`. Also deleted when the author leaves the organization, when the project
+  a conversation was last about is deleted, or by the author (one or all).
+- Draft cards are not saved, only counted: one brought back later could be confirmed twice.
+- A failed question isn't saved; it goes back to the input box.
+- Not checked on PostgreSQL yet: migration a2c4e6f8b0d1 (Docker wasn't running).
+
+## Assistant reliability (2026-11-21 to 24)
+- Gemini's free tier allows 15 requests a minute on gemini-3.5-flash-lite; one question can make up to 9. Its 429
+  has no Retry-After header, so the wait is read from the body (up to 60 s, 90 s of waiting per question).
+- Gemini also answers 503 (overloaded) at times: retried after 2, 5 and 10 s. Timeouts are retried once.
+- A paid tier is the lasting fix.

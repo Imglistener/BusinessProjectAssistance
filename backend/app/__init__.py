@@ -31,6 +31,9 @@ def create_app(config_object=Config):
     app.cli.add_command(ai_eval)
     app.cli.add_command(fuel_prices_sync)
     app.cli.add_command(email_test)
+    from .services.ai_conversations import ai_purge_conversations
+
+    app.cli.add_command(ai_purge_conversations)
 
     # Consistent JSON errors for JWT problems.
     def _jwt_error(code, message):
@@ -40,12 +43,13 @@ def create_app(config_object=Config):
     jwt.invalid_token_loader(lambda reason: _jwt_error("invalid_token", "Invalid token."))
     jwt.expired_token_loader(lambda header, payload: _jwt_error("token_expired", "Token expired."))
 
-    # The web server's first request starts the hourly fuel price check (CLI commands never do).
-    from .services import fuel_schedule
+    # The web server's first request starts the hourly fuel price check and conversation clean-up (CLI commands never do).
+    from .services import ai_conversations, fuel_schedule
 
     @app.before_request
     def _start_background_jobs():
         fuel_schedule.start(app)
+        ai_conversations.start(app)
 
     @app.errorhandler(404)
     def not_found(_e):

@@ -14,6 +14,7 @@ from ..errors import ApiError
 from ..extensions import db
 from ..models import Organization, OrganizationInvitation, OrganizationMember, Role, User, utcnow
 from ..i18n import request_lang
+from ..services import ai_conversations
 from ..services.audit import log_action
 from ..services.email import app_link, invitation_email, send_email
 from ..services.notifications import notify
@@ -141,6 +142,8 @@ def remove_member(org_id: int, user_id: int):
     _guard_last_owner(member)
 
     member.status = "removed"
+    # Their assistant conversations in this organization go with them.
+    ai_conversations.delete_for(user_id, org_id)
     log_action(
         organization_id=org_id,
         actor_id=user.id,

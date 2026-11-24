@@ -125,7 +125,7 @@ export function ProjectList({ projects, selection }: { projects: Project[]; sele
               {!selection && (
                 <ChevronRight
                   className={cn(
-                    "hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block",
+                    "hidden size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 @lg:block",
                     isRtl() && "rotate-180 group-hover:-translate-x-0.5",
                   )}
                 />
@@ -139,7 +139,7 @@ export function ProjectList({ projects, selection }: { projects: Project[]; sele
 }
 
 const ROW =
-  "group relative grid gap-4 py-4 ps-4 pe-2 transition-colors hover:bg-muted/50 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] sm:items-center";
+  "group relative grid gap-4 py-4 ps-4 pe-2 transition-colors hover:bg-muted/50 @lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] @lg:items-center";
 
 /** A link to the project, or, while selecting, a checkbox row. */
 function RowFrame({
@@ -163,7 +163,7 @@ function RowFrame({
     <label
       className={cn(
         ROW,
-        "cursor-pointer ps-12 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]",
+        "cursor-pointer ps-12 @lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]",
         checked && "bg-primary/5 hover:bg-primary/10",
       )}
     >

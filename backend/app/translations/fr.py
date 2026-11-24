@@ -109,6 +109,7 @@ MESSAGES: dict[str, str] = {
     "That question is too long.": "Cette question est trop longue.",
     "The assistant isn't set up yet. Ask your administrator to add an AI key.": "L'assistant n'est pas encore configuré. Demandez à votre administrateur d'ajouter une clé d'IA.",
     "Project not found.": "Projet introuvable.",
+    "Conversation not found.": "Conversation introuvable.",
     "Organization not found.": "Organisation introuvable.",
     "This project is archived. Restore it to make changes.": "Ce projet est archivé. Restaurez-le pour le modifier.",
     "Too many attempts. Try again in a moment.": "Trop de tentatives. Réessayez dans un instant.",

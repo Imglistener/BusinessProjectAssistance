@@ -878,6 +878,25 @@ const fr: Dictionary = {
   "Business Project": "Business Project",
   "Assistance": "Assistance",
   "Changes draft": "Brouillon de modifications",
+  // Assistant side panel and saved conversations
+  "Conversations": "Conversations",
+  "Back to the conversation": "Retour à la conversation",
+  "Conversation history": "Historique des conversations",
+  "Narrow the panel": "Réduire le panneau",
+  "Widen the panel": "Élargir le panneau",
+  "Close the assistant": "Fermer l'assistant",
+  "Project #{id}": "Projet n° {id}",
+  "A draft was shown here. Drafts aren't kept: ask again if you still need it.": "Un brouillon était affiché ici. Les brouillons ne sont pas conservés : redemandez-le si vous en avez encore besoin.",
+  "Only you can see your conversations. Each one is deleted {days} days after its last message.": "Vous seul voyez vos conversations. Chacune est supprimée {days} jours après son dernier message.",
+  "No saved conversations yet.": "Aucune conversation enregistrée pour l'instant.",
+  "Couldn't load your conversations.": "Impossible de charger vos conversations.",
+  "Couldn't delete the conversation.": "Impossible de supprimer la conversation.",
+  "Delete “{title}”": "Supprimer « {title} »",
+  "Delete all your conversations in this organization?": "Supprimer toutes vos conversations dans cette organisation ?",
+  "Delete all": "Tout supprimer",
+  "Delete all conversations": "Supprimer toutes les conversations",
+  "Couldn't load the conversation.": "Impossible de charger la conversation.",
+  "That conversation no longer exists. Send your question again to start a new one.": "Cette conversation n'existe plus. Renvoyez votre question pour en commencer une nouvelle.",
 };
 
 export default fr;

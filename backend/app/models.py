@@ -355,11 +355,17 @@ class InventoryMovement(db.Model):
 
 
 class AIConversation(db.Model):
+    """One person's chat with the assistant in one organization. Private to that person; deleted after
+    AI_CONVERSATION_RETENTION_DAYS without activity, when they leave the organization, or when they delete it."""
+
     __tablename__ = "ai_conversations"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"))
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id"))  # the project it was last about, if any
+    title = db.Column(db.String(120), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
 
 class AIMessage(db.Model):
@@ -368,6 +374,8 @@ class AIMessage(db.Model):
     conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False, index=True)
     role = db.Column(db.String(20), nullable=False)  # user / assistant
     content = db.Column(db.Text, nullable=False)
+    # Draft cards shown with this answer. Only counted: a draft brought back later could be confirmed twice.
+    drafts = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 

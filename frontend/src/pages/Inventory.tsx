@@ -174,7 +174,7 @@ function InventoryManager({ org }: { org: Organization }) {
             {t("Values in {currency}.", { currency: org.default_currency })}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2">
           <SimpleSelect
             ariaLabel={t("Inventory")}
             value={scope}
@@ -207,7 +207,8 @@ function InventoryManager({ org }: { org: Organization }) {
       )}
       <FormAlert message={error} />
 
-      <section aria-label={t("Inventory totals")} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="@container">
+      <section aria-label={t("Inventory totals")} className="grid gap-4 @md:grid-cols-2 @3xl:grid-cols-4">
         {data === null ? (
           [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)
         ) : (
@@ -221,6 +222,7 @@ function InventoryManager({ org }: { org: Organization }) {
           </>
         )}
       </section>
+      </div>
       {data && data.summary.unpriced_item_count > 0 && (
         <p className="-mt-2 text-xs text-muted-foreground">
           {t("{count} items have no unit cost, so they aren't in the stock value.", { count: data.summary.unpriced_item_count })}

@@ -15,6 +15,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useOrg } from "../auth/OrgContext";
+import { useAssistant } from "../assistant/AssistantContext";
 import { isRtl, t } from "../i18n";
 import { LanguagePicker } from "./LanguagePicker";
 import { Logo, LogoMark } from "./Logo";
@@ -240,9 +241,9 @@ export function AppShell({ children, legacy = true }: { children: ReactNode; leg
   const { pathname } = useLocation();
   const unread = useUnreadCount();
   const rtl = isRtl();
+  const assistant = useAssistant();
 
   const items = [
-    { to: "/app/assistant", label: t("Assistant"), icon: Sparkles },
     { to: "/app/inventory", label: t("Inventory"), icon: Boxes },
     { to: "/app/notifications", label: t("Notifications"), icon: Bell, badge: unread },
     { to: "/app/members", label: t("Members"), icon: Users },
@@ -284,6 +285,18 @@ export function AppShell({ children, legacy = true }: { children: ReactNode; leg
                     )}
                   </SidebarMenuItem>
                 ))}
+                {/* The assistant is a side panel beside every page, not a page of its own. */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={assistant.open}
+                    onClick={assistant.toggle}
+                    aria-pressed={assistant.open}
+                    tooltip={{ children: t("Assistant"), side: rtl ? "left" : "right" }}
+                  >
+                    <Sparkles />
+                    <span className="transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">{t("Assistant")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -299,6 +312,19 @@ export function AppShell({ children, legacy = true }: { children: ReactNode; leg
           <Separator orientation="vertical" className="me-1 data-[orientation=vertical]:h-4" />
           <Logo compact className="text-sm md:hidden" />
           <div className="ms-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={assistant.toggle}
+              aria-pressed={assistant.open}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                assistant.open && "bg-primary/10 text-primary",
+              )}
+            >
+              <Sparkles className="size-4" />
+              <span className="hidden sm:inline">{t("Ask the assistant")}</span>
+              <span className="sr-only sm:hidden">{t("Assistant")}</span>
+            </button>
             <LanguagePicker />
             <ThemeToggle />
           </div>

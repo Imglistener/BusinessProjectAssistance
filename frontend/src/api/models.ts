@@ -379,6 +379,27 @@ export interface ChatReply {
   /** Other changes the assistant drafted (tasks, projects, milestones...); nothing changes until the user confirms. */
   action_proposals?: ActionDraft[];
   ai_generated: true;
+  /** The saved conversation this answer was added to (a new one when none was given). */
+  conversation: ConversationSummary;
+}
+
+/** A saved assistant conversation; private to the person who had it. */
+export interface ConversationSummary {
+  id: number;
+  title: string;
+  project_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: {
+    role: "user" | "assistant";
+    content: string;
+    /** Draft cards the answer showed. Only counted: drafts aren't kept, so they can't be confirmed twice. */
+    drafts: number;
+    created_at: string;
+  }[];
 }
 
 export type ActionKind =

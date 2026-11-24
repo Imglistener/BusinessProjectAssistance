@@ -12,6 +12,7 @@ import { BrowserRouter } from "react-router";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { OrgProvider } from "./auth/OrgContext";
+import { AssistantProvider } from "./assistant/AssistantContext";
 import { MotionConfig } from "motion/react";
 import { Direction } from "radix-ui";
 import type { ReactNode } from "react";
@@ -33,14 +34,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AuthProvider>
         <OrgProvider>
-          {/* Radix components (tabs, menus, selects) lay out right to left in Arabic; switching language reloads. */}
-          <Direction.Provider dir={isRtl() ? "rtl" : "ltr"}>
-            <TooltipProvider delayDuration={300}>
-              <MotionRoot>
-                <App />
-              </MotionRoot>
-            </TooltipProvider>
-          </Direction.Provider>
+          <AssistantProvider>
+            {/* Radix components (tabs, menus, selects) lay out right to left in Arabic; switching language reloads. */}
+            <Direction.Provider dir={isRtl() ? "rtl" : "ltr"}>
+              <TooltipProvider delayDuration={300}>
+                <MotionRoot>
+                  <App />
+                </MotionRoot>
+              </TooltipProvider>
+            </Direction.Provider>
+          </AssistantProvider>
         </OrgProvider>
       </AuthProvider>
     </BrowserRouter>

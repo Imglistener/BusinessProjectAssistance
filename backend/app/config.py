@@ -59,6 +59,8 @@ class Config:
     AI_OUTPUT_PRICE_PER_MTOK_USD = Decimal(os.getenv("AI_OUTPUT_PRICE_PER_MTOK_USD", "0.75"))
     AI_MAX_TOOL_ROUNDS = int(os.getenv("AI_MAX_TOOL_ROUNDS", "8"))
     AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE", "10"))
+    # Saved assistant conversations are deleted after this many days without a new message.
+    AI_CONVERSATION_RETENTION_DAYS = max(1, int(os.getenv("AI_CONVERSATION_RETENTION_DAYS", "90")))
 
     # Captcha on login and signup (ALTCHA proof-of-work, self-hosted). The key defaults to one derived from
     # SECRET_KEY. Cost: PBKDF2 iterations per attempt; 5000 takes a browser about a second or two.

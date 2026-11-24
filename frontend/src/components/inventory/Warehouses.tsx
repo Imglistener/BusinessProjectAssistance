@@ -69,7 +69,7 @@ export function Warehouses({
           </CardContent>
         </Card>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
           {warehouses.map((w, i) => (
             <motion.li
               key={w.id}

@@ -3272,3 +3272,276 @@ body,
     }
   }
 }
+
+/* ---------- Assistant side panel (outside the legacy layer, so it wins over the page styles) ---------- */
+:root {
+  --assistant-w: 28rem;
+}
+html[data-assistant="wide"] {
+  --assistant-w: min(46rem, 55vw);
+}
+
+.assistant-panel {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--assistant-w), 100vw);
+  border-inline-start: 1px solid var(--border);
+  background: var(--background);
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.08);
+}
+.assistant-panel[hidden] {
+  display: none;
+}
+/* The page styles fade list rows in on arrival; in the panel that made reopened answers and chips flicker. */
+.assistant-panel :is(ul, ol) > li {
+  animation: none;
+}
+
+/* With enough room left, the page moves over; otherwise the panel lies on top of it. */
+:root {
+  --assistant-push: 0px;
+}
+@media (min-width: 1280px) {
+  html[data-assistant="open"] {
+    --assistant-push: var(--assistant-w);
+  }
+}
+@media (min-width: 1800px) {
+  html[data-assistant="wide"] {
+    --assistant-push: var(--assistant-w);
+  }
+}
+html[data-assistant] [data-slot="sidebar-inset"] {
+  margin-inline-end: var(--assistant-push);
+}
+/* Phones: the panel fills the screen; widening means nothing there. */
+@media (max-width: 767.98px) {
+  .assistant-panel {
+    width: 100vw;
+    border-inline-start: 0;
+  }
+  .assistant-panel .assistant-panel__widen {
+    display: none;
+  }
+}
+
+.assistant-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  padding-inline: 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.assistant-panel__head h2 {
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+.assistant-panel__mark {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--primary);
+}
+.assistant-panel__tools {
+  margin-inline-start: auto;
+  display: flex;
+  gap: 0.125rem;
+}
+.assistant-panel__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.assistant-panel__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+.assistant-panel__icon:hover:not(:disabled),
+.assistant-panel__icon[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.assistant-panel__icon:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.assistant-panel__icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.assistant-panel__view,
+.assistant-panel__body {
+  flex: 1;
+  min-height: 0;
+}
+.assistant-panel__view[hidden] {
+  display: none;
+}
+.assistant-panel__body {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.assistant-panel .chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 0.75rem 1rem 0.75rem;
+}
+.assistant-panel .chat__project {
+  width: 100%;
+}
+.assistant-panel .chat__log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.9rem;
+  overscroll-behavior: contain;
+}
+.assistant-panel .bubble {
+  max-width: 92%;
+}
+.assistant-panel .bubble--ai {
+  max-width: 100%;
+}
+.assistant-panel .composer textarea {
+  min-height: 2.8rem;
+  max-height: 9rem;
+}
+.assistant-panel .chat__disclosure {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.chat__draft-note {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+
+.assistant-history {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+.assistant-history__note {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.assistant-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.assistant-history__item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 10px;
+}
+.assistant-history__item:hover,
+.assistant-history__item[data-current] {
+  background: var(--accent);
+}
+.assistant-history__open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.assistant-history__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+.assistant-history__meta {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+}
+.assistant-history__confirm {
+  display: flex;
+  gap: 0.6rem;
+  padding-inline-end: 0.6rem;
+}
+.assistant-history__all {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+@media print {
+  .assistant-panel {
+    display: none !important;
+  }
+  html[data-assistant] [data-slot="sidebar-inset"] {
+    margin-inline-end: 0 !important;
+  }
+}
+
+/* Draft cards in the narrow panel: never wider than it; fields wrap to the room there is. */
+.assistant-panel .chat__log {
+  grid-template-columns: minmax(0, 1fr);
+}
+.assistant-panel .bubble--ai {
+  grid-template-columns: minmax(0, 1fr);
+}
+.assistant-panel .proposal,
+.assistant-panel .proposal__fields > * {
+  min-width: 0;
+}
+.assistant-panel .proposal {
+  padding: 0.9rem;
+}
+.assistant-panel .proposal__fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+}
+.assistant-panel .proposal__fields input {
+  width: 100%;
+  min-width: 0;
+}
+.assistant-panel .proposal__name {
+  grid-column: 1 / -1;
+}
+.assistant-panel .proposal__lists {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+/* The "Ask the assistant" button sits in a row of plain links. */
+.header-links {
+  align-items: baseline;
+}
+.header-links .link-btn {
+  padding: 0;
+}

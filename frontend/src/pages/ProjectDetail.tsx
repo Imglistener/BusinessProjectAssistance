@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { useAssistant } from "../assistant/AssistantContext";
 import { ApiError, api } from "../api/client";
 import { canManageProjects, type Milestone, type Project, type Trip } from "../api/models";
 import { useAuth } from "../auth/AuthContext";
@@ -202,6 +203,7 @@ function ProjectActions({ project, onProjectChange }: { project: Project; onProj
 }
 
 function ProjectHeader({ project, onProjectChange }: { project: Project; onProjectChange(p: Project): void }) {
+  const { openWith: openAssistant } = useAssistant();
   const canManage = project.my_role !== undefined && canManageProjects(project.my_role);
   const dates = formatDateRange(project.start_date, project.end_date);
   const used = project.consumed_pct === null ? 0 : Math.min(Number(project.consumed_pct), 100);
@@ -214,7 +216,9 @@ function ProjectHeader({ project, onProjectChange }: { project: Project; onProje
           <h1>{project.name}</h1>
           <span className="header-links">
             <Link to={`/app/projects/${project.id}/report`}>{t("Report")}</Link>
-            <Link to={`/app/assistant?project=${project.id}`}>{t("Ask the assistant")}</Link>
+            <button type="button" className="link-btn" onClick={() => openAssistant({ projectId: project.id })}>
+              {t("Ask the assistant")}
+            </button>
           </span>
         </div>
         <p className="main__org">

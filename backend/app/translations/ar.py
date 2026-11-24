@@ -113,6 +113,7 @@ MESSAGES: dict[str, str] = {
     "That question is too long.": "هذا السؤال طويل جدًا.",
     "The assistant isn't set up yet. Ask your administrator to add an AI key.": "المساعد غير مُعدّ بعد. اطلب من المسؤول إضافة مفتاح الذكاء الاصطناعي.",
     "Project not found.": "المشروع غير موجود.",
+    "Conversation not found.": "المحادثة غير موجودة.",
     "Organization not found.": "المؤسسة غير موجودة.",
     "This project is archived. Restore it to make changes.": "هذا المشروع مؤرشف. استعده لإجراء تغييرات.",
     "Too many attempts. Try again in a moment.": "محاولات كثيرة جدًا. حاول بعد لحظات.",

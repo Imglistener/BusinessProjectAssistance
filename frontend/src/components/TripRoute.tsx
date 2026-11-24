@@ -8,6 +8,7 @@ import { errorMessage } from "../lib/errors";
 import { formatMoney, formatNumber } from "../lib/format";
 import { drivingRoute, placeName, searchPlaces, type GeoPlace } from "../lib/geo";
 import { FormError } from "./AuthLayout";
+import { useAssistant } from "../assistant/AssistantContext";
 import { t } from "../i18n";
 import { tx } from "../i18n/rich";
 
@@ -456,6 +457,7 @@ function PlaceSearch({
 }
 
 function FuelEstimateCard({ trip }: { trip: Trip }) {
+  const { openWith: openAssistant } = useAssistant();
   const [estimate, setEstimate] = useState<FuelEstimate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [variance, setVariance] = useState(10);
@@ -557,12 +559,13 @@ function FuelEstimateCard({ trip }: { trip: Trip }) {
           ))}
         </ul>
       </details>
-      <Link
+      <button
+        type="button"
         className="btn btn--secondary btn--link no-print fuel__ask"
-        to={`/app/assistant?project=${trip.project_id}&q=${encodeURIComponent(question)}`}
+        onClick={() => openAssistant({ projectId: trip.project_id, question })}
       >
         {t("Ask the assistant about this")}
-      </Link>
+      </button>
     </div>
   );
 }

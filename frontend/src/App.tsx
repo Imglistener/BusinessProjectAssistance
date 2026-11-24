@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./auth/AuthContext";
+import { AssistantPanel } from "./assistant/AssistantPanel";
 import Assistant from "./pages/Assistant";
 import Inventory from "./pages/Inventory";
 import Invite from "./pages/Invite";
@@ -34,86 +35,89 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/invite/:token" element={<Invite />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password/:token" element={<ResetPassword />} />
-      <Route
-        path="/app/inventory"
-        element={
-          <RequireAuth>
-            <Inventory />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/notifications"
-        element={
-          <RequireAuth>
-            <Notifications />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/settings"
-        element={
-          <RequireAuth>
-            <Settings />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/members"
-        element={
-          <RequireAuth>
-            <Members />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app"
-        element={
-          <RequireAuth>
-            <Dashboard />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/assistant"
-        element={
-          <RequireAuth>
-            <Assistant />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/projects/:projectId"
-        element={
-          <RequireAuth>
-            <ProjectDetail />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/projects/:projectId/trips/:tripId"
-        element={
-          <RequireAuth>
-            <TripDetail />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/app/projects/:projectId/report"
-        element={
-          <RequireAuth>
-            <Report />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/invite/:token" element={<Invite />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route
+          path="/app/inventory"
+          element={
+            <RequireAuth>
+              <Inventory />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/notifications"
+          element={
+            <RequireAuth>
+              <Notifications />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/settings"
+          element={
+            <RequireAuth>
+              <Settings />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/members"
+          element={
+            <RequireAuth>
+              <Members />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app"
+          element={
+            <RequireAuth>
+              <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/assistant"
+          element={
+            <RequireAuth>
+              <Assistant />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/projects/:projectId"
+          element={
+            <RequireAuth>
+              <ProjectDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/projects/:projectId/trips/:tripId"
+          element={
+            <RequireAuth>
+              <TripDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/app/projects/:projectId/report"
+          element={
+            <RequireAuth>
+              <Report />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <AssistantPanel />
+    </>
   );
 }

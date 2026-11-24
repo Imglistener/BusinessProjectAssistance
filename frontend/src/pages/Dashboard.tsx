@@ -236,15 +236,17 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
 
       <FormAlert message={error} />
 
-      <section aria-label={t("Overview")} className="grid gap-4 md:grid-cols-3">
+      {/* Container queries here and below: the assistant panel takes width the window's size doesn't show. */}
+      <div className="@container">
+      <section aria-label={t("Overview")} className="grid gap-4 @lg:grid-cols-3">
         {summary === null ? (
           <>
-            <Skeleton className="h-44 md:col-span-2" />
+            <Skeleton className="h-44 @lg:col-span-2" />
             <Skeleton className="h-44" />
           </>
         ) : (
           <>
-            <motion.div {...rise(1)} className="grid gap-4 md:col-span-2">
+            <motion.div {...rise(1)} className="grid gap-4 @lg:col-span-2">
               {totals.length === 0 ? (
                 <Card className="h-full justify-center">
                   <CardContent className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -274,9 +276,11 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
           </>
         )}
       </section>
+      </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <motion.section {...rise(3)} aria-labelledby="projects-heading">
+      <div className="@container">
+      <div className="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <motion.section {...rise(3)} aria-labelledby="projects-heading" className="@container min-w-0">
           <Card className="gap-0 py-0">
             <CardHeader className="gap-4 border-b py-5">
               <div className="flex items-center justify-between gap-2">
@@ -320,7 +324,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
                 )}
               </AnimatePresence>
               {!empty && (
-                <div role="search" aria-label={t("Filter projects")} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+                <div role="search" aria-label={t("Filter projects")} className="grid gap-3 @lg:grid-cols-[minmax(0,1fr)_11rem_10rem]">
                   <div className="relative">
                     <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -335,7 +339,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
                   </div>
                   <SimpleSelect ariaLabel={t("Status")} value={status} onChange={setStatus} options={STATUS_FILTERS} />
                   <SimpleSelect ariaLabel={t("Sort by")} value={sort} onChange={setSort} options={SORT_OPTIONS} />
-                  <div className="flex items-center gap-2 sm:col-span-3">
+                  <div className="flex items-center gap-2 @lg:col-span-3">
                     <Checkbox id="over-budget" checked={overBudget} onCheckedChange={(v) => setOverBudget(v === true)} />
                     <Label htmlFor="over-budget" className="text-sm font-normal text-muted-foreground">
                       {t("Only over budget")}
@@ -387,9 +391,10 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
           </Card>
         </motion.section>
 
-        <motion.aside {...rise(4)} aria-label={t("Agenda")} className="lg:sticky lg:top-20">
+        <motion.aside {...rise(4)} aria-label={t("Agenda")} className="min-w-0 @4xl:sticky @4xl:top-20">
           <Agenda orgId={org.id} refreshKey={refreshKey} />
         </motion.aside>
+      </div>
       </div>
 
       <AnimatePresence>
@@ -399,7 +404,7 @@ function OrgOverview({ org, hello }: { org: Organization; hello: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-x-0 bottom-6 z-30 flex justify-center px-4"
+            className="fixed start-0 end-[var(--assistant-push,0px)] bottom-6 z-30 flex justify-center px-4"
           >
             <div className="flex items-center gap-3 rounded-full border bg-popover py-2 ps-5 pe-2 text-sm shadow-lg">
               <span className="tabular font-medium">{t("{count} selected", { count: selected.size })}</span>

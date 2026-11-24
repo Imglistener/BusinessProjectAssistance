@@ -878,6 +878,25 @@ const ar: Dictionary = {
   "Business Project": "Business Project",
   "Assistance": "Assistance",
   "Changes draft": "مسودة التعديلات",
+  // Assistant side panel and saved conversations
+  "Conversations": "المحادثات",
+  "Back to the conversation": "العودة إلى المحادثة",
+  "Conversation history": "سجل المحادثات",
+  "Narrow the panel": "تضييق اللوحة",
+  "Widen the panel": "توسيع اللوحة",
+  "Close the assistant": "إغلاق المساعد",
+  "Project #{id}": "المشروع رقم {id}",
+  "A draft was shown here. Drafts aren't kept: ask again if you still need it.": "عُرضت هنا مسودة. لا تُحفظ المسودات: اطلبها مرة أخرى إن كنت لا تزال بحاجة إليها.",
+  "Only you can see your conversations. Each one is deleted {days} days after its last message.": "لا يرى محادثاتك أحد غيرك. تُحذف كل محادثة بعد {days} يومًا من آخر رسالة فيها.",
+  "No saved conversations yet.": "لا توجد محادثات محفوظة بعد.",
+  "Couldn't load your conversations.": "تعذّر تحميل محادثاتك.",
+  "Couldn't delete the conversation.": "تعذّر حذف المحادثة.",
+  "Delete “{title}”": "حذف «{title}»",
+  "Delete all your conversations in this organization?": "حذف كل محادثاتك في هذه المؤسسة؟",
+  "Delete all": "حذف الكل",
+  "Delete all conversations": "حذف كل المحادثات",
+  "Couldn't load the conversation.": "تعذّر تحميل المحادثة.",
+  "That conversation no longer exists. Send your question again to start a new one.": "لم تعد هذه المحادثة موجودة. أرسل سؤالك مرة أخرى لبدء محادثة جديدة.",
 };
 
 export default ar;

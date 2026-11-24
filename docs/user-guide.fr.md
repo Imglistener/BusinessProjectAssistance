@@ -196,8 +196,9 @@ projet.
 
 ## L'assistant
 
-Sélectionnez **Assistant** (ou **Demander à l'assistant** sur un projet) et posez votre question en langage
-courant, par exemple :
+Sélectionnez **Assistant** dans le menu ou **Demander à l'assistant** en haut de n'importe quelle page. Il s'ouvre
+dans un panneau à côté de la page et reste ouvert quand vous changez de page ; sur téléphone, il occupe tout
+l'écran. Posez votre question en langage courant, par exemple :
 
 ![L'assistant, avec des suggestions de questions](images/fr-assistant.jpg)
 
@@ -222,6 +223,11 @@ que votre rôle ne permet pas sont grisées. Il peut préparer des modifications
 restaurer), de tâches, de jalons, de dépenses (ajouter, annuler), de déplacements, de prix du carburant et de
 notifications, ainsi que de nouveaux projets et des mouvements de stock (voir Stock). Il ne peut pas supprimer de
 projets ni de déplacements, gérer les membres ni joindre de fichiers : faites-le dans l'application.
+
+Vos conversations sont enregistrées et vous seul pouvez les voir. Sélectionnez l'icône d'horloge en haut du panneau
+pour les rouvrir ou les supprimer, ou **+** pour en commencer une nouvelle. Chacune est supprimée 90 jours après son
+dernier message (votre administrateur peut changer ce délai). Les brouillons non confirmés ne sont pas conservés
+lorsque la page est rechargée : redemandez-les.
 
 L'assistant ne vous aide que pour votre travail dans l'application. À toute autre demande, y compris la simple
 conversation, il répond « Désolé, je ne peux pas répondre à cela. Puis-je vous aider avec autre chose ? » dans la

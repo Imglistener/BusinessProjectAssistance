@@ -137,7 +137,7 @@ On a non-SQLite database it asks for `--yes` first.
 ## AI assistant
 
 Set `GROQ_API_KEY` in `.env` (server-side only) and restart the backend; without it the
-Assistant page says it isn't set up and everything else works normally.
+assistant says it isn't set up and everything else works normally.
 
 To use Google Gemini instead, create a key at https://aistudio.google.com/apikey, then in `.env` set
 `AI_PROVIDER=gemini` and `GEMINI_API_KEY=...` and restart the backend. `AI_MODEL` left empty means
@@ -145,15 +145,17 @@ To use Google Gemini instead, create a key at https://aistudio.google.com/apikey
 limits are shown at https://aistudio.google.com/rate-limit. On Google's free tier, prompts (which include
 your organization's figures) may be used to improve Google's products; a paid tier avoids that.
 
-- `POST /api/ai/chat` with `{organization_id, message, project_id?, history?}` returns
-  `{answer, tool_trace, ai_generated}`.
+- `POST /api/ai/chat` with `{organization_id, message, project_id?, conversation_id?}` returns
+  `{answer, tool_trace, ai_generated, conversation}` and saves the turn. `GET`/`DELETE /api/ai/conversations[/id]`
+  list, read and delete the caller's own conversations.
 - The model can only call the read-only tools in `backend/app/services/ai_tools.py`; each one
   re-checks organization membership and project access. All figures come from `metrics.py`.
 - Provider code is in `ai_provider.py` (Groq and Gemini, both through the OpenAI chat format); add
   another provider there.
 - Limits: monthly USD cap (`AI_MONTHLY_COST_CAP_USD`, priced with `AI_*_PRICE_PER_MTOK_USD`),
   per-user rate limit and a timeout. Each request logs token counts and cost in `ai_usage`;
-  question and answer text are not stored on the server.
+  question and answer text are kept only in the author's saved
+  conversations, deleted after `AI_CONVERSATION_RETENTION_DAYS` (90) without activity.
 
 Check the assistant against known answers (needs `demo-data` and an AI key; about 3 minutes, a few
 thousand tokens per question, counted against the monthly cap):

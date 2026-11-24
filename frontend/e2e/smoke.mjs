@@ -189,11 +189,15 @@ await step("notifications: badge and page", async () => {
   await page.waitForSelector(".note");
 });
 
-await step("members and assistant pages load", async () => {
+await step("members page loads; the assistant panel opens and stays open across pages", async () => {
   await page.click("text=Members");
   await page.waitForSelector("#members-heading");
-  await page.click("text=Assistant");
-  await page.waitForSelector("text=Try one of these");
+  await page.locator("[data-sidebar=menu-button]", { hasText: "Assistant" }).click();
+  await page.waitForSelector("aside.assistant-panel >> text=Try one of these");
+  await page.click("text=Notifications");
+  await page.waitForSelector(".note");
+  if (!(await page.locator("aside.assistant-panel").isVisible())) throw new Error("panel closed on navigation");
+  await page.getByRole("button", { name: "Close the assistant" }).click();
 });
 
 await browser.close();

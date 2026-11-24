@@ -1,7 +1,7 @@
 """Assistant orchestration: prompt, tool loop, usage limits.
 
-Conversations are not stored server-side: the client sends recent turns with each question
-(retention policy still open, see docs/open-items.md). Only usage metadata is recorded.
+This module stores no conversation text: it is given the earlier turns, and ai_conversations.py saves the result.
+Usage rows hold metadata only.
 """
 from __future__ import annotations
 
