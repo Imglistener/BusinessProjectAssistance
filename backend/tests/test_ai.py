@@ -641,7 +641,17 @@ def test_prompt_carries_the_refusal_in_the_detected_language(client, fake):
 
 def test_a_refusal_carries_no_drafts_or_sources(client, fake):
     h, org_id, _ = setup(client)
-    fake(call("list_projects"), say("I looked around. " + ai_chat.REFUSALS["English"]))
+    fake(call("list_projects"), say(ai_chat.REFUSALS["English"]))
     body = ask(client, h, org_id, message="Tell me a joke").get_json()
     assert body["answer"] == ai_chat.REFUSALS["English"]
     assert body["tool_trace"] == [] and body["action_proposals"] == [] and body["stock_proposals"] == []
+
+
+def test_a_short_answer_from_tools_survives_an_appended_refusal(client, fake):
+    h, org_id, _ = setup(client)
+    en = ai_chat.REFUSALS["English"]
+    fake(call("calculate", expression="3600 * 0.2"), say(f"720 MAD. {en}"))
+    r = ask(client, h, org_id, message="What is 20% of 3600?").get_json()
+    assert r["answer"].startswith("720 MAD") and r["tool_trace"]
+    fake(say(f"Hmm. {en}"))
+    assert ask(client, h, org_id, message="Tell me a joke, what is it?").get_json()["answer"] == en
