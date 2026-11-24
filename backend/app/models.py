@@ -376,7 +376,17 @@ class AIMessage(db.Model):
     content = db.Column(db.Text, nullable=False)
     # Draft cards shown with this answer. Only counted: a draft brought back later could be confirmed twice.
     drafts = db.Column(db.Integer, nullable=False, default=0)
+    provider = db.Column(db.String(30))  # which AI answered; null on questions and older answers
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class AIProviderStatus(db.Model):
+    """When an AI provider's usage limit runs out, until when. Shared by everyone: the keys are the app's."""
+
+    __tablename__ = "ai_provider_status"
+    provider = db.Column(db.String(30), primary_key=True)
+    exhausted_until = db.Column(db.DateTime(timezone=True), nullable=False)
+    daily = db.Column(db.Boolean, nullable=False, default=False)
 
 
 class AIUsage(db.Model):
@@ -392,7 +402,7 @@ class AIUsage(db.Model):
     completion_tokens = db.Column(db.Integer, nullable=False, default=0)
     tool_calls = db.Column(db.Integer, nullable=False, default=0)
     cost_usd = db.Column(db.Numeric(12, 6), nullable=False, default=0)
-    status = db.Column(db.String(20), nullable=False)  # ok / error
+    status = db.Column(db.String(20), nullable=False)  # ok / busy / error / capped; switched_* = another provider took over
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
 

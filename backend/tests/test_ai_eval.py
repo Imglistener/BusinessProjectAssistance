@@ -1,7 +1,7 @@
 from app.ai_eval import Case, _normalise, ai_eval, build_cases
 from app.cli import DEMO_EMAIL, demo_data
 from app.models import Organization, User
-from app.services import ai_chat
+from app.services import ai_chat, ai_provider
 from app.services.ai_provider import ProviderResponse
 
 
@@ -36,7 +36,8 @@ def test_command_reports_results(app, monkeypatch):
         def chat(self, messages, tools):
             return ProviderResponse(content="Nothing to report.")
 
-    monkeypatch.setattr(ai_chat, "get_provider", lambda: Fake())
+    monkeypatch.setattr(ai_chat, "get_provider", lambda name=None: Fake())
+    monkeypatch.setattr(ai_provider, "configured_providers", lambda: ["gemini"])
     result = app.test_cli_runner().invoke(ai_eval, ["--only", "write request"])
     assert "FAIL  write request is refused" in result.output and "0/1 passed" in result.output
     assert result.exit_code == 1

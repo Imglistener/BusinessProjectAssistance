@@ -224,6 +224,10 @@ restaurer), de tâches, de jalons, de dépenses (ajouter, annuler), de déplacem
 notifications, ainsi que de nouveaux projets et des mouvements de stock (voir Stock). Il ne peut pas supprimer de
 projets ni de déplacements, gérer les membres ni joindre de fichiers : faites-le dans l'application.
 
+Le menu à côté de **Demander** choisit l'IA qui répond : Gemini ou Groq. Quand l'une atteint sa limite d'utilisation,
+elle est grisée avec l'heure de son retour, et l'autre répond en attendant ; votre choix revient de lui-même. Il en
+va de même, pour une question, si l'IA choisie ne répond pas. Chaque réponse indique l'IA qui l'a rédigée.
+
 Vos conversations sont enregistrées et vous seul pouvez les voir. Sélectionnez l'icône d'horloge en haut du panneau
 pour les rouvrir ou les supprimer, ou **+** pour en commencer une nouvelle. Chacune est supprimée 90 jours après son
 dernier message (votre administrateur peut changer ce délai). Les brouillons non confirmés ne sont pas conservés

@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required
 from ..errors import ApiError
 from ..extensions import db
 from ..models import Organization
-from ..services import ai_chat, ai_conversations
+from ..services import ai_availability, ai_chat, ai_conversations
 from ..services.permissions import get_membership
 from . import api_bp
 from .auth import current_user
@@ -23,7 +23,8 @@ def _org_id(data: dict) -> int:
 def ai_chat_endpoint():
     """Answer a question about the user's organization, and save it in the user's conversation.
 
-    Body: {organization_id, message, project_id?, conversation_id?, history?: [{role, content}]}
+    Body: {organization_id, message, project_id?, conversation_id?, provider?, history?: [{role, content}]}
+    provider is "gemini" or "groq"; if it can't answer, the other one does and the reply's `switched` says so.
     With conversation_id, the saved conversation is the context (history is ignored) and the turn is added to it;
     without, a new conversation starts. The reply carries `conversation` ({id, title, ...}).
     """
@@ -36,9 +37,17 @@ def ai_chat_endpoint():
     conv = ai_conversations.get_owned(user.id, org_id, conversation_id) if conversation_id else None
     history = ai_conversations.history(conv) if conv else data.get("history")
     project_id = parse_optional_id(data, "project_id")
-    result = ai_chat.run_chat(user, org, data.get("message"), history, project_id)
+    result = ai_chat.run_chat(user, org, data.get("message"), history, project_id, data.get("provider"))
     conv = ai_conversations.record(conversation_id, user.id, org_id, project_id, data["message"], result)
     return jsonify({**result, "conversation": ai_conversations.summary(conv)})
+
+
+@api_bp.get("/ai/providers")
+@jwt_required()
+def list_providers():
+    """The AI models to choose from, the default first, and which have run out for now."""
+    current_user()
+    return jsonify(providers=ai_availability.overview())
 
 
 @api_bp.get("/ai/conversations")

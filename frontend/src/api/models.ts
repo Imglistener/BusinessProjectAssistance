@@ -381,6 +381,22 @@ export interface ChatReply {
   ai_generated: true;
   /** The saved conversation this answer was added to (a new one when none was given). */
   conversation: ConversationSummary;
+  /** Which AI answered. */
+  provider: string;
+  /** Set when another one than asked for answered: its limit was reached, or it failed. */
+  switched: { from: string; reason: "limit" | "error" } | null;
+  providers: AIProviderInfo[];
+}
+
+/** An AI the assistant can use. Limits belong to the app's keys, so they run out for everyone at once. */
+export interface AIProviderInfo {
+  id: string;
+  label: string;
+  model: string;
+  available: boolean;
+  /** When its limit resets, if it has run out. */
+  available_at: string | null;
+  daily: boolean;
 }
 
 /** A saved assistant conversation; private to the person who had it. */
@@ -398,6 +414,7 @@ export interface ConversationDetail extends ConversationSummary {
     content: string;
     /** Draft cards the answer showed. Only counted: drafts aren't kept, so they can't be confirmed twice. */
     drafts: number;
+    provider: string | null;
     created_at: string;
   }[];
 }

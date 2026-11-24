@@ -897,6 +897,14 @@ const ar: Dictionary = {
   "Delete all conversations": "حذف كل المحادثات",
   "Couldn't load the conversation.": "تعذّر تحميل المحادثة.",
   "That conversation no longer exists. Send your question again to start a new one.": "لم تعد هذه المحادثة موجودة. أرسل سؤالك مرة أخرى لبدء محادثة جديدة.",
+  "Your question and the project figures needed to answer it are sent to an external AI provider ({providers}). Answers are AI-generated and can be wrong: check important figures on the project page.": "يُرسل سؤالك وأرقام المشروع اللازمة للإجابة إلى مزوّد ذكاء اصطناعي خارجي ({providers}). الإجابات مولّدة بالذكاء الاصطناعي وقد تكون خاطئة: تحقّق من الأرقام المهمة في صفحة المشروع.",
+  "{from} has reached its usage limit, so {used} answered.": "بلغ {from} حدّ استعماله، لذلك أجاب {used}.",
+  "{from} couldn't answer, so {used} did.": "تعذّر على {from} الرد، لذلك أجاب {used}.",
+  "Daily limit reached. Back at {time}": "بلغ حدّ اليوم. يعود في {time}",
+  "Limit reached. Back at {time}": "بلغ الحدّ. يعود في {time}",
+  "Limit reached. Back in a moment": "بلغ الحدّ. يعود بعد لحظات",
+  "AI model: {name}": "نموذج الذكاء الاصطناعي: {name}",
+  "Answer with": "الإجابة باستخدام",
 };
 
 export default ar;

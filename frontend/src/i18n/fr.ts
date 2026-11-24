@@ -897,6 +897,14 @@ const fr: Dictionary = {
   "Delete all conversations": "Supprimer toutes les conversations",
   "Couldn't load the conversation.": "Impossible de charger la conversation.",
   "That conversation no longer exists. Send your question again to start a new one.": "Cette conversation n'existe plus. Renvoyez votre question pour en commencer une nouvelle.",
+  "Your question and the project figures needed to answer it are sent to an external AI provider ({providers}). Answers are AI-generated and can be wrong: check important figures on the project page.": "Votre question et les chiffres du projet nécessaires pour y répondre sont envoyés à un fournisseur d'IA externe ({providers}). Les réponses sont générées par IA et peuvent être fausses : vérifiez les chiffres importants sur la page du projet.",
+  "{from} has reached its usage limit, so {used} answered.": "{from} a atteint sa limite d'utilisation : {used} a répondu.",
+  "{from} couldn't answer, so {used} did.": "{from} n'a pas pu répondre : {used} l'a fait.",
+  "Daily limit reached. Back at {time}": "Limite du jour atteinte. De retour à {time}",
+  "Limit reached. Back at {time}": "Limite atteinte. De retour à {time}",
+  "Limit reached. Back in a moment": "Limite atteinte. De retour dans un instant",
+  "AI model: {name}": "Modèle d'IA : {name}",
+  "Answer with": "Répondre avec",
 };
 
 export default fr;

@@ -12,4 +12,5 @@ Approved decisions for the MVP. Open questions and conventions are in `docs/open
 | AI provider | Groq for now; OpenAI or Anthropic later. Monthly cost cap computed by the backend. |
 | Metric definitions | Spec Section 7 approved; check for possible errors later. |
 | AI defaults (2026-10-30) | Default pricing, app-wide cost cap, minimal data sent to the provider, no server-side conversation history (changed 2026-11-21, below). See `docs/open-items.md`. |
-| AI conversations (2026-11-21) | Saved on the server with history, and the assistant is a side panel. Retention of 90 days is a default, to confirm. |
+| AI conversations (2026-11-21) | Saved on the server with history, and the assistant is a side panel. Kept 90 days after the last message (confirmed 2026-11-24). |
+| AI choice (2026-11-24) | People choose Gemini or Groq in the assistant; an exhausted one is greyed out and the other takes over. Paid plan when the app is deployed commercially. |

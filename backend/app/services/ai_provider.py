@@ -18,9 +18,14 @@ class ProviderError(Exception):
 class ProviderRateLimited(ProviderError):
     """The provider's own usage limit (requests or tokens per minute, or per day) was hit."""
 
-    def __init__(self, message: str, daily: bool = False):
+    def __init__(self, message: str, daily: bool = False, retry_after: Optional[float] = None):
         super().__init__(message)
         self.daily = daily
+        self.retry_after = retry_after  # seconds, when the provider said
+
+
+class ProviderTooLarge(ProviderError):
+    """The question with its history and data is more than the provider takes in one request (or one minute)."""
 
 
 # Per-minute limits: wait for the provider's retry delay if it's this short (Gemini free tier asks for 20-60s);
@@ -33,6 +38,9 @@ MAX_TOTAL_WAIT_SECONDS = 90
 TRANSIENT_STATUSES = {500, 502, 503, 504}
 TRANSIENT_DELAYS_SECONDS = (2, 5, 10)
 MAX_RATE_LIMIT_WAITS = 2
+# When another provider can take over, only short pauses are worth it: a longer wait switches instead.
+SWITCH_WAIT_SECONDS = 20
+SWITCH_TOTAL_WAIT_SECONDS = 25
 
 
 class ProviderNotConfigured(Exception):
@@ -73,17 +81,18 @@ class OpenAICompatibleProvider:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.waited = 0.0  # seconds spent waiting on retries, across this question's calls
+        self.has_backup = False  # another provider can take over, so give up sooner
 
     def _sleep(self, seconds: float) -> bool:
         """Wait before a retry if the question's wait budget allows it."""
-        if self.waited + seconds > MAX_TOTAL_WAIT_SECONDS:
+        if self.waited + seconds > (SWITCH_TOTAL_WAIT_SECONDS if self.has_backup else MAX_TOTAL_WAIT_SECONDS):
             return False
         self.waited += seconds
         time.sleep(seconds)
         return True
 
     def _transient_wait(self, retries_so_far: int) -> bool:
-        if retries_so_far >= len(TRANSIENT_DELAYS_SECONDS):
+        if retries_so_far >= (1 if self.has_backup else len(TRANSIENT_DELAYS_SECONDS)):
             return False
         return self._sleep(TRANSIENT_DELAYS_SECONDS[retries_so_far])
 
@@ -107,7 +116,7 @@ class OpenAICompatibleProvider:
                 )
             except requests.Timeout as e:  # before ConnectionError: a connect timeout is both
                 timeouts += 1
-                if timeouts > 1 or not self._sleep(TRANSIENT_DELAYS_SECONDS[0]):
+                if timeouts > 1 or self.has_backup or not self._sleep(TRANSIENT_DELAYS_SECONDS[0]):
                     raise ProviderError(f"request failed: {type(e).__name__}") from e
                 continue
             except requests.ConnectionError as e:
@@ -118,22 +127,24 @@ class OpenAICompatibleProvider:
             except requests.RequestException as e:
                 raise ProviderError(f"request failed: {type(e).__name__}") from e
             if r.status_code == 429:
-                if _is_daily_quota(r):
-                    raise ProviderRateLimited("provider daily quota used up (HTTP 429)", daily=True)
                 wait = _retry_after(r)
+                if _is_daily_quota(r):
+                    raise ProviderRateLimited("provider daily quota used up (HTTP 429)", daily=True, retry_after=wait)
                 limited += 1
                 if (
                     wait is None
                     or limited > MAX_RATE_LIMIT_WAITS
-                    or wait > MAX_RETRY_WAIT_SECONDS
+                    or wait > (SWITCH_WAIT_SECONDS if self.has_backup else MAX_RETRY_WAIT_SECONDS)
                     or not self._sleep(wait + 0.5)
                 ):
-                    raise ProviderRateLimited("provider returned HTTP 429")
+                    raise ProviderRateLimited("provider returned HTTP 429", retry_after=wait)
                 continue
             if r.status_code in TRANSIENT_STATUSES and self._transient_wait(transient):
                 transient += 1
                 continue
             break
+        if r.status_code == 413:
+            raise ProviderTooLarge("provider returned HTTP 413")
         if r.status_code != 200:
             # Status only: provider error bodies can echo the prompt back.
             raise ProviderError(f"provider returned HTTP {r.status_code}")
@@ -245,25 +256,43 @@ def _retry_after(r) -> Optional[float]:
 
 
 def _is_daily_quota(r) -> bool:
-    """Gemini names the quota that ran out; a per-day one won't come back by waiting a minute."""
+    """The provider names the quota that ran out; a per-day one won't come back by waiting a minute."""
     for d in _error_details(r):
         for v in d.get("violations") or []:
             if isinstance(v, dict) and "perday" in str(v.get("quotaId", "")).lower():
                 return True
-    return False
+    # Groq says it in the message: "... on tokens per day (TPD): ...".
+    try:
+        message = r.json()["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        return False
+    return isinstance(message, str) and " per day" in message
 
 
-def get_provider() -> AIProvider:
+LABELS = {"gemini": "Gemini", "groq": "Groq"}
+DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "groq": "openai/gpt-oss-120b"}
+
+
+def configured_providers() -> list[str]:
+    """Providers with a key, the default (AI_PROVIDER) first."""
     cfg = current_app.config
+    names = [n for n in LABELS if cfg[f"{n.upper()}_API_KEY"]]
+    return sorted(names, key=lambda n: n != cfg["AI_PROVIDER"])
+
+
+def model_for(name: str) -> str:
+    cfg = current_app.config
+    return cfg[f"{name.upper()}_MODEL"] or (cfg["AI_MODEL"] if name == cfg["AI_PROVIDER"] else "") or DEFAULT_MODELS[name]
+
+
+def get_provider(name: Optional[str] = None) -> AIProvider:
+    cfg = current_app.config
+    name = name or cfg["AI_PROVIDER"]
     timeout = cfg["AI_REQUEST_TIMEOUT_SECONDS"]
-    if cfg["AI_PROVIDER"] == "groq":
-        if not cfg["GROQ_API_KEY"]:
-            raise ProviderNotConfigured()
-        return GroqProvider(cfg["GROQ_API_KEY"], cfg["AI_MODEL"], cfg["GROQ_BASE_URL"], timeout)
-    if cfg["AI_PROVIDER"] == "gemini":
-        if not cfg["GEMINI_API_KEY"]:
-            raise ProviderNotConfigured()
+    if name == "groq" and cfg["GROQ_API_KEY"]:
+        return GroqProvider(cfg["GROQ_API_KEY"], model_for(name), cfg["GROQ_BASE_URL"], timeout)
+    if name == "gemini" and cfg["GEMINI_API_KEY"]:
         return GeminiProvider(
-            cfg["GEMINI_API_KEY"], cfg["AI_MODEL"], cfg["GEMINI_BASE_URL"], timeout, cfg["AI_REASONING_EFFORT"] or "low"
+            cfg["GEMINI_API_KEY"], model_for(name), cfg["GEMINI_BASE_URL"], timeout, cfg["AI_REASONING_EFFORT"] or "low"
         )
     raise ProviderNotConfigured()

@@ -7,7 +7,7 @@ import requests
 
 from app.extensions import db
 from app.models import AIUsage, ExpenseStatus, Role, Task, TaskStatus
-from app.services import ai_chat, ai_tools
+from app.services import ai_chat, ai_provider, ai_tools
 from app.services.ai_provider import GeminiProvider, GroqProvider, ProviderError, ProviderResponse, ToolCall
 
 from .helpers import auth_headers
@@ -49,7 +49,8 @@ def fake(monkeypatch):
 
     def install(*responses):
         holder["p"] = FakeProvider(*responses)
-        monkeypatch.setattr(ai_chat, "get_provider", lambda: holder["p"])
+        monkeypatch.setattr(ai_chat, "get_provider", lambda name=None: holder["p"])
+        monkeypatch.setattr(ai_provider, "configured_providers", lambda: ["gemini"])
         return holder["p"]
 
     return install

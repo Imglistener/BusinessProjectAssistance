@@ -12,6 +12,7 @@ import { StockProposal } from "../components/StockProposal";
 import { getLocale, t } from "../i18n";
 import { tx } from "../i18n/rich";
 import { errorMessage } from "../lib/errors";
+import { ModelPicker } from "./ModelPicker";
 import { useAssistant, type ChatMessage } from "./AssistantContext";
 
 /** What each tool's result means to a person reading the answer. */
@@ -88,7 +89,8 @@ export function AssistantPanel() {
   if (!user) return null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === "Escape") a.setOpen(false);
+    // Menus and dialogs opened from the panel are portals: their Escape bubbles here but is theirs.
+    if (e.key === "Escape" && e.currentTarget.contains(e.target as Node)) a.setOpen(false);
   };
 
   return (
@@ -278,19 +280,28 @@ function Chat({ org, visible }: { org: Organization; visible: boolean }) {
           onChange={(e) => a.setInput(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <button type="submit" className="btn btn--primary" disabled={a.busy || a.loading || !a.input.trim()}>
-          {t("Ask")}
-        </button>
+        <div className="composer__bar">
+          <ModelPicker />
+          <button type="submit" className="btn btn--primary" disabled={a.busy || a.loading || !a.input.trim()}>
+            {t("Ask")}
+          </button>
+        </div>
       </form>
 
       <p className="chat__disclosure">
-        {t("Your question and the project figures needed to answer it are sent to an external AI provider. Answers are AI-generated and can be wrong: check important figures on the project page.")}
+        {a.providers.length > 0
+          ? t("Your question and the project figures needed to answer it are sent to an external AI provider ({providers}). Answers are AI-generated and can be wrong: check important figures on the project page.", {
+              providers: a.providers.map((p) => p.label).join(t(", ")),
+            })
+          : t("Your question and the project figures needed to answer it are sent to an external AI provider. Answers are AI-generated and can be wrong: check important figures on the project page.")}
       </p>
     </section>
   );
 }
 
 function AssistantMessage({ message, org }: { message: ChatMessage; org: Organization }) {
+  const { providers } = useAssistant();
+  const label = (id: string) => providers.find((p) => p.id === id)?.label ?? id;
   const [copied, setCopied] = useState(false);
   const sources = [...new Set((message.trace ?? []).filter((x) => x.ok).map((x) => TOOL_LABEL[x.tool] ?? x.tool))];
 
@@ -308,7 +319,18 @@ function AssistantMessage({ message, org }: { message: ChatMessage; org: Organiz
     <article className="bubble bubble--ai">
       <p className="bubble__label">
         <span className="tag">{t("AI-generated")}</span>
+        {message.provider && <span className="bubble__provider">{label(message.provider)}</span>}
       </p>
+      {message.switched && message.provider && (
+        <p className="chat__draft-note" role="status">
+          {t(
+            message.switched.reason === "limit"
+              ? "{from} has reached its usage limit, so {used} answered."
+              : "{from} couldn't answer, so {used} did.",
+            { from: label(message.switched.from), used: label(message.provider) },
+          )}
+        </p>
+      )}
       <RichText text={message.content} />
       {message.restored && (message.drafts ?? 0) > 0 && (
         <p className="chat__draft-note">

@@ -145,7 +145,7 @@ To use Google Gemini instead, create a key at https://aistudio.google.com/apikey
 limits are shown at https://aistudio.google.com/rate-limit. On Google's free tier, prompts (which include
 your organization's figures) may be used to improve Google's products; a paid tier avoids that.
 
-- `POST /api/ai/chat` with `{organization_id, message, project_id?, conversation_id?}` returns
+- `POST /api/ai/chat` with `{organization_id, message, project_id?, conversation_id?, provider?}` returns
   `{answer, tool_trace, ai_generated, conversation}` and saves the turn. `GET`/`DELETE /api/ai/conversations[/id]`
   list, read and delete the caller's own conversations.
 - The model can only call the read-only tools in `backend/app/services/ai_tools.py`; each one

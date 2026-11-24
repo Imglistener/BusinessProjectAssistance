@@ -3545,3 +3545,60 @@ html[data-assistant] [data-slot="sidebar-inset"] {
 .header-links .link-btn {
   padding: 0;
 }
+
+/* Composer: the question on top, the model picker and Ask in the corner below it. */
+.assistant-panel .composer {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+.assistant-panel .composer textarea {
+  flex: none;
+}
+.composer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.assistant-panel .composer__bar .btn {
+  padding: 0.5rem 1.1rem;
+}
+.model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.model-picker svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+button.model-picker {
+  cursor: pointer;
+}
+button.model-picker:hover:not(:disabled),
+button.model-picker[data-state="open"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+button.model-picker:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+button.model-picker:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.bubble__provider {
+  margin-inline-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+}

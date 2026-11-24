@@ -88,7 +88,8 @@ def record(
     conv.updated_at = now
     drafts = sum(len(reply.get(k) or []) for k in ("proposals", "stock_proposals", "action_proposals"))
     db.session.add(AIMessage(conversation_id=conv.id, role="user", content=question.strip(), created_at=now))
-    db.session.add(AIMessage(conversation_id=conv.id, role="assistant", content=reply["answer"], drafts=drafts, created_at=now))
+    db.session.add(AIMessage(conversation_id=conv.id, role="assistant", content=reply["answer"], drafts=drafts,
+                             provider=reply.get("provider"), created_at=now))
     db.session.commit()
     return conv
 
@@ -107,7 +108,8 @@ def detail(conv: AIConversation) -> dict:
     return {
         **summary(conv),
         "messages": [
-            {"role": m.role, "content": m.content, "drafts": m.drafts, "created_at": _aware(m.created_at).isoformat()}
+            {"role": m.role, "content": m.content, "drafts": m.drafts, "provider": m.provider,
+             "created_at": _aware(m.created_at).isoformat()}
             for m in _messages(conv)
         ],
     }

@@ -127,7 +127,7 @@ def test_conversation_deleted_while_answering_starts_a_new_one(client, fake, mon
             db.session.commit()
             return say("Second.")
 
-    monkeypatch.setattr(ai_chat, "get_provider", DeletesMeanwhile)
+    monkeypatch.setattr(ai_chat, "get_provider", lambda name=None: DeletesMeanwhile())
     r = ask(client, h, org_id, conversation_id=conv_id)
     assert r.status_code == 200 and r.get_json()["answer"] == "Second."
     assert AIConversation.query.count() == 1 and AIMessage.query.count() == 2

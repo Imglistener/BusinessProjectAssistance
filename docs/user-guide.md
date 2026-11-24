@@ -202,6 +202,10 @@ Lines your role can't make are shown greyed out. It can draft changes to project
 tasks, milestones, expenses (add, void), trips, fuel prices and notifications, as well as new projects and stock
 changes (see Stock). It can't delete projects or trips, manage members or upload files: do those in the app.
 
+The menu beside **Ask** chooses the AI that answers: Gemini or Groq. When one reaches its usage limit it is greyed out
+with the time it's back, and the other answers meanwhile; your choice returns by itself. The same happens, for one
+question, if the chosen AI doesn't respond. Each answer shows which AI wrote it.
+
 Your conversations are saved, and only you can see them. Select the clock icon at the top of the panel to reopen or
 delete them, or **+** to start a new one. Each is deleted 90 days after its last message (your administrator can
 change this). Drafts you haven't confirmed aren't kept when the page is reloaded: ask again.

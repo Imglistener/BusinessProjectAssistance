@@ -43,13 +43,16 @@ class Config:
     # Frontend address used in emailed links.
     APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5173")
 
-    # "groq" or "gemini"; each has its own key, and AI_MODEL defaults to that provider's model.
+    # "groq" or "gemini": the one used unless a person picks the other in the assistant. Every provider with a key
+    # is offered. AI_MODEL is the model of AI_PROVIDER; GROQ_MODEL / GEMINI_MODEL set either one.
     AI_PROVIDER = (os.getenv("AI_PROVIDER") or "groq").strip().lower()
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
-    AI_MODEL = os.getenv("AI_MODEL") or {"gemini": "gemini-3.5-flash-lite"}.get(AI_PROVIDER, "openai/gpt-oss-120b")
+    AI_MODEL = os.getenv("AI_MODEL", "")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "")
     # Gemini only: minimal | low | medium | high. Thinking is billed as output and slows answers; default low.
     AI_REASONING_EFFORT = os.getenv("AI_REASONING_EFFORT", "")
     AI_REQUEST_TIMEOUT_SECONDS = int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "30"))
@@ -57,6 +60,11 @@ class Config:
     # USD per million tokens, used for the monthly cap. Check the provider's current price list.
     AI_INPUT_PRICE_PER_MTOK_USD = Decimal(os.getenv("AI_INPUT_PRICE_PER_MTOK_USD", "0.15"))
     AI_OUTPUT_PRICE_PER_MTOK_USD = Decimal(os.getenv("AI_OUTPUT_PRICE_PER_MTOK_USD", "0.75"))
+    # Per-provider prices, where they differ from the ones above.
+    GROQ_INPUT_PRICE_PER_MTOK_USD = os.getenv("GROQ_INPUT_PRICE_PER_MTOK_USD", "")
+    GROQ_OUTPUT_PRICE_PER_MTOK_USD = os.getenv("GROQ_OUTPUT_PRICE_PER_MTOK_USD", "")
+    GEMINI_INPUT_PRICE_PER_MTOK_USD = os.getenv("GEMINI_INPUT_PRICE_PER_MTOK_USD", "")
+    GEMINI_OUTPUT_PRICE_PER_MTOK_USD = os.getenv("GEMINI_OUTPUT_PRICE_PER_MTOK_USD", "")
     AI_MAX_TOOL_ROUNDS = int(os.getenv("AI_MAX_TOOL_ROUNDS", "8"))
     AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE", "10"))
     # Saved assistant conversations are deleted after this many days without a new message.

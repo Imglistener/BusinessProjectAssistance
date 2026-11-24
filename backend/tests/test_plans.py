@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 
 from app.models import AuditLog, Milestone, Project, Role, Task
-from app.services import ai_chat, ai_tools
+from app.services import ai_chat, ai_provider, ai_tools
 from app.services.ai_provider import ProviderResponse, ToolCall
 from app.services.plans import PlanError, validate_plan
 
@@ -70,7 +70,8 @@ def test_chat_returns_the_proposal(client, monkeypatch):
     h, org_id = make_org(client)
     call = ProviderResponse(content=None, tool_calls=[ToolCall("p1", "propose_project", json.dumps(PLAN))])
     provider = FakeProvider(call, ProviderResponse(content="Here's a draft plan."))
-    monkeypatch.setattr(ai_chat, "get_provider", lambda: provider)
+    monkeypatch.setattr(ai_chat, "get_provider", lambda name=None: provider)
+    monkeypatch.setattr(ai_provider, "configured_providers", lambda: ["gemini"])
     body = ask(client, h, org_id, message="Atlas Bank wants a 3-day retreat in Ifrane in March, 80k MAD.").get_json()
     assert [p["name"] for p in body["proposals"]] == ["Ifrane team retreat"]
     assert body["tool_trace"][0]["tool"] == "propose_project" and Project.query.count() == 0

@@ -197,7 +197,8 @@ def build_cases(org: Organization, user: User) -> list[Case]:
 @click.command("ai-eval")
 @click.option("--only", help="Run only cases whose name contains this text.")
 @click.option("--delay", default=20.0, show_default=True, help="Seconds between questions (provider rate limits).")
-def ai_eval(only: str | None, delay: float) -> None:
+@click.option("--provider", type=click.Choice(["gemini", "groq"]), help="AI to ask first (default: AI_PROVIDER).")
+def ai_eval(only: str | None, delay: float, provider: str | None) -> None:
     """Ask known-answer questions about the demo data and check the answers (uses the real AI provider)."""
     user = User.query.filter_by(email=DEMO_EMAIL).first()
     if user is None:
@@ -212,14 +213,14 @@ def ai_eval(only: str | None, delay: float) -> None:
         if i and delay:
             time.sleep(delay)
         try:
-            result = ai_chat.run_chat(user, org, case.question, [], projects.get(case.project_name))
+            result = ai_chat.run_chat(user, org, case.question, [], projects.get(case.project_name), provider)
         except Exception as e:  # report and keep going: one provider hiccup shouldn't hide the other results
             failures += 1
             click.echo(f"ERROR {case.name}: {getattr(e, 'message', e)}")
             continue
         problems = case.check(result["answer"], result["tool_trace"])
         failures += bool(problems)
-        click.echo(f"{'PASS ' if not problems else 'FAIL '} {case.name}")
+        click.echo(f"{'PASS ' if not problems else 'FAIL '} {case.name} ({result.get('provider')})")
         for p in problems:
             click.echo(f"        - {p}")
         if problems:

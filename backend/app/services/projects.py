@@ -15,12 +15,15 @@ from .notifications import members_with_roles, notify
 from .permissions import get_membership
 
 
-def org_today(tz_name: str) -> date:
+def org_tz(tz_name: str) -> ZoneInfo:
     try:
-        tz = ZoneInfo(tz_name)
+        return ZoneInfo(tz_name)
     except (ZoneInfoNotFoundError, ValueError):
-        tz = ZoneInfo("UTC")
-    return datetime.now(tz).date()
+        return ZoneInfo("UTC")
+
+
+def org_today(tz_name: str) -> date:
+    return datetime.now(org_tz(tz_name)).date()
 
 
 def get_project_for_user(project_id: int, user_id: int):

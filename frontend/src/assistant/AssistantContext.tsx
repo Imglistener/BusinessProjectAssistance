@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiError, api } from "../api/client";
 import type {
   ActionDraft,
+  AIProviderInfo,
   ChatReply,
   ConversationDetail,
   Project,
@@ -29,6 +30,8 @@ export interface ChatMessage {
   /** Reopened from history: tool sources weren't kept, and drafts are only counted. */
   restored?: boolean;
   drafts?: number;
+  provider?: string | null;
+  switched?: ChatReply["switched"];
 }
 
 interface AssistantState {
@@ -44,6 +47,11 @@ interface AssistantState {
   input: string;
   projectId: string;
   projects: Project[];
+  /** The AIs to choose from, the default first. */
+  providers: AIProviderInfo[];
+  /** The one the next question goes to: the person's choice, or another while that one's limit is reached. */
+  provider: AIProviderInfo | null;
+  setProvider(id: string): void;
   setOpen(open: boolean): void;
   toggle(): void;
   setWide(wide: boolean): void;
@@ -63,6 +71,9 @@ const AssistantContext = createContext<AssistantState | null>(null);
 
 const OPEN_KEY = "bpa.assistant.open";
 const WIDE_KEY = "bpa.assistant.wide";
+const PROVIDER_KEY = "bpa.assistant.provider";
+// Longest delay setTimeout takes (about 24 days); limits reset long before.
+const MAX_TIMER_MS = 2 ** 31 - 1;
 const convKey = (orgId: number) => `bpa.assistant.conversation.${orgId}`;
 
 function read(key: string): string | null {
@@ -98,6 +109,16 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   const [input, setInput] = useState("");
   const [projectId, setProjectId] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [providers, setProviders] = useState<AIProviderInfo[]>([]);
+  const [choice, setChoice] = useState<string | null>(() => read(PROVIDER_KEY));
+  const provider = useMemo(() => {
+    const chosen = providers.find((p) => p.id === choice) ?? providers[0] ?? null;
+    return chosen?.available ? chosen : (providers.find((p) => p.available) ?? chosen);
+  }, [providers, choice]);
+  const setProvider = useCallback((id: string) => {
+    setChoice(id);
+    write(PROVIDER_KEY, id);
+  }, []);
   // Replies or loads that arrive after the user moved on (another conversation or organization) are dropped.
   const generation = useRef(0);
   // openWith() before the organization is known (a link opened on a fresh page load): applied once it is.
@@ -141,7 +162,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         const r = await api<{ conversation: ConversationDetail }>(`/ai/conversations/${id}?organization_id=${orgId}`);
         if (gen !== generation.current) return;
         const c = r.conversation;
-        setMessages(c.messages.map((m) => ({ role: m.role, content: m.content, restored: true, drafts: m.drafts })));
+        setMessages(c.messages.map((m) => ({ role: m.role, content: m.content, restored: true, drafts: m.drafts, provider: m.provider })));
         setProjectId(c.project_id ? String(c.project_id) : "");
         remember(c.id);
       } catch (e) {
@@ -189,6 +210,25 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       alive = false;
     };
   }, [open, orgId]);
+
+  const loadProviders = useCallback(
+    () =>
+      api<{ providers: AIProviderInfo[] }>("/ai/providers")
+        .then((r) => setProviders(r.providers))
+        .catch(() => undefined), // the picker keeps what it had
+    [],
+  );
+  useEffect(() => {
+    if (open && orgId !== null) void loadProviders();
+  }, [open, orgId, loadProviders]);
+  // Offer an exhausted one again as soon as its limit resets.
+  useEffect(() => {
+    const resets = providers.filter((p) => p.available_at).map((p) => Date.parse(p.available_at!));
+    if (!open || resets.length === 0) return;
+    const delay = Math.min(Math.max(Math.min(...resets) - Date.now() + 1000, 1000), MAX_TIMER_MS);
+    const timer = window.setTimeout(() => void loadProviders(), delay);
+    return () => window.clearTimeout(timer);
+  }, [open, providers, loadProviders]);
 
   const newConversation = useCallback(() => {
     reset();
@@ -245,8 +285,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             message: question,
             project_id: projectId ? Number(projectId) : null,
             conversation_id: conversationId,
+            provider: provider?.id ?? null,
           },
         });
+        setProviders(r.providers);
         if (gen !== generation.current) return; // saved; it shows up in history
         remember(r.conversation.id);
         setMessages((m) => [
@@ -258,9 +300,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             proposals: r.proposals ?? [],
             stockProposals: r.stock_proposals ?? [],
             actionProposals: r.action_proposals ?? [],
+            provider: r.provider,
+            switched: r.switched,
           },
         ]);
       } catch (e) {
+        if (e instanceof ApiError && Array.isArray(e.details?.providers)) setProviders(e.details.providers as AIProviderInfo[]);
         if (gen !== generation.current) return;
         // Put the question back so it isn't lost.
         setMessages((m) => m.slice(0, -1));
@@ -281,7 +326,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         if (gen === generation.current) setBusy(false);
       }
     },
-    [busy, loading, orgId, projectId, conversationId, remember],
+    [busy, loading, orgId, projectId, conversationId, provider, remember],
   );
 
   const forget = useCallback(
@@ -307,6 +352,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       input,
       projectId,
       projects,
+      providers,
+      provider,
+      setProvider,
       setOpen,
       toggle: () => setOpen(!open),
       setWide,
@@ -319,7 +367,8 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       openConversation,
       forget,
     }),
-    [open, wide, view, conversationId, messages, loading, busy, error, input, projectId, projects, setOpen, setWide,
+    [open, wide, view, conversationId, messages, loading, busy, error, input, projectId, projects, providers, provider,
+      setProvider, setOpen, setWide,
       openWith, send, newConversation, openConversation, forget],
   );
 

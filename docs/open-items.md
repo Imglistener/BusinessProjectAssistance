@@ -261,8 +261,8 @@
 ## Saved conversations and side panel (implemented, to confirm)
 - The assistant is a side panel over every signed-in page; `/app/assistant` links open it. It stays mounted while
   moving around, so a question in progress and draft cards aren't lost.
-- Questions and answers are saved per person and organization, visible only to their author. **To confirm:** kept
-  90 days after the last message (`AI_CONVERSATION_RETENTION_DAYS`), removed hourly by the server or with
+- Questions and answers are saved per person and organization, visible only to their author. Kept
+  90 days after the last message (`AI_CONVERSATION_RETENTION_DAYS`; confirmed by the user 2026-11-24), removed hourly by the server or with
   `flask --app wsgi ai-purge-conversations`. Also deleted when the author leaves the organization, when the project
   a conversation was last about is deleted, or by the author (one or all).
 - Draft cards are not saved, only counted: one brought back later could be confirmed twice.
@@ -274,3 +274,12 @@
   has no Retry-After header, so the wait is read from the body (up to 60 s, 90 s of waiting per question).
 - Gemini also answers 503 (overloaded) at times: retried after 2, 5 and 10 s. Timeouts are retried once.
 - A paid tier is the lasting fix.
+
+## Choosing the AI (implemented)
+- Every provider with a key is offered (`GEMINI_API_KEY`, `GROQ_API_KEY`); `AI_PROVIDER` is the default. The choice
+  is kept in the browser. Models: `GEMINI_MODEL`, `GROQ_MODEL` (`AI_MODEL` is the default provider's).
+- Limits belong to the app's keys, so a provider runs out for everyone at once (`ai_provider_status`). Waits up to
+  20 s are sat out; longer ones switch, restarting the question with the other provider (tools only read and draft).
+  Outages switch too, without greying out. A draft already made is shown instead of being redone.
+- Groq's free tier (8,000 tokens a minute) fits one or two lookups: longer questions usually switch to Gemini.
+- Prices for the monthly cap can differ: `GROQ_*_PRICE_PER_MTOK_USD`, `GEMINI_*_PRICE_PER_MTOK_USD`.

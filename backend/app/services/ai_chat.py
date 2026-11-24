@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Optional
 
 from flask import current_app
 from sqlalchemy import func
@@ -17,9 +19,16 @@ from ..errors import ApiError
 from ..extensions import db
 from ..i18n import request_lang, translate
 from ..models import AIUsage, Organization, User, utcnow
-from . import ai_tools
+from . import ai_availability, ai_tools
 from . import projects as svc
-from .ai_provider import ProviderError, ProviderNotConfigured, ProviderRateLimited, ProviderResponse, get_provider
+from .ai_provider import (
+    AIProvider,
+    ProviderError,
+    ProviderRateLimited,
+    ProviderResponse,
+    ProviderTooLarge,
+    get_provider,
+)
 
 MAX_QUESTION_CHARS = 2000
 MAX_HISTORY_TURNS = 12
@@ -35,6 +44,7 @@ FINAL_ROUND = (
 DRAFT_READY = "The draft is below. Check it, then confirm. Nothing has changed yet."
 UNAVAILABLE = "The assistant isn't available right now. Try again in a moment; the rest of the app still works."
 BUSY = "The assistant is busy right now (the AI provider's usage limit). Try again in a minute."
+TOO_LONG = "This conversation is too long for the AI model. Start a new conversation, or choose another model."
 DAILY_QUOTA = "The assistant has used today's quota from the AI provider. Try again tomorrow; the rest of the app still works."
 
 SYSTEM_PROMPT = """You are the assistant inside a business project management app.
@@ -181,18 +191,24 @@ def month_to_date_cost() -> Decimal:
     return Decimal(str(total))
 
 
-def _cost(prompt_tokens: int, completion_tokens: int) -> Decimal:
+def _price(provider: str, kind: str) -> Decimal:
     cfg = current_app.config
+    own = cfg.get(f"{provider.upper()}_{kind}_PRICE_PER_MTOK_USD")
+    return Decimal(own) if own else cfg[f"AI_{kind}_PRICE_PER_MTOK_USD"]
+
+
+def _cost(provider: str, prompt_tokens: int, completion_tokens: int) -> Decimal:
     return (
-        Decimal(prompt_tokens) * cfg["AI_INPUT_PRICE_PER_MTOK_USD"]
-        + Decimal(completion_tokens) * cfg["AI_OUTPUT_PRICE_PER_MTOK_USD"]
+        Decimal(prompt_tokens) * _price(provider, "INPUT") + Decimal(completion_tokens) * _price(provider, "OUTPUT")
     ) / MILLION
 
 
 def _check_limits(user_id: int) -> None:
     cfg = current_app.config
     recent = AIUsage.query.filter(
-        AIUsage.user_id == user_id, AIUsage.created_at >= utcnow() - timedelta(minutes=1)
+        AIUsage.user_id == user_id,
+        AIUsage.created_at >= utcnow() - timedelta(minutes=1),
+        ~AIUsage.status.startswith("switched"),  # the same question, answered by another provider
     ).count()
     if recent >= cfg["AI_REQUESTS_PER_MINUTE"]:
         raise ApiError("rate_limited", "You're asking questions quickly. Wait a minute and try again.", 429)
@@ -222,7 +238,79 @@ def _localized_stock_draft(draft: dict) -> dict:
     return {**draft, "lines": [{**line, "error": translate(line["error"], lang)} for line in draft["lines"]]}
 
 
-def run_chat(user: User, org: Organization, question: str, history, project_id) -> dict:
+def _busy_message(back: Optional[datetime], now: datetime, tz_name: str) -> str:
+    """Every provider is out: say when the first one is back, in the organization's time."""
+    if back is None or back - now <= timedelta(minutes=2):
+        return BUSY
+    tz = svc.org_tz(tz_name)
+    local = back.astimezone(tz)
+    if local.date() != now.astimezone(tz).date():
+        return DAILY_QUOTA
+    return f"The assistant has reached its AI usage limits. It's back at {local:%H:%M}; the rest of the app still works."
+
+
+@dataclass
+class _Attempt:
+    """One provider's try at a question."""
+
+    status: str = "ok"  # ok / busy / error / capped
+    answer: Optional[str] = None
+    error: Optional[ProviderError] = None
+    trace: list[dict] = field(default_factory=list)
+    proposals: list[dict] = field(default_factory=list)
+    stock_proposals: list[dict] = field(default_factory=list)
+    action_proposals: list[dict] = field(default_factory=list)
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def has_draft(self) -> bool:
+        return bool(self.proposals or self.stock_proposals or self.action_proposals)
+
+
+def _attempt(provider: AIProvider, messages: list[dict], ctx: ai_tools.ToolContext, out: _Attempt) -> None:
+    """The tool loop. Tools only read and draft, so a failed attempt can be repeated with another provider."""
+    messages = list(messages)
+    tools = ai_tools.tool_definitions()
+    cap = current_app.config["AI_MONTHLY_COST_CAP_USD"]
+    rounds = current_app.config["AI_MAX_TOOL_ROUNDS"]
+    try:
+        for round_no in range(rounds + 1):
+            # Last round: no tools, so the model has to answer with what it has.
+            last = round_no == rounds
+            if last:
+                messages.append({"role": "system", "content": FINAL_ROUND})
+            resp = provider.chat(messages, None if last else tools)
+            out.prompt_tokens += resp.prompt_tokens
+            out.completion_tokens += resp.completion_tokens
+            if not resp.tool_calls:
+                out.answer = (resp.content or "").strip()
+                return
+            if month_to_date_cost() + _cost(provider.name, out.prompt_tokens, out.completion_tokens) >= cap:
+                out.status = "capped"
+                return
+            messages.append(_assistant_turn(resp))
+            for call in resp.tool_calls:
+                result, shown_args, ok = ai_tools.run_tool(ctx, call.name, call.arguments)
+                out.trace.append({"tool": call.name, "arguments": shown_args, "ok": ok})
+                if ok and call.name == "propose_project":
+                    out.proposals.append(result["proposal"])
+                if ok and call.name == "propose_stock_changes":
+                    out.stock_proposals.append(result["proposal"])
+                if ok and call.name == "propose_actions":
+                    out.action_proposals.append(result["proposal"])
+                messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
+    except ProviderRateLimited as e:
+        out.status, out.error = "busy", e
+        current_app.logger.warning("AI provider rate limit (%s): %s", provider.name, e)
+    except ProviderError as e:
+        out.status, out.error = "error", e
+        current_app.logger.warning("AI provider error (%s): %s", provider.name, e)  # no prompt or answer text in logs
+
+
+def run_chat(user: User, org: Organization, question: str, history, project_id, provider_id: Optional[str] = None) -> dict:
+    """Answer with the chosen provider (or the default). If its usage limit runs out or it fails, the next usable
+    one answers instead, and the reply says so."""
     question = question.strip() if isinstance(question, str) else ""
     if not question:
         raise ApiError("validation_error", "Type a question first.", 400, {"field": "message"})
@@ -240,9 +328,8 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
             raise ApiError("not_found", "Project not found.", 404)
         project_line = f'\nThe user is looking at project #{project.id} "{project.name}"; assume questions are about it.'
 
-    try:
-        provider = get_provider()
-    except ProviderNotConfigured:
+    names, configured = ai_availability.candidates(provider_id)
+    if not configured:
         raise ApiError("ai_not_configured", "The assistant isn't set up yet. Ask your administrator to add an AI key.", 503)
     _check_limits(user.id)
 
@@ -265,75 +352,49 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
         *turns,
         {"role": "user", "content": question},
     ]
-    tools = ai_tools.tool_definitions()
-    cap = current_app.config["AI_MONTHLY_COST_CAP_USD"]
-    rounds = current_app.config["AI_MAX_TOOL_ROUNDS"]
-    trace: list[dict] = []
-    proposals: list[dict] = []
-    stock_proposals: list[dict] = []
-    action_proposals: list[dict] = []
-    prompt_tokens = completion_tokens = 0
-    answer = None
-    status = "ok"
-    daily_quota = False
-
-    try:
-        for round_no in range(rounds + 1):
-            # Last round: no tools, so the model has to answer with what it has.
-            last = round_no == rounds
-            if last:
-                messages.append({"role": "system", "content": FINAL_ROUND})
-            resp = provider.chat(messages, None if last else tools)
-            prompt_tokens += resp.prompt_tokens
-            completion_tokens += resp.completion_tokens
-            if not resp.tool_calls:
-                answer = (resp.content or "").strip()
-                break
-            if month_to_date_cost() + _cost(prompt_tokens, completion_tokens) >= cap:
-                answer = None
-                status = "capped"
-                break
-            messages.append(_assistant_turn(resp))
-            for call in resp.tool_calls:
-                result, shown_args, ok = ai_tools.run_tool(ctx, call.name, call.arguments)
-                trace.append({"tool": call.name, "arguments": shown_args, "ok": ok})
-                if ok and call.name == "propose_project":
-                    proposals.append(result["proposal"])
-                if ok and call.name == "propose_stock_changes":
-                    stock_proposals.append(result["proposal"])
-                if ok and call.name == "propose_actions":
-                    action_proposals.append(result["proposal"])
-                messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(result)})
-    except ProviderRateLimited as e:
-        status = "busy"
-        daily_quota = e.daily
-        current_app.logger.warning("AI provider rate limit: %s", e)
-    except ProviderError as e:
-        status = "error"
-        current_app.logger.warning("AI provider error: %s", e)  # no prompt or answer text in logs
-    finally:
-        db.session.add(
-            AIUsage(
-                user_id=user.id,
-                organization_id=org.id,
-                provider=provider.name,
-                model=provider.model,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                tool_calls=len(trace),
-                cost_usd=_cost(prompt_tokens, completion_tokens),
-                status=status,
+    user_id, org_id = user.id, org.id
+    first_choice = provider_id if provider_id in configured else configured[0]
+    attempt, used, reason = _Attempt(status="busy"), None, None if first_choice in names else "limit"
+    for i, name in enumerate(names):
+        provider = get_provider(name)
+        provider.has_backup = i + 1 < len(names)
+        attempt, used = _Attempt(), name
+        try:
+            _attempt(provider, messages, ctx, attempt)
+        finally:
+            failed = attempt.status in ("busy", "error")
+            switching = failed and provider.has_backup and not attempt.has_draft
+            db.session.add(
+                AIUsage(
+                    user_id=user_id,
+                    organization_id=org_id,
+                    provider=provider.name,
+                    model=provider.model,
+                    prompt_tokens=attempt.prompt_tokens,
+                    completion_tokens=attempt.completion_tokens,
+                    tool_calls=len(attempt.trace),
+                    cost_usd=_cost(provider.name, attempt.prompt_tokens, attempt.completion_tokens),
+                    status=f"switched_{attempt.status}" if switching else attempt.status,
+                )
             )
-        )
-        db.session.commit()
+            db.session.commit()
+        if isinstance(attempt.error, ProviderRateLimited):
+            ai_availability.mark_exhausted(name, attempt.error)
+        if not switching:
+            break
+        reason = "limit" if attempt.status == "busy" else "error"
 
-    if status in ("busy", "error") and (proposals or stock_proposals or action_proposals):
+    answer = attempt.answer
+    if attempt.status in ("busy", "error") and attempt.has_draft:
         answer = translate(DRAFT_READY, request_lang())
-    elif status == "busy":
-        raise ApiError("ai_busy", DAILY_QUOTA if daily_quota else BUSY, 503)
-    elif status == "error":
-        raise ApiError("ai_unavailable", UNAVAILABLE, 503)
-    elif status == "capped":
+    elif attempt.status == "busy":
+        details = {"providers": ai_availability.overview()}
+        raise ApiError("ai_busy", _busy_message(ai_availability.back_at(configured), utcnow(), org.timezone), 503, details)
+    elif isinstance(attempt.error, ProviderTooLarge):
+        raise ApiError("ai_too_long", TOO_LONG, 503)
+    elif attempt.status == "error":
+        raise ApiError("ai_unavailable", UNAVAILABLE, 503, {"providers": ai_availability.overview()})
+    elif attempt.status == "capped":
         raise ApiError(
             "ai_limit_reached",
             "The assistant has reached its monthly usage limit. Everything else in the app still works.",
@@ -343,10 +404,14 @@ def run_chat(user: User, org: Organization, question: str, history, project_id) 
     refused = answer in REFUSALS.values()
     return {
         "answer": answer or "I couldn't put an answer together. Try rephrasing the question.",
-        "tool_trace": [] if refused else trace,
+        "tool_trace": [] if refused else attempt.trace,
         # The latest draft of each kind, if the model revised it within one answer; none with a refusal.
-        "proposals": [] if refused else proposals[-1:],
-        "stock_proposals": [] if refused else [_localized_stock_draft(d) for d in stock_proposals[-1:]],
-        "action_proposals": [] if refused else [_localized_stock_draft(d) for d in action_proposals[-1:]],
+        "proposals": [] if refused else attempt.proposals[-1:],
+        "stock_proposals": [] if refused else [_localized_stock_draft(d) for d in attempt.stock_proposals[-1:]],
+        "action_proposals": [] if refused else [_localized_stock_draft(d) for d in attempt.action_proposals[-1:]],
         "ai_generated": True,
+        "provider": used,
+        # Set when another provider than the chosen one answered: "limit" (usage exhausted) or "error" (it failed).
+        "switched": {"from": first_choice, "reason": reason} if used != first_choice else None,
+        "providers": ai_availability.overview(),
     }
