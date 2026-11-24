@@ -31,12 +31,28 @@ browser -> Cloudflare Worker (site + /api proxy) -> Render (Flask backend) -> Ne
    (`postgresql://...?sslmode=require`).
 3. **Cloudflare:** in `frontend/`, run `npx wrangler@4 login`, then `npm run deploy:cloudflare`. It prints the
    address, `https://business-project-assistance.<you>.workers.dev`. The site loads; `/api` isn't set up yet.
-4. **Render:** New > Blueprint, pick the repository (it reads `render.yaml`) and fill in:
-   `DATABASE_URL` (Neon), `APP_BASE_URL` and `CORS_ORIGINS` (both the Cloudflare address, no final `/`),
-   `GEMINI_API_KEY`, `GROQ_API_KEY`. Leave the SMTP ones and `EMAIL_FROM` empty for now. Secrets are generated;
-   migrations run on start.
-5. **Connect them:** copy `PROXY_SECRET` from Render's Environment page, then in `frontend/`:
-   `npx wrangler@4 secret put PROXY_SECRET` (paste it) and `npx wrangler@4 secret put BACKEND_URL` (the Render
+4. **Render:** don't use a Blueprint (Render asked for a card there). New > Web Service, pick the repository, then:
+   Language Docker, Branch `main`, Region Frankfurt, Root Directory `backend`, Instance Type **Free**, Health Check
+   Path `/api/health` (under Advanced). Add these environment variables; make three different secrets with
+   `py -c "import secrets; print(secrets.token_urlsafe(48))"`:
+
+   ```
+   PORT=5000
+   SECRET_KEY=<secret 1>
+   JWT_SECRET_KEY=<secret 2>
+   PROXY_SECRET=<secret 3>
+   DATABASE_URL=<the Neon connection string>
+   APP_BASE_URL=https://<your address>.workers.dev
+   CORS_ORIGINS=https://<your address>.workers.dev
+   UPLOAD_STORAGE=database
+   EMAIL_PROVIDER=none
+   AI_PROVIDER=gemini
+   GEMINI_API_KEY=<key>
+   GROQ_API_KEY=<key>
+   ```
+   Migrations run on start. If Render asks for a card here too, see "Without Render".
+5. **Connect them:** in `frontend/`:
+   `npx wrangler@4 secret put PROXY_SECRET` (paste secret 3) and `npx wrangler@4 secret put BACKEND_URL` (the Render
    address, e.g. `https://bpa-backend.onrender.com`).
 6. Open the Cloudflare address and sign up. **Don't load `demo-data`** online: its password is public.
 
@@ -60,6 +76,13 @@ With a domain, Resend (`EMAIL_PROVIDER=resend`) works over HTTPS.
 
 No accounts: `docker compose up -d --build`, then `cloudflared tunnel --url http://localhost:8080` gives a temporary
 `trycloudflare.com` address. It changes every time, works while the computer is on, and Cloudflare means it for tests.
+
+## Without Render
+
+The Cloudflare site can use a backend running on your own computer: start it with the variables above, run
+`cloudflared tunnel --url http://localhost:5000`, and put the `trycloudflare.com` address it prints in the Worker with
+`npx wrangler@4 secret put BACKEND_URL`. The public address stays the same; repeat the last step whenever the tunnel
+restarts. It works only while the computer is on.
 
 ## Going commercial
 
