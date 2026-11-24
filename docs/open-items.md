@@ -267,7 +267,7 @@
   a conversation was last about is deleted, or by the author (one or all).
 - Draft cards are not saved, only counted: one brought back later could be confirmed twice.
 - A failed question isn't saved; it goes back to the input box.
-- Not checked on PostgreSQL yet: migration a2c4e6f8b0d1 (Docker wasn't running).
+- Migrations checked on PostgreSQL 16 on 2026-11-24 (up, down, up).
 
 ## Assistant reliability (2026-11-21 to 24)
 - Gemini's free tier allows 15 requests a minute on gemini-3.5-flash-lite; one question can make up to 9. Its 429
@@ -283,3 +283,9 @@
   Outages switch too, without greying out. A draft already made is shown instead of being redone.
 - Groq's free tier (8,000 tokens a minute) fits one or two lookups: longer questions usually switch to Gemini.
 - Prices for the monthly cap can differ: `GROQ_*_PRICE_PER_MTOK_USD`, `GEMINI_*_PRICE_PER_MTOK_USD`.
+- gpt-oss on Groq sometimes ended a valid answer with the refusal sentence: the prompt now forbids it, and an answer
+  based on tools is never replaced by the refusal.
+
+## Online hosting (prepared, not deployed)
+- `docs/hosting.md`: Cloudflare Worker (site + `/api` proxy), Render, Neon. Rehearsed locally with wrangler dev and
+  PostgreSQL 16. Deploying needs the user's accounts. To decide: open sign-up or invitation only; email service.

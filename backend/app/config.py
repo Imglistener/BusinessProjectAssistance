@@ -3,13 +3,23 @@ from datetime import timedelta
 from decimal import Decimal
 
 
+def database_url(url: str) -> str:
+    """Hosts give postgres:// or postgresql:// addresses; name the driver we install, or SQLAlchemy picks another."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg2://" + url[len(prefix):]
+    return url
+
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql+psycopg2://bpa:bpa@localhost:5432/bpa"
+    SQLALCHEMY_DATABASE_URI = database_url(
+        os.getenv("DATABASE_URL", "postgresql+psycopg2://bpa:bpa@localhost:5432/bpa")
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Hosted databases close idle connections (Neon sleeps after 5 minutes): check each one before using it.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
     # How long a login lasts. There are no refresh tokens yet, so the user logs in again after this.
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=int(os.getenv("JWT_ACCESS_TOKEN_HOURS", "12")))
@@ -17,6 +27,9 @@ class Config:
     CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
     # Number of reverse proxies in front of the app that set X-Forwarded-For / -Proto (0 = none).
     PROXY_FIX_X_FOR = int(os.getenv("PROXY_FIX_X_FOR", "0"))
+    # Shared with the Cloudflare Worker in front (frontend/worker). When set, only requests carrying it are served
+    # (except the health check), and the visitor's address is the one the Worker reports.
+    PROXY_SECRET = os.getenv("PROXY_SECRET", "")
 
     DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY", "MAD")
 
@@ -36,6 +49,8 @@ class Config:
     # Uploaded receipts. A local folder for now; back it up with the database (see docs/deployment.md).
     # An empty UPLOAD_DIR= (as in .env.example) means the default folder too.
     UPLOAD_DIR = os.getenv("UPLOAD_DIR") or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+    # "folder" (UPLOAD_DIR) or "database": for hosts without a persistent disk.
+    UPLOAD_STORAGE = (os.getenv("UPLOAD_STORAGE") or "folder").strip().lower()
     MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
     # Flask rejects bigger request bodies before they're read (413).
     MAX_CONTENT_LENGTH = (MAX_UPLOAD_MB + 1) * 1024 * 1024
@@ -94,6 +109,8 @@ class TestConfig(Config):
     GOOGLE_APP_PASSWORD = ""
     SMTP_PASSWORD = ""
     UPLOAD_DIR = ""  # set per test to a temporary folder
+    UPLOAD_STORAGE = "folder"
+    PROXY_SECRET = ""
     CAPTCHA_ENABLED = False  # tests that need it turn it on
     CAPTCHA_COST = 50
     FUEL_AUTO_SYNC = False

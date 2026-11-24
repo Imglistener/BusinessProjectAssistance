@@ -10,6 +10,9 @@ venv/
 node_modules/
 dist/
 
+# Cloudflare local state
+.wrangler/
+
 # Env and secrets
 .env
 .env.*

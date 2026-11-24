@@ -1,7 +1,7 @@
 # Deployment and operations
 
 How to run BusinessProjectAssistance in production, and what to check before going live.
-Local development is covered in the README.
+Local development is covered in the README; free trial hosting (Cloudflare, Render, Neon) in `hosting.md`.
 
 ## What runs where
 
@@ -30,6 +30,8 @@ All settings are environment variables (see `.env.example`). Never commit real v
 | `APP_BASE_URL` | The frontend address, used in emailed links. |
 | `EMAIL_PROVIDER=gmail`, `GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD`, `GOOGLE_APP_NAME` | Current setup: Gmail over SMTP with an App Password (no domain needed; roughly 500 emails a day). Test with `flask --app wsgi email-test --to you@example.com`. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | `resend`, a sending-only key restricted to the verified domain, and an address on that domain. |
+| `UPLOAD_STORAGE` | `folder` (default) or `database`, for hosts without a persistent disk. |
+| `PROXY_SECRET` | Only with the Cloudflare Worker in front: the secret they share. Anything else is refused. |
 | `UPLOAD_DIR` | A persistent folder for uploaded receipts (outside the code folder, on a backed-up disk). |
 | `AI_PROVIDER`, `GROQ_API_KEY` or `GEMINI_API_KEY`, `AI_*` | AI provider (`groq` or `gemini`), its key and limits. The key stays on the server. |
 

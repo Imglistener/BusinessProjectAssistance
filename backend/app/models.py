@@ -187,6 +187,15 @@ class Attachment(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class StoredFile(db.Model):
+    """The contents of uploaded files when UPLOAD_STORAGE=database."""
+
+    __tablename__ = "stored_files"
+    name = db.Column(db.String(64), primary_key=True)  # Attachment.stored_name
+    data = db.Column(db.LargeBinary, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
 class TripStatus(str, enum.Enum):
     PLANNED = "planned"
     BOOKED = "booked"

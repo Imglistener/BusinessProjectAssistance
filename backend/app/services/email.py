@@ -53,6 +53,14 @@ class ConsoleSender:
         return False
 
 
+class NoSender:
+    """EMAIL_PROVIDER=none: a hosted app without email yet. Unlike console, live links stay out of the logs."""
+
+    def send(self, email: Email, idempotency_key: str) -> bool:
+        current_app.logger.warning("Email not sent (EMAIL_PROVIDER=none): %s", email.subject)
+        return False
+
+
 class ResendSender:
     def __init__(self, api_key: str, sender: str, timeout: int = 10):
         self.api_key = api_key
@@ -139,6 +147,8 @@ GMAIL_HOST, GMAIL_PORT = "smtp.gmail.com", 587
 
 def get_sender() -> Sender:
     cfg = current_app.config
+    if cfg["EMAIL_PROVIDER"] == "none":
+        return NoSender()
     if cfg["EMAIL_PROVIDER"] == "gmail":
         address, password = cfg["GOOGLE_EMAIL"], cfg["GOOGLE_APP_PASSWORD"].replace(" ", "")
         if not address or not password:

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:cloudflare": "tsc -b && node scripts/build-cloudflare.mjs",
+    "deploy:cloudflare": "npm run build:cloudflare && npx --yes wrangler@4 deploy",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "e2e": "node e2e/smoke.mjs",

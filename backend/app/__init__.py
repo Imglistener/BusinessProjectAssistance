@@ -4,6 +4,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from .config import Config
 from .extensions import cors, db, jwt, migrate
 from .i18n import request_lang, translate
+from .proxy_secret import ProxySecret
 
 
 def create_app(config_object=Config):
@@ -17,6 +18,8 @@ def create_app(config_object=Config):
     if app.config["PROXY_FIX_X_FOR"]:
         n = app.config["PROXY_FIX_X_FOR"]
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=n, x_proto=n)
+    if app.config["PROXY_SECRET"]:
+        app.wsgi_app = ProxySecret(app.wsgi_app, app.config["PROXY_SECRET"])
     _warn_about_weak_secrets(app)
 
     from . import models  # noqa: F401  (register models for migrations)

@@ -1,5 +1,6 @@
-"""File storage for attachments. Local folder for now (UPLOAD_DIR); a cloud bucket can implement the same
-three functions later. Files are addressed only by random names we generate, never by user input.
+"""File storage for attachments: a local folder (UPLOAD_DIR), or the database (UPLOAD_STORAGE=database) on hosts
+without a persistent disk; a cloud bucket can implement the same three functions later. Files are addressed only by
+random names we generate, never by user input.
 """
 from __future__ import annotations
 
@@ -9,6 +10,9 @@ import secrets
 import unicodedata
 
 from flask import current_app
+
+from ..extensions import db
+from ..models import StoredFile
 
 STORED_NAME = re.compile(r"^[a-f0-9]{32}$")
 
@@ -51,19 +55,37 @@ def _path(stored_name: str) -> str:
     return os.path.join(_dir(), stored_name)
 
 
+def _in_database() -> bool:
+    return current_app.config["UPLOAD_STORAGE"] == "database"
+
+
 def save(data: bytes) -> str:
+    """In a folder the file is written at once; in the database it's part of the caller's transaction."""
     stored_name = secrets.token_hex(16)
+    if _in_database():
+        db.session.add(StoredFile(name=stored_name, data=data))
+        return stored_name
     with open(_path(stored_name), "xb") as f:  # "x": never overwrite
         f.write(data)
     return stored_name
 
 
 def read(stored_name: str) -> bytes:
+    if _in_database():
+        row = db.session.get(StoredFile, stored_name)
+        if row is None:
+            raise FileNotFoundError(stored_name)
+        return row.data
     with open(_path(stored_name), "rb") as f:
         return f.read()
 
 
 def delete(stored_name: str) -> None:
+    """Called once the caller's transaction is over; in the database it commits."""
+    if _in_database():
+        StoredFile.query.filter_by(name=stored_name).delete(synchronize_session=False)
+        db.session.commit()
+        return
     try:
         os.remove(_path(stored_name))
     except FileNotFoundError:

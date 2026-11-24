@@ -1,0 +1,51 @@
+# Render blueprint for the backend (docs/hosting.md). Values marked sync: false are asked for when it's created.
+services:
+  - type: web
+    name: bpa-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "5000"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # The same value goes to the Worker: npx wrangler secret put PROXY_SECRET
+      - key: PROXY_SECRET
+        generateValue: true
+      # From Neon: postgresql://...neon.tech/...?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # The app's public address: https://business-project-assistance.<your-subdomain>.workers.dev
+      - key: APP_BASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      # No persistent disk on the free plan.
+      - key: UPLOAD_STORAGE
+        value: database
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Free web services can't use ports 25, 465 and 587, so Gmail doesn't work here. Once a service with port 2525
+      # is filled in below, change none to smtp.
+      - key: EMAIL_PROVIDER
+        value: none
+      - key: SMTP_PORT
+        value: "2525"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

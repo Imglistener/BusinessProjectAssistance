@@ -1,0 +1,17 @@
+// Cloudflare: one Worker for the app's files and the /api proxy. See docs/hosting.md.
+{
+  "name": "business-project-assistance",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Client-side routes (/app/..., /login) load index.html; /api goes to the Worker.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Request logs would keep invitation tokens, which are in some API paths.
+  "observability": { "enabled": false }
+}
