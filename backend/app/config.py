@@ -34,7 +34,8 @@ class Config:
     SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     # Uploaded receipts. A local folder for now; back it up with the database (see docs/deployment.md).
-    UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads"))
+    # An empty UPLOAD_DIR= (as in .env.example) means the default folder too.
+    UPLOAD_DIR = os.getenv("UPLOAD_DIR") or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
     MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
     # Flask rejects bigger request bodies before they're read (413).
     MAX_CONTENT_LENGTH = (MAX_UPLOAD_MB + 1) * 1024 * 1024
