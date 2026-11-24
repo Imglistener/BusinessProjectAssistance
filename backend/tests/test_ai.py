@@ -375,7 +375,7 @@ def test_groq_failures_raise_provider_error(monkeypatch, behaviour):
 
 
 @pytest.mark.parametrize("first", [lambda: FakeHttp(503, {}), requests.Timeout, requests.ConnectionError])
-def test_transient_failure_is_retried_once(monkeypatch, first):
+def test_transient_failure_is_retried(monkeypatch, first):
     import app.services.ai_provider as prov
 
     calls = []
@@ -392,6 +392,33 @@ def test_transient_failure_is_retried_once(monkeypatch, first):
     monkeypatch.setattr(prov.time, "sleep", lambda s: calls.append(("slept", s)))
     assert groq().chat([], None).content == "ok"
     assert calls == [1, ("slept", 2), 1]
+
+
+def test_overload_is_retried_with_growing_delays_then_fails(monkeypatch):
+    import app.services.ai_provider as prov
+
+    slept, posts = [], []
+    monkeypatch.setattr(requests, "post", lambda *a, **k: posts.append(1) or FakeHttp(503, {}))
+    monkeypatch.setattr(prov.time, "sleep", slept.append)
+    with pytest.raises(ProviderError):
+        groq().chat([], None)
+    assert slept == [2, 5, 10] and len(posts) == 4
+
+
+def test_timeouts_are_retried_only_once(monkeypatch):
+    import app.services.ai_provider as prov
+
+    posts = []
+
+    def post(*a, **k):
+        posts.append(1)
+        raise requests.ConnectTimeout()  # both a Timeout and a ConnectionError
+
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr(prov.time, "sleep", lambda s: None)
+    with pytest.raises(ProviderError):
+        groq().chat([], None)
+    assert len(posts) == 2
 
 
 def gemini_429(quota_id="GenerateRequestsPerMinutePerProjectPerModel-FreeTier", delay="24s"):

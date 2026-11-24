@@ -28,10 +28,11 @@ class ProviderRateLimited(ProviderError):
 # provider object are capped in total too.
 MAX_RETRY_WAIT_SECONDS = 60
 MAX_TOTAL_WAIT_SECONDS = 90
-# Server errors (500/502/503/504: "model overloaded"), timeouts and dropped connections are often momentary.
+# Server errors (503 "model overloaded" above all) and dropped connections are often momentary: retried with
+# growing delays. A timeout has already cost AI_REQUEST_TIMEOUT_SECONDS, so it gets one retry.
 TRANSIENT_STATUSES = {500, 502, 503, 504}
-TRANSIENT_RETRY_DELAY_SECONDS = 2
-MAX_ATTEMPTS = 3
+TRANSIENT_DELAYS_SECONDS = (2, 5, 10)
+MAX_RATE_LIMIT_WAITS = 2
 
 
 class ProviderNotConfigured(Exception):
@@ -81,6 +82,11 @@ class OpenAICompatibleProvider:
         time.sleep(seconds)
         return True
 
+    def _transient_wait(self, retries_so_far: int) -> bool:
+        if retries_so_far >= len(TRANSIENT_DELAYS_SECONDS):
+            return False
+        return self._sleep(TRANSIENT_DELAYS_SECONDS[retries_so_far])
+
     def _body(self, messages: list[dict], tools: Optional[list[dict]]) -> dict:
         body: dict = {"model": self.model, "messages": messages, "temperature": 0.2}
         if tools:
@@ -90,9 +96,8 @@ class OpenAICompatibleProvider:
 
     def chat(self, messages: list[dict], tools: Optional[list[dict]]) -> ProviderResponse:
         body = self._body(messages, tools)
-        transient_retried = False
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            last = attempt == MAX_ATTEMPTS
+        transient = timeouts = limited = 0
+        while True:
             try:
                 r = requests.post(
                     f"{self.base_url}/chat/completions",
@@ -100,10 +105,15 @@ class OpenAICompatibleProvider:
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.timeout,
                 )
-            except (requests.Timeout, requests.ConnectionError) as e:
-                if last or transient_retried or not self._sleep(TRANSIENT_RETRY_DELAY_SECONDS):
+            except requests.Timeout as e:  # before ConnectionError: a connect timeout is both
+                timeouts += 1
+                if timeouts > 1 or not self._sleep(TRANSIENT_DELAYS_SECONDS[0]):
                     raise ProviderError(f"request failed: {type(e).__name__}") from e
-                transient_retried = True
+                continue
+            except requests.ConnectionError as e:
+                if not self._transient_wait(transient):
+                    raise ProviderError(f"request failed: {type(e).__name__}") from e
+                transient += 1
                 continue
             except requests.RequestException as e:
                 raise ProviderError(f"request failed: {type(e).__name__}") from e
@@ -111,13 +121,18 @@ class OpenAICompatibleProvider:
                 if _is_daily_quota(r):
                     raise ProviderRateLimited("provider daily quota used up (HTTP 429)", daily=True)
                 wait = _retry_after(r)
-                if last or wait is None or wait > MAX_RETRY_WAIT_SECONDS or not self._sleep(wait + 0.5):
+                limited += 1
+                if (
+                    wait is None
+                    or limited > MAX_RATE_LIMIT_WAITS
+                    or wait > MAX_RETRY_WAIT_SECONDS
+                    or not self._sleep(wait + 0.5)
+                ):
                     raise ProviderRateLimited("provider returned HTTP 429")
                 continue
-            if r.status_code in TRANSIENT_STATUSES and not (last or transient_retried):
-                if self._sleep(TRANSIENT_RETRY_DELAY_SECONDS):
-                    transient_retried = True
-                    continue
+            if r.status_code in TRANSIENT_STATUSES and self._transient_wait(transient):
+                transient += 1
+                continue
             break
         if r.status_code != 200:
             # Status only: provider error bodies can echo the prompt back.
