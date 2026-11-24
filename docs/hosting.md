@@ -79,10 +79,14 @@ No accounts: `docker compose up -d --build`, then `cloudflared tunnel --url http
 
 ## Without Render
 
-The Cloudflare site can use a backend running on your own computer: start it with the variables above, run
-`cloudflared tunnel --url http://localhost:5000`, and put the `trycloudflare.com` address it prints in the Worker with
-`npx wrangler@4 secret put BACKEND_URL`. The public address stays the same; repeat the last step whenever the tunnel
-restarts. It works only while the computer is on.
+Render asked for a card even for a free service (2026-11-24). Instead, run the backend on your own computer:
+
+    .\go-online.ps1
+
+It replaces steps 4 and 5: it starts the backend (with the keys and email settings of `.env`), opens a Cloudflare quick
+tunnel and points the Worker at it. The public address stays the same. It works while the computer and the window are
+on. Settings and secrets are kept in `%LOCALAPPDATA%\BusinessProjectAssistance\online.json`; `-Setup` asks again.
+After changing `.env` or updating the code, stop it (Ctrl+C) and start it again.
 
 ## Going commercial
 
